@@ -25,7 +25,7 @@ public interface IAuthService
 
     Task<ApiResponse<string>> DeleteMenuAsync(int id);
 
-    Task<ApiResponse<string>> RegisterAsync(RegisterRequest request);
+    Task<ApiResponse<string>> RegisterAsync(RegisterRequest request, IFormFile? businessLicenseFile = null);
 
     Task<ApiResponse<string>> FindIdAsync(FindIdRequest request);
 
@@ -47,6 +47,9 @@ public class AuthService : IAuthService
     private readonly IRepository<UserMenuSetting> _userMenuSettingRepository;
     private readonly IConfiguration _configuration;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IRepository<Company> _companyRepository;
+    private readonly IRepository<UserCompany> _userCompanyRepository;
+    private readonly IFileService _fileService;
 
     public AuthService(
         IRepository<User> userRepository,
@@ -57,7 +60,10 @@ public class AuthService : IAuthService
         IRepository<MenuFavorite> menuFavoriteRepository,
         IRepository<UserMenuSetting> userMenuSettingRepository,
         IConfiguration configuration,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IRepository<Company> companyRepository,
+        IRepository<UserCompany> userCompanyRepository,
+        IFileService fileService)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
@@ -68,6 +74,9 @@ public class AuthService : IAuthService
         _userMenuSettingRepository = userMenuSettingRepository;
         _configuration = configuration;
         _currentUserService = currentUserService;
+        _companyRepository = companyRepository;
+        _userCompanyRepository = userCompanyRepository;
+        _fileService = fileService;
     }
 
     public async Task<ApiResponse<LoginResponse>> LoginAsync(LoginRequest request)
@@ -148,7 +157,7 @@ public class AuthService : IAuthService
         });
     }
 
-    public async Task<ApiResponse<string>> RegisterAsync(RegisterRequest request)
+    public async Task<ApiResponse<string>> RegisterAsync(RegisterRequest request, IFormFile? businessLicenseFile = null)
     {
         if (request.Username.Any(char.IsWhiteSpace) || request.Password.Any(char.IsWhiteSpace) || (request.Email?.Any(char.IsWhiteSpace) ?? false))
         {
@@ -165,7 +174,12 @@ public class AuthService : IAuthService
             Username = request.Username,
             Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Name = request.Name,
-            UserType = request.UserType ?? "COMPANY",
+            Ssn = request.Ssn ?? string.Empty,
+            ZipCode = request.ZipCode ?? string.Empty,
+            AddressBase = request.AddressBase ?? string.Empty,
+            AddressDetail = request.AddressDetail ?? string.Empty,
+            SmsAllowed = request.SmsAllowed,
+            UserType = request.UserType ?? "RETAIL",
             Introduction = request.Introduction ?? string.Empty
         };
 
@@ -185,8 +199,56 @@ public class AuthService : IAuthService
             user.UserRoles.Add(new UserRole { RoleId = visitorRole.Id });
         }
 
+        string assignedRoleKey = request.UserType switch
+        {
+            "RETAIL" => "retail",
+            "LOGISTICS" => "market",
+            "MANUFACTURER" => "manufacturer",
+            _ => "retail"
+        };
+        var assignedRole = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == assignedRoleKey);
+        if (assignedRole != null)
+        {
+            user.UserRoles.Add(new UserRole { RoleId = assignedRole.Id });
+        }
+
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
+
+        var fileUrl = string.Empty;
+        if (businessLicenseFile != null && businessLicenseFile.Length > 0)
+        {
+            fileUrl = await _fileService.SaveFileAsync(businessLicenseFile, "company_licenses");
+        }
+
+        var company = new Company
+        {
+            Name = request.CompanyName ?? string.Empty,
+            BusinessNumber = request.CompanyBusinessNumber ?? string.Empty,
+            BusinessType = request.CompanyBusinessType ?? string.Empty,
+            BusinessCategory = request.CompanyBusinessCategory ?? string.Empty,
+            Phone = request.CompanyPhone ?? string.Empty,
+            ZipCode = request.CompanyZipCode ?? string.Empty,
+            AddressBase = request.CompanyAddressBase ?? string.Empty,
+            AddressDetail = request.CompanyAddressDetail ?? string.Empty,
+            LogisticsCode = request.LogisticsCode ?? string.Empty,
+            BusinessLicenseFileUrl = fileUrl,
+            CEO = request.Name ?? string.Empty,
+            Region = "서울", // Default or extract from address?
+            IsDirectManagement = false,
+            Category = request.UserType ?? "RETAIL"
+        };
+
+        await _companyRepository.AddAsync(company);
+        await _companyRepository.SaveChangesAsync();
+
+        var userCompany = new UserCompany
+        {
+            UserId = user.Id,
+            CompanyId = company.Id
+        };
+        await _userCompanyRepository.AddAsync(userCompany);
+        await _userCompanyRepository.SaveChangesAsync();
 
         return ApiResponse<string>.Success("Registration successful.");
     }

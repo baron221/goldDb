@@ -236,20 +236,29 @@ public class UserPhotoDto
 
 public class RegisterRequest
 {
-
     public string Username { get; set; } = string.Empty;
-
     public string Password { get; set; } = string.Empty;
-
     public string Name { get; set; } = string.Empty;
-
+    public string Ssn { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
-
     public string Phone { get; set; } = string.Empty;
+    public string ZipCode { get; set; } = string.Empty;
+    public string AddressBase { get; set; } = string.Empty;
+    public string AddressDetail { get; set; } = string.Empty;
+    
+    public string CompanyName { get; set; } = string.Empty;
+    public string CompanyBusinessNumber { get; set; } = string.Empty;
+    public string CompanyBusinessType { get; set; } = string.Empty;
+    public string CompanyBusinessCategory { get; set; } = string.Empty;
+    public string CompanyPhone { get; set; } = string.Empty;
+    public string CompanyZipCode { get; set; } = string.Empty;
+    public string CompanyAddressBase { get; set; } = string.Empty;
+    public string CompanyAddressDetail { get; set; } = string.Empty;
 
-    public string UserType { get; set; } = "STORE";
-
-    public string? Introduction { get; set; }
+    public string UserType { get; set; } = "RETAIL";
+    public string LogisticsCode { get; set; } = string.Empty;
+    public bool SmsAllowed { get; set; } = true;
+    public string Introduction { get; set; } = string.Empty;
 }
 
 public class FindIdRequest

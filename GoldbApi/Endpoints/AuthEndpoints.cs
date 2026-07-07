@@ -24,11 +24,12 @@ public static class AuthEndpoints
             return Results.Ok(result);
         });
 
-        app.MapPost("/user/register", async (RegisterRequest request, IAuthService authService) =>
+        app.MapPost("/user/register", async ([FromForm] RegisterRequest request, IFormFile? businessLicenseFile, IAuthService authService) =>
         {
-            var result = await authService.RegisterAsync(request);
+            var result = await authService.RegisterAsync(request, businessLicenseFile);
             return Results.Ok(result);
-        }).WithValidation<RegisterRequest>();
+        })
+        .DisableAntiforgery();
 
         app.MapPost("/user/find-id", async (FindIdRequest request, IAuthService authService) =>
         {

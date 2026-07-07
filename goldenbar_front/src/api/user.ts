@@ -72,6 +72,9 @@ export function register(data: any) {
   return request({
     url: '/user/register',
     method: 'post',
+    headers: {
+      'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+    },
     data
   });
 }
