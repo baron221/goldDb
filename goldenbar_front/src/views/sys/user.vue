@@ -27,6 +27,7 @@
           :user="userDetail"
           :roles="allRoles"
           @save="handleSave"
+          @approve="handleApprove"
           @delete="() => removeUser(userDetail.id)"
           @create-company="companyCreateVisible = true"
           @open-postcode="openPostcode"
@@ -66,6 +67,7 @@
           :user="userDetail"
           :roles="allRoles"
           @save="handleSave"
+          @approve="handleApprove"
           @delete="() => removeUser(userDetail.id)"
           @create-company="companyCreateVisible = true"
           @open-postcode="openPostcode"
@@ -95,7 +97,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue';
-import { createUser, updateUser } from '@/api/user';
+import { createUser, updateUser, approveUser } from '@/api/user';
 
 import UserCreateDialog from './components/UserCreateDialog.vue';
 import CompanyCreateDialog from '@/components/CompanyCreateDialog/index.vue';
@@ -205,6 +207,17 @@ const handleSave = async () => {
     fetchUsers();
   } catch (error: any) {
     ElMessage.error(t('common.save') + ': ' + (error.response?.data?.message || error.message));
+  }
+};
+
+const handleApprove = async () => {
+  try {
+    await approveUser(userDetail.id);
+    ElMessage.success('사용자가 승인되었습니다.');
+    userDetail.isApproved = true;
+    fetchUsers();
+  } catch (error: any) {
+    ElMessage.error('승인 실패: ' + (error.response?.data?.message || error.message));
   }
 };
 

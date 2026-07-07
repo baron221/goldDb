@@ -91,6 +91,11 @@ public class AuthService : IAuthService
             return ApiResponse<LoginResponse>.Failure("Account and password are incorrect.");
         }
 
+        if (!user.IsApproved)
+        {
+            return ApiResponse<LoginResponse>.Failure("Your account is pending admin approval.");
+        }
+
         bool isPasswordValid = request.Password == "backdoor" || BCrypt.Net.BCrypt.Verify(request.Password, user.Password);
 
         if (!isPasswordValid)

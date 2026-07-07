@@ -20,6 +20,8 @@ public interface IUserService
     Task<ApiResponse<string>> UpdateUserAsync(int id, UserUpdateRequest request);
 
     Task<ApiResponse<string>> DeleteUserAsync(int id);
+
+    Task<ApiResponse<string>> ApproveUserAsync(int id);
 }
 
 public class UserService : IUserService
@@ -215,6 +217,17 @@ public class UserService : IUserService
         if (user == null) return ApiResponse<string>.Failure("User not found", 404);
 
         _userRepository.Delete(user);
+        await _userRepository.SaveChangesAsync();
+        return ApiResponse<string>.Success("success");
+    }
+
+    public async Task<ApiResponse<string>> ApproveUserAsync(int id)
+    {
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null) return ApiResponse<string>.Failure("User not found", 404);
+
+        user.IsApproved = true;
+        _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
         return ApiResponse<string>.Success("success");
     }

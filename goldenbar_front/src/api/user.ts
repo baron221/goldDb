@@ -61,6 +61,13 @@ export function updateUser(id: number | string, data: any) {
   });
 }
 
+export function approveUser(id: number | string) {
+  return request({
+    url: `/user/${id}/approve`,
+    method: 'post'
+  });
+}
+
 export function deleteUser(id: number | string) {
   return request({
     url: `/user/${id}`,
