@@ -1,0 +1,341 @@
+.public-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  font-family: 'S-CoreDream', 'Jost', sans-serif;
+
+  .public-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    transition: all 0.3s;
+    padding: 1.5625rem 0;
+
+    &.is-scrolled {
+      background-color: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 0.9375rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+      @media (max-width: 768px) {
+        padding: 1.25rem 0; // 모바일에서는 스크롤 시에도 패딩 변화를 최소화
+      }
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      @media (max-width: 768px) {
+        padding: 0 1rem;
+      }
+    }
+
+    .logo {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      img {
+        height: 40px; // Adjust height as needed
+        width: auto;
+        object-fit: contain;
+      }
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.875rem;
+
+      .nav-item {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #666;
+        text-decoration: none;
+        letter-spacing: 1px;
+        transition: color 0.3s;
+
+        &:hover, &.router-link-active {
+          color: #1a1a1a;
+        }
+
+        &.login-btn {
+          background-color: #1a1a1a;
+          color: #fff;
+          padding: 0.5rem 1.25rem;
+          border-radius: 2px;
+          &:hover {
+            background-color: #333;
+          }
+        }
+
+        &.logout-icon {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.125rem;
+          color: #999;
+          transition: all 0.3s;
+          &:hover {
+            color: #f56c6c;
+            transform: scale(1.1);
+          }
+        }
+      }
+
+      .auth-btns {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+      }
+
+      .lang-switch {
+        cursor: pointer;
+        font-size: 0.8875rem !important;
+        display: flex;
+        align-items: center;
+        margin-left: -0.625rem; // 이전 아이템(로그아웃 아이콘 등)과의 간격을 약 20px로 조정
+
+        span {
+          transition: color 0.3s;
+          &:hover {
+            color: #1a1a1a;
+          }
+        }
+      }
+    }
+  }
+
+  .public-main {
+    flex: 1;
+    padding-top: 0; // Each page handles its own padding or hero
+  }
+
+  .public-footer {
+    background-color: #f9f9f9;
+    padding: 2.5rem 1.25rem 1.875rem;
+    border-top: 1px solid #eee;
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.875rem;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      img {
+        height: 30px;
+        width: auto;
+        object-fit: contain;
+        filter: grayscale(1);
+        opacity: 0.6;
+      }
+    }
+
+    .footer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .link-group {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.9375rem;
+
+        h4 {
+          font-size: 0.825rem;
+          font-weight: 800;
+          color: #bbb;
+          letter-spacing: 1px;
+          margin-bottom: 0;
+          min-width: 70px;
+          text-transform: uppercase;
+        }
+
+        a {
+          font-size: 0.8875rem;
+          color: #888;
+          text-decoration: none;
+          white-space: nowrap;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          transition: color 0.3s;
+          &:hover {
+            color: #1a1a1a;
+          }
+        }
+      }
+    }
+
+    .footer-bottom {
+      padding-top: 0.9375rem;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #ccc;
+      font-size: 0.825rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .public-layout {
+    .nav-links {
+      display: none !important;
+    }
+
+    .mobile-toggle {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #1a1a1a;
+    }
+  }
+}
+
+:deep(.mobile-drawer) {
+  background-color: #fff;
+
+  .el-drawer__body {
+    padding: 0;
+  }
+}
+
+.mobile-drawer-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem;
+
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    .drawer-logo {
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .close-icon {
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: #999;
+    }
+  }
+
+  .drawer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    .drawer-item {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #333;
+      text-decoration: none;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f5f5f5;
+      transition: color 0.3s;
+
+      &:active {
+        color: #c5a880;
+      }
+
+      &.login-link {
+        color: #1a1a1a;
+        font-weight: 700;
+      }
+
+      &.logout-link {
+        color: #f56c6c;
+      }
+
+      &.lang-link {
+        margin-top: 1rem;
+        font-size: 0.875rem;
+        color: #666;
+        border-bottom: none;
+      }
+    }
+
+    .drawer-divider {
+      height: 1px;
+      background-color: #eee;
+      margin: 1rem 0;
+    }
+  }
+}
+
+.back-to-top {
+  position: fixed;
+  right: 30px;
+  bottom: 40px;
+  width: 45px;
+  height: 45px;
+  background-color: rgba(26, 26, 26, 0.9); // 90% 불투명 블랙
+  backdrop-filter: blur(10px); // 유리 효과
+  -webkit-backdrop-filter: blur(10px);
+  color: #c5a880;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 999;
+  border: 1px solid rgba(197, 168, 128, 0.3); // 얇은 골드 테두리
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background-color: #c5a880;
+    color: #fff;
+    transform: translateY(-5px);
+    border-color: #c5a880;
+  }
+
+  @media (max-width: 768px) {
+    right: 20px;
+    bottom: 30px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.5s, transform 0.5s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.public-header {
+  .mobile-toggle {
+    display: none;
+  }
+}

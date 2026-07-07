@@ -1,0 +1,180 @@
+.expand-table-wrapper-luxury {
+  margin-bottom: 1.5625rem;
+}
+
+.luxury-nested-table {
+  border-color: #eae6df !important;
+
+  :deep(.el-table__header-wrapper) {
+    th {
+      background-color: #fbfaf7;
+     
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.825rem;
+      height: 45px;
+      border-bottom: 1px solid #eae6df;
+    }
+  }
+
+  :deep(.el-table__row) {
+    td {
+      border-bottom: 1px solid #f7f5f0;
+      padding: 0rem 0;
+
+      &.photo-column {
+        padding: 0 !important;
+        .cell {
+          padding: 0 0.5rem !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 0.5rem !important;
+          overflow: visible !important;
+
+          .el-table__indent {
+            padding-left: 0 !important;
+            width: 0 !important;
+          }
+
+          .el-table__expand-icon {
+            margin-right: 0 !important;
+            flex-shrink: 0 !important;
+          }
+        }
+      }
+
+      &.price-column {
+        padding-right: 0 !important;
+        .cell {
+          padding-right: 0.5rem !important;
+          padding-left: 0.5rem !important;
+        }
+      }
+    }
+  }
+}
+
+.product-thumb-luxury {
+  width: 100px;
+  height: 100px;
+  display: block;
+  border: none;
+}
+
+.photo-wrapper-luxury {
+  position: relative;
+  display: block;
+  width: 100px;
+  height: 100px;
+  overflow: hidden;
+  .set-badge-photo {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: #c5a880;
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 700;
+    padding: 0.125rem 0.3125rem;
+    border-radius: 2px;
+    z-index: 5;
+    letter-spacing: 0.5px;
+  }
+}
+
+.product-category-luxury{
+  font-size: 0.6625rem;
+}
+
+.product-text-luxury {
+  display: flex;
+  flex-direction: column;
+  gap: 0rem;
+
+  .product-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    .manufacturer-name-tag {
+      font-weight: 700;
+      color: #c5a880;
+      font-size: 0.7625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+
+  .product-name-luxury {
+    font-size: 0.875rem;
+    font-weight: 600;
+   
+    &.clickable {
+      cursor: pointer;
+      transition: color 0.2s;
+      &:hover { color: #c5a880; }
+    }
+  }
+
+  .product-no-luxury { font-size: 0.8875rem; color: #bbbbbb; font-family: monospace; }
+
+  .product-options-luxury {
+    display: flex;
+    gap: 0.3125rem;
+    margin-top: 0.25rem;
+    .option-tag-luxury {
+      font-size: 0.725rem;
+      background-color: #fbfaf7;
+      border: 1px solid #eae6df;
+      color: #777777;
+      padding: 0.0625rem 0.375rem;
+      border-radius: 2px;
+    }
+  }
+}
+
+.curr { font-size: 0.825rem; color: #bbbbbb; margin-right: 0.125rem; font-weight: 400; }
+
+.qty-badge-large {
+  font-size: 0.9rem;
+  font-weight: 700;
+ 
+  background-color: #f7f5f0;
+  padding: 0.25rem 0.625rem;
+  border-radius: 2px;
+}
+
+.weight-display-luxury {
+  .val { font-size: 0.875rem; font-weight: 700; }
+  .unit { font-size: 0.825rem; color: #bbbbbb; margin-left: 0.125rem; }
+  &.requested { .val { color: #409EFF; } }
+  &.actual { .val { color: #c5a880; } }
+}
+
+.memo-text-luxury { font-size: 0.95rem; color: #666666; line-height: 1.5; white-space: pre-wrap; }
+.cost-text-luxury { font-size: 0.875rem; font-weight: 600; color: #444444; }
+.empty-dash { color: #eeeeee; }
+.as-active-icon { color: #ff4949; font-size: 1.125rem; }
+
+.settlement-luxury-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  .settle-line {
+    font-size: 0.8875rem;
+    color: #888888;
+    .v { font-weight: 600; color: #444444; margin-left: 0.25rem; }
+  }
+  .settle-total-luxury {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #f0eeeb;
+    .label { font-size: 0.825rem; font-weight: 700; color: #bbbbbb; margin-right: 0.5rem; }
+    .amount { font-size: 1.125rem; font-weight: 700; color: #ff4949; }
+
+    &.unit-total {
+      .amount { font-size: 0.875rem; color: #909399; }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+﻿.order-tracking-container {
+  .filter-form {
+    margin-bottom: 1.25rem;
+    .el-form-item {
+      margin-bottom: 0.625rem;
+    }
+  }
+
+  .list-card, .timeline-card {
+    min-height: calc(100vh - 120px);
+  }
+
+  .pagination-container {
+    margin-top: 1.25rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .timeline-wrapper {
+    padding: 0.625rem;
+    .timeline-details {
+      p {
+        margin: 0.3125rem 0;
+        font-size: 0.9rem;
+        color: #606266;
+
+        &.remarks {
+          margin-top: 0.5rem;
+          padding-top: 0.5rem;
+          border-top: 1px dashed #ebeef5;
+          color: #909399;
+          font-size: 0.95rem;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 400px;
+  }
+}

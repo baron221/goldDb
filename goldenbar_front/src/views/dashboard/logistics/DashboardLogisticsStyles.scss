@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
+
+.dashboard-logistics-page {
+  font-family: 'S-CoreDream', 'Jost', sans-serif;
+  background-color: #fbfaf7;
+  min-height: 100vh;
+  padding-bottom: 3.75rem;
+}
+
+/* Header Banner */
+.dashboard-header-banner {
+  background-color: #ffffff;
+  border-bottom: 1px solid #eae6df;
+  padding: 2.5rem 0;
+  margin-bottom: 2.5rem;
+
+  .header-content-wrapper {
+    // max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.875rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.user-profile-area {
+  display: flex;
+  align-items: center;
+  gap: 1.875rem;
+
+  .jovenca-thumb {
+    width: 100px !important;
+    height: 100px !important;
+    border: 2px solid #c5a880;
+    box-shadow: 0 8px 20px rgba(197, 168, 128, 0.15);
+  }
+
+  .welcome-text {
+    .display-name {
+      font-size: 2rem;
+      font-weight: 600;
+     
+      margin: 0 0 0.25rem 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .dashboard-title {
+      font-size: 0.875rem;
+      color: #888888;
+      margin: 0;
+      font-weight: 300;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+  }
+}
+
+.role-tag {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #c5a880;
+  display: block;
+  text-transform: uppercase;
+}
+
+.refresh-btn {
+  font-size: 0.8875rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #c5a880;
+  &:hover { }
+}
+
+/* Body Content */
+.dashboard-body-content {
+  // max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.875rem;
+}
+
+.section-container {
+  margin-bottom: 2.5rem;
+}
+
+.section-header {
+  margin-bottom: 0.9375rem;
+  .section-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+   
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    padding-left: 0.9375rem;
+    line-height: 1.2;
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background-color: #c5a880;
+    }
+  }
+}
+
+/* Stat Cards */
+.stat-card {
+  background-color: #ffffff;
+  border: 1px solid #eae6df;
+  padding: 1.5625rem;
+  border-radius: 2px;
+  height: 100%;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(197, 168, 128, 0.1);
+    border-color: #c5a880;
+  }
+
+  .stat-label {
+    font-size: 0.95rem;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.95rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+   
+    .unit { font-size: 0.875rem; font-weight: 400; margin-left: 0.25rem; color: #888888; }
+  }
+
+  &.highlight-gold {
+    background-color: #f7f5f0;
+    border-left: 4px solid #c5a880;
+    .stat-value { color: #c5a880; }
+  }
+
+  .formula-tooltip {
+    font-size: 0.8875rem;
+    color: #aaaaaa;
+    margin-top: 0.625rem;
+    font-style: italic;
+  }
+}
+
+/* Status Indicators */
+.status-indicator-card {
+  background-color: #ffffff;
+  border: 1px solid #eae6df;
+  padding: 1.25rem;
+  border-radius: 2px;
+  text-align: center;
+
+  .indicator-header {
+    font-size: 0.8875rem;
+    font-weight: 600;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 0.9375rem;
+  }
+
+  .indicator-count {
+    font-size: 2.25rem;
+    font-weight: 700;
+   
+    margin-bottom: 0.9375rem;
+  }
+
+  .indicator-footer {
+    border-top: 1px solid #f7f5f0;
+    padding-top: 0.95rem;
+    :deep(.el-link) {
+      font-size: 0.8875rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+/* Charts Section: Order Trends */
+.section-container {
+  margin-bottom: 2.5rem;
+}
+
+.chart-container-card {
+  background-color: #ffffff;
+  border: 1px solid #eae6df;
+  border-radius: 2px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .chart-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #f7f5f0;
+    .chart-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+     
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0;
+    }
+  }
+
+  .chart-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 991px) {
+  .dashboard-header-banner {
+    padding: 1.875rem 0;
+  }
+  .user-profile-area {
+    gap: 1.25rem;
+    .jovenca-thumb { width: 80px !important; height: 100px !important; }
+    .welcome-text .display-name { font-size: 1.5rem; }
+  }
+  .summary-grid .el-col {
+    margin-bottom: 1.5rem;
+  }
+}

@@ -1,0 +1,105 @@
+.tags-view-container {
+  height: 40px;
+  width: 100%;
+  background: #ffffff;
+  border-bottom: 1px solid #eae6df;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+
+  .tags-view-wrapper {
+    .tags-view-item {
+      user-select: none;
+      display: inline-block;
+      position: relative;
+      cursor: pointer;
+      height: 39px;
+      line-height: 40px;
+      color: #888888;
+      background: transparent;
+      padding: 0 1.25rem;
+      font-size: 0.90rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+      border-right: 1px solid #f7f5f0;
+
+      .affix-dot {
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        background: #bbbbbb;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+        transition: background 0.3s;
+      }
+
+      &:hover {
+       
+        background-color: #fbfaf7;
+      }
+
+      &.router-link-exact-active {
+        background-color: #ffffff;
+       
+        font-weight: 700;
+
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 2px;
+          background-color: #c5a880;
+        }
+
+        .affix-dot {
+          background: #c5a880;
+        }
+      }
+
+      .tag-subtitle {
+        font-size: 0.825rem;
+        color: #bbbbbb;
+        margin-left: 0.25rem;
+        font-weight: 400;
+      }
+    }
+
+    .sortable-ghost {
+      opacity: .5;
+      background: #f7f5f0 !important;
+      border-top: 2px solid #c5a880 !important;
+    }
+  }
+
+  .contextmenu {
+    margin: 0;
+    background: #ffffff;
+    z-index: 3000;
+    position: absolute;
+    list-style-type: none;
+    padding: 0.5rem 0;
+    border-radius: 2px;
+    font-size: 0.95rem;
+    font-weight: 500;
+   
+    border: 1px solid #eae6df;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    min-width: 140px;
+
+    li {
+      margin: 0;
+      padding: 0.625rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: #f7f5f0;
+        color: #c5a880;
+      }
+    }
+  }
+}
+

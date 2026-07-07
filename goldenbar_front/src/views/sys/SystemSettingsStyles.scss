@@ -1,0 +1,169 @@
+.app-container {
+  padding: 1.25rem;
+}
+.card-header {
+  font-weight: bold;
+}
+.setting-item {
+  display: flex;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+.slider-container {
+  width: 100%;
+  padding: 0 0.625rem;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.el-slider {
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 1.875rem;
+}
+.setting-hint {
+  margin-left: 1.25rem;
+  color: #909399;
+  font-size: 0.85rem;
+  line-height: 1.4;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+}
+.slider-hint {
+  margin-left: 0;
+}
+.footer-tip {
+  margin-top: 2.5rem;
+}
+
+.settings-tabs {
+  margin-top: 0.625rem;
+}
+
+.tab-content-wrapper {
+  padding: 1.25rem 0;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    color: #303133;
+  }
+}
+
+.fixed-menus-container {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.fixed-menus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  min-height: 40px;
+  padding: 0.625rem;
+  background-color: gainsboro;
+  border-radius: 2px;
+  width: 100%;
+
+  &.vertical {
+    flex-direction: column;
+    max-width: 500px;
+  }
+}
+.dark .fixed-menus-list {
+  background-color: darkslategrey;
+}
+
+.fixed-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.95rem;
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #409eff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .drag-handle {
+    cursor: grab;
+    margin-right: 0.95rem;
+    color: #909399;
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  .menu-title {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #303133;
+  }
+
+  .remove-btn {
+    cursor: pointer;
+    color: #909399;
+    font-size: 1rem;
+    &:hover {
+      color: #f56c6c;
+    }
+  }
+}
+
+.favorite-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.95rem;
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #409eff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .drag-handle {
+    cursor: grab;
+    margin-right: 0.95rem;
+    color: #909399;
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  .menu-title {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #303133;
+  }
+
+  .remove-btn {
+    cursor: pointer;
+    color: #909399;
+    font-size: 1rem;
+    &:hover {
+      color: #f56c6c;
+    }
+  }
+}
+
+.no-favorite-menus, .no-fixed-menus {
+  color: #909399;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}

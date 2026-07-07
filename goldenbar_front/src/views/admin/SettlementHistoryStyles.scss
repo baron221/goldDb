@@ -1,0 +1,58 @@
+.summary-cards {
+  .summary-card {
+    text-align: center;
+    .card-header {
+      font-size: 0.875rem;
+      color: #666;
+    }
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 0.625rem;
+    }
+    &.gold {
+      background-color: #fff9eb;
+      .card-value { color: #e6a23c; }
+    }
+    &.settle {
+      background-color: #fef0f0;
+      .card-value { color: #f56c6c; }
+    }
+  }
+}
+
+.filter-card {
+  margin-bottom: 1.25rem;
+}
+
+.order-detail-expand {
+  padding: 1.25rem;
+  h4 { margin-top: 0; margin-bottom: 0.9375rem; }
+}
+
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.product-thumb {
+  border-radius: 2px;
+  border: 1px solid #ddd;
+}
+
+.product-text {
+  .product-name { font-weight: bold; font-size: 0.95rem; }
+  .product-no { font-size: 0.8875rem; color: #999; }
+}
+
+.pagination-container {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: center;
+}
+
+.statement-print {
+  padding: 2.5rem;
+  font-family: 'S-CoreDream','Malgun Gothic', sans-serif;
+}

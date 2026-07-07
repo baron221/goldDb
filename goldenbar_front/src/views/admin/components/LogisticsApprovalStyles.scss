@@ -1,0 +1,219 @@
+.logistics-approval-container {
+  height: calc(100vh - 50px - 20px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: 0.9375rem;
+}
+
+:global(.hasTagsView) .logistics-approval-container {
+  height: calc(100vh - 86px - 20px);
+}
+
+@media (max-width: 768px) {
+  .logistics-approval-container {
+    height: unset;
+    overflow: visible;
+    min-height: unset;
+  }
+  :global(.hasTagsView) .logistics-approval-container {
+    height: unset;
+  }
+}
+.filter-card {
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.demo-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .demo-form-inline {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  :deep(.el-form-item) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    margin-right: 0 !important;
+    margin-bottom: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  :deep(.el-form-item__label) {
+    width: 90px !important;
+    text-align: left !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    font-weight: 600;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    height: 32px !important;
+    line-height: 1 !important;
+    font-size: 0.8125rem;
+  }
+
+  :deep(.el-form-item__content) {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0;
+  }
+
+  :deep(.el-input),
+  :deep(.el-select),
+  :deep(.company-select),
+  :deep(.common-select) {
+    width: 100% !important;
+  }
+
+  :deep(.common-select) {
+    margin-right: 4px !important;
+    &:last-child {
+      margin-right: 0 !important;
+    }
+  }
+
+  .date-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+  }
+
+  .date-picker-group :deep(.el-date-editor.el-input) {
+    flex: 1;
+    width: auto !important;
+  }
+
+  .date-separator {
+    margin: 0 2px;
+  }
+
+  .checkbox-filter-item {
+    margin-bottom: 0.25rem !important;
+  }
+  .checkbox-filter-item :deep(.el-form-item__label) {
+    display: none !important;
+  }
+  .checkbox-filter-item :deep(.el-form-item__content) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between;
+    gap: 4px !important;
+  }
+  .checkbox-filter-item :deep(.el-checkbox) {
+    margin-right: 0 !important;
+    height: auto !important;
+  }
+  .checkbox-filter-item :deep(.el-checkbox__label) {
+    font-size: 0.75rem !important;
+    padding-left: 4px !important;
+  }
+  .checkbox-filter-item :deep(.el-checkbox__inner) {
+    width: 12px;
+    height: 12px;
+  }
+
+  .demo-form-inline :deep(.el-form-item:last-child) {
+    flex-direction: row !important;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+    .el-form-item__content {
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+  }
+}
+
+.as-label {
+  color: #F56C6C;
+  font-weight: 600;
+}
+
+.as-only-checkbox {
+  margin-left: 0.75rem;
+}
+
+.date-picker-group {
+  display: flex;
+  align-items: center;
+}
+.date-separator {
+  margin: 0 8px;
+  color: #909399;
+}
+
+.order-detail-expand {
+  padding: 1.25rem;
+  border-radius: 2px;
+}
+.order-detail-expand h4 {
+  margin-top: 0;
+  margin-bottom: 0.9375rem;
+  color: #303133;
+}
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.9375rem;
+}
+.product-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 2px;
+  border: 1px solid #ebeef5;
+}
+.product-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.product-name {
+  font-weight: bold;
+  color: #303133;
+}
+.manufacturer-name {
+  font-size: 0.8875rem;
+  color: #e6a23c;
+  margin-bottom: 0.125rem;
+}
+.product-no {
+  font-size: 0.95rem;
+  color: #909399;
+}
+.set-tag {
+  display: inline-block;
+  background-color: #fdf6ec;
+  color: #e6a23c;
+  border: 1px solid #f5dab1;
+  padding: 0 0.375rem;
+  border-radius: 2px;
+  font-size: 0.825rem;
+  margin-bottom: 0.25rem;
+  width: fit-content;
+}
+.item-total {
+  font-weight: bold;
+  color: #f56c6c;
+}
+
+.more-actions-dropdown {
+  margin-left: 0.25rem;
+}
+.pagination-container {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: center;
+}
+:deep(.child-row) {
+  background-color: #fafafa;
+}

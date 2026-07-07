@@ -1,0 +1,1571 @@
+// import dark theme
+@use "element-plus/theme-chalk/src/dark/css-vars.scss" as *;
+@use "./element-variables.scss";
+@use "./element-ui.scss";
+@use './sidebar.scss';
+
+// S-Core Dream Font Import
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-1Thin.woff') format('woff');
+    font-weight: 100;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-2ExtraLight.woff') format('woff');
+    font-weight: 200;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-3Light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-4Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-5Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-7ExtraBold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff') format('woff');
+    font-weight: 800;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'S-CoreDream';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-9Black.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+}
+
+:root {
+  --el-font-family: "S-CoreDream", "Jost", "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "맑은 고딕", Arial, sans-serif;
+  --el-color-primary: #c5a880;
+}
+
+html.dark {
+  --menu-bg: #2c2e31;
+  --el-color-primary: #f8f9fb;
+  --menu-text: #ffffff;
+  --menu-active-text: #b7d6f5;
+  --sub-menu-active-text: #409EFF;
+  --menu-hover: rgba(255, 255, 255, 0.1);
+  --sub-menu-bg: #2c2e31;
+  --sub-menu-hover: rgba(255, 255, 255, 0.1);
+
+  /* Element Plus Table Dark Mode Override */
+  --el-table-text-color: #eeeeee !important;
+  --el-table-header-text-color: #ffffff !important;
+  --el-table-border-color: #333333 !important;
+  --el-table-bg-color: #1a1a1a !important;
+  --el-table-tr-bg-color: #1a1a1a !important;
+  --el-table-header-bg-color: #222222 !important;
+  --el-table-row-hover-bg-color: #262626 !important;
+
+  .base-table-container {
+    .el-table {
+      background-color: #1a1a1a !important;
+     
+
+      th.el-table__cell {
+        background-color: #222222 !important;
+        color: #ffffff !important;
+        border-bottom-color: #333333 !important;
+        
+        .cell {
+          color: #ffffff !important;
+        }
+      }
+
+      td.el-table__cell {
+        background-color: #1a1a1a !important;
+        border-bottom-color: #262626 !important;
+       
+
+        .cell {
+         
+        }
+      }
+
+      // 마우스 호버 시 배경색 및 글씨색
+      .el-table__row:hover > td.el-table__cell {
+        background-color: #262626 !important;
+       
+        
+        .cell {
+         
+        }
+      }
+
+      // 선택된 행 (current-row) 배경색 및 글씨색
+      .current-row > td.el-table__cell {
+        background-color: #333333 !important;
+        color: #ffffff !important;
+        
+        .cell {
+          color: #ffffff !important;
+        }
+      }
+    }
+
+    // pagination footer 다크모드 추가
+    .pagination-container-luxury {
+      background-color: #222222 !important;
+      border-color: #333333 !important;
+
+      .row-count-info {
+        color: #888888 !important;
+        
+        .count-value {
+          color: #c5a880 !important;
+        }
+      }
+
+      .el-pagination {
+        background-color: transparent !important;
+
+        .btn-prev, .btn-next, .el-pager li {
+          background-color: #1a1a1a !important;
+          border-color: #333333 !important;
+          color: #888888 !important;
+
+          &:hover {
+            border-color: #c5a880 !important;
+            color: #c5a880 !important;
+          }
+        }
+
+        .el-pager li.is-active {
+          background-color: #c5a880 !important;
+          border-color: #c5a880 !important;
+          color: #ffffff !important;
+        }
+
+        .el-pagination__total, 
+        .el-pagination__jump,
+        .el-pagination__classifier {
+          color: #888888 !important;
+        }
+      }
+    }
+  }
+
+  /* Layout and Container Dark Mode Overrides */
+  .app-wrapper {
+    background-color: #121212 !important;
+   
+  }
+
+  .main-container {
+    background-color: #121212 !important;
+  }
+
+  .app-main {
+    background-color: #121212 !important;
+   
+  }
+
+  .app-container {
+    background-color: #121212 !important;
+   
+
+    .el-card {
+      background-color: #1a1a1a !important;
+      border-color: #333333 !important;
+     
+
+      .el-card__header {
+        border-bottom-color: #262626 !important;
+        color: #ffffff !important;
+      }
+    }
+  }
+
+  /* Splitpanes Dark Mode Overrides */
+  .splitpanes {
+    background-color: transparent !important;
+    
+    .splitpanes__pane {
+      background-color: transparent !important;
+    }
+
+    .splitpanes__splitter {
+      background-color: #222222 !important;
+      border-color: #333333 !important;
+
+      &:before {
+        background-color: #555555 !important;
+      }
+
+      &:hover {
+        background-color: #2a2a2a !important;
+      }
+    }
+
+    &.splitpanes--vertical > .splitpanes__splitter {
+      border-left: 1px solid #333333 !important;
+      border-right: 1px solid #333333 !important;
+      border-top: none !important;
+      border-bottom: none !important;
+    }
+
+    &.splitpanes--horizontal > .splitpanes__splitter {
+      border-top: 1px solid #333333 !important;
+      border-bottom: 1px solid #333333 !important;
+      border-left: none !important;
+      border-right: none !important;
+    }
+  }
+
+  /* Checkbox Dark Mode Overrides */
+  --el-checkbox-bg-color: #1a1a1a !important;
+  --el-checkbox-input-border: 1px solid #444444 !important;
+  --el-checkbox-checked-bg-color: #c5a880 !important;
+  --el-checkbox-checked-input-border-color: #c5a880 !important;
+  --el-checkbox-checked-icon-color: #1a1a1a !important;
+
+  --ep-checkbox-bg-color: #1a1a1a !important;
+  --ep-checkbox-input-border: 1px solid #444444 !important;
+  --ep-checkbox-checked-bg-color: #c5a880 !important;
+  --ep-checkbox-checked-input-border-color: #c5a880 !important;
+  --ep-checkbox-checked-icon-color: #1a1a1a !important;
+
+  .el-checkbox, .ep-checkbox {
+    .el-checkbox__inner, .ep-checkbox__inner {
+      background-color: #1a1a1a !important;
+      border-color: #555555 !important;
+      
+      &:after {
+        border-color: #ffffff !important;
+      }
+    }
+    
+    &.is-checked {
+      .el-checkbox__inner, .ep-checkbox__inner {
+        background-color: #c5a880 !important;
+        border-color: #c5a880 !important;
+        
+        &:after {
+          border-color: #1a1a1a !important;
+          border-width: 2px !important;
+        }
+      }
+    }
+
+    &.is-indeterminate {
+      .el-checkbox__inner, .ep-checkbox__inner {
+        background-color: #c5a880 !important;
+        border-color: #c5a880 !important;
+      }
+    }
+  }
+
+  /* Order Management Page - Components Dark Mode Overrides */
+  .luxury-inline-form {
+    .el-form-item__label {
+      color: #bbbbbb !important;
+    }
+  }
+
+  // Order Detail Expand Section
+  .order-detail-luxury {
+    background-color: #1a1a1a !important;
+    border-color: #333333 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+
+    .expand-title-text {
+      color: #ffffff !important;
+    }
+
+    .cancellation-header-info {
+      background-color: #2b1d1d !important;
+      border-color: #4b2323 !important;
+
+      .cancel-meta {
+        color: #cccccc !important;
+        strong { color: #ffffff !important; }
+      }
+      .cancel-date {
+        color: #888888 !important;
+      }
+    }
+
+    .delivery-date-header {
+      background-color: #221e1a !important;
+      border-color: #443c32 !important;
+
+      .label {
+        color: #888888 !important;
+      }
+    }
+
+    // Memo & History Cards
+    .luxury-history-card, .luxury-memo-card {
+      background-color: #222222 !important;
+      border-color: #333333 !important;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+
+      .history-card-title {
+        border-bottom-color: #2a2a2a !important;
+      }
+    }
+
+    .luxury-history-item {
+      border-bottom-color: #2a2a2a !important;
+
+      .h-header {
+        .h-author {
+          color: #ffffff !important;
+        }
+        .h-date {
+          color: #888888 !important;
+        }
+      }
+      .h-content {
+        color: #bbbbbb !important;
+      }
+    }
+
+    .luxury-memo-card {
+      background-color: #222222 !important;
+      border-color: #333333 !important;
+
+      &.close-memo {
+        background-color: #2b1d1d !important;
+      }
+
+      .memo-header-luxury {
+        color: #888888 !important;
+        .author {
+          color: #bbbbbb !important;
+        }
+      }
+
+      .memo-body {
+        p {
+          color: #cccccc !important;
+        }
+
+        .amount-value {
+          color: #ffffff !important;
+        }
+
+        .method-tag {
+          color: #67c23a !important;
+          background-color: #1c2817 !important;
+          border-color: #27401d !important;
+        }
+
+        .memo-text {
+          color: #cccccc !important;
+          background-color: #1e1e20 !important;
+          border-color: #333333 !important;
+        }
+      }
+    }
+
+    // Nested Table (Items list)
+    .luxury-nested-table {
+      border-color: #333333 !important;
+
+      .el-table__header-wrapper th {
+        background-color: #222222 !important;
+        color: #ffffff !important;
+        border-bottom-color: #333333 !important;
+      }
+
+      .el-table__row td {
+        border-bottom-color: #2a2a2a !important;
+      }
+
+      .product-text-luxury {
+        .product-name-luxury {
+          color: #ffffff !important;
+        }
+        .option-tag-luxury {
+          background-color: #1a1a1a !important;
+          border-color: #333333 !important;
+          color: #bbbbbb !important;
+        }
+      }
+
+      .qty-badge-large {
+        color: #ffffff !important;
+        background-color: #222222 !important;
+      }
+
+      .weight-display-luxury {
+        .val {
+          color: #ffffff !important;
+        }
+      }
+
+      .memo-text-luxury {
+        color: #bbbbbb !important;
+      }
+
+      .cost-text-luxury {
+        color: #cccccc !important;
+      }
+
+      .settlement-luxury-box {
+        .settle-line {
+          color: #888888 !important;
+          .v {
+            color: #cccccc !important;
+          }
+        }
+        .settle-total-luxury {
+          border-top-color: #333333 !important;
+        }
+      }
+    }
+  }
+
+  // Order Timeline Section
+  .timeline-container-luxury {
+    background-color: #1a1a1a !important;
+    border-bottom-color: #2a2a2a !important;
+
+    &.is-order-completed {
+      background-color: #1e241b !important;
+    }
+
+    &.is-order-terminated {
+      background-color: #2b1d1d !important;
+    }
+
+    .luxury-steps {
+      .el-step__line {
+        background-color: #2a2a2a !important;
+      }
+
+      .step-icon-content {
+        background-color: #1a1a1a !important;
+
+        .step-num {
+          background-color: #222222 !important;
+          border-color: #333333 !important;
+          color: #888888 !important;
+        }
+      }
+
+      .el-step__head.is-process {
+        .step-num {
+          color: #ffffff !important;
+          border-color: #ffffff !important;
+          background-color: #1a1a1a !important;
+        }
+        .step-status-name {
+          color: #ffffff !important;
+        }
+      }
+
+      .el-step__head.is-success {
+        .step-num {
+          background-color: #222222 !important;
+          border-color: #c5a880 !important;
+          color: #c5a880 !important;
+        }
+        .step-status-name {
+          color: #c5a880 !important;
+        }
+      }
+
+      .step-date-indicator {
+        .d {
+          color: #cccccc !important;
+        }
+        .t {
+          color: #888888 !important;
+        }
+      }
+    }
+  }
+
+  /* Luxury Pages Dark Mode Overrides */
+  .order-page-luxury,
+  .cart-page-luxury,
+  .about-page-luxury,
+  .contact-page-luxury,
+  .home-page-luxury,
+  .marketplace-page-luxury,
+  .legal-page-luxury {
+    background-color: #121212 !important;
+   
+  }
+
+  /* Home Page Dark Mode */
+  .home-page-luxury {
+    // Hero & section backgrounds
+    .section-cta-luxury,
+    .section-stats-luxury,
+    .hero-section-luxury {
+      background-color: #1a1a1a !important;
+     
+    }
+
+    .stat-val { color: #ffffff !important; }
+    .cta-subtitle { color: #aaaaaa !important; }
+
+    // Feature/role cards
+    .feature-card-luxury,
+    .role-card-luxury {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+     
+    }
+  }
+
+  /* Cart Page Dark Mode */
+  .cart-page-luxury {
+    // Cart item list
+    .cart-item-luxury {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+
+      .item-name, .item-product-name {
+        color: #ffffff !important;
+      }
+      .item-option-tag {
+        background-color: #222222 !important;
+        border-color: #333333 !important;
+        color: #aaaaaa !important;
+      }
+      .price-line {
+        color: #aaaaaa !important;
+      }
+    }
+
+    // Order summary
+    .cart-summary-luxury, .order-summary-card {
+      background-color: #1a1a1a !important;
+      border-color: #333333 !important;
+
+      .mini-label, .summary-label {
+        color: #888888 !important;
+      }
+      .summary-value {
+       
+      }
+      .total-amount-luxury {
+        color: #c5a880 !important;
+      }
+    }
+  }
+
+  /* Marketplace Page Dark Mode */
+  .marketplace-page-luxury {
+    background-color: #121212 !important;
+
+    // Search/filter input wrappers
+    .luxury-search-input, .luxury-select {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+     
+    }
+
+    // Product cards
+    .product-card-luxury {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+     
+
+      .product-name-display {
+        color: #ffffff !important;
+      }
+      .spec-weight, .stock-count {
+        color: #888888 !important;
+      }
+      .product-overlay-luxury {
+        background: rgba(0, 0, 0, 0.85) !important;
+      }
+    }
+
+    // Sidebar
+    .market-sidebar-luxury {
+      background-color: #1a1a1a !important;
+      border-color: #333333 !important;
+     
+
+      .filter-section-title {
+        color: #ffffff !important;
+        border-bottom-color: #333333 !important;
+      }
+    }
+  }
+
+  /* Contact Page Dark Mode */
+  .contact-page-luxury {
+    background-color: #121212 !important;
+
+    .contact-info-section-luxury {
+      background-color: #1a1a1a !important;
+    }
+    .info-text { color: #cccccc !important; }
+    .info-subtext { color: #888888 !important; }
+
+    .location-card-luxury {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+      .location-name { color: #ffffff !important; }
+      .location-desc { color: #aaaaaa !important; }
+    }
+
+    .contact-form-section {
+      background-color: #1a1a1a !important;
+    }
+    .form-title-main { color: #ffffff !important; }
+
+    // Input fields inside the form
+    :deep(.el-input__wrapper),
+    :deep(.el-textarea__inner) {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+     
+
+      &:hover, &.is-focus {
+        border-color: #c5a880 !important;
+      }
+    }
+    :deep(.el-input__inner),
+    :deep(.el-textarea__inner) {
+     
+      background-color: transparent !important;
+    }
+  }
+
+  /* About Page Dark Mode */
+  .about-page-luxury {
+    background-color: #121212 !important;
+
+    .hero-text, .section-title, .section-desc {
+     
+    }
+    .about-card, .value-card {
+      background-color: #1e1e1e !important;
+      border-color: #333333 !important;
+     
+    }
+  }
+
+  /* Legal Pages Dark Mode (Terms / Privacy) */
+  .legal-page-luxury {
+    background-color: #121212 !important;
+
+    .legal-content-wrap {
+      background-color: #1a1a1a !important;
+      border-color: #333333 !important;
+      color: #cccccc !important;
+    }
+
+    h1, h2, h3 {
+      color: #ffffff !important;
+    }
+    p, li {
+      color: #cccccc !important;
+    }
+  }
+
+  /* ============================================
+     Dashboard Pages Dark Mode Overrides
+     (retailer / logistics / factory dashboards)
+     ============================================ */
+
+  // 공통: 모든 대시보드 페이지 래퍼
+  .dashboard-retailer-page,
+  .dashboard-logistics-page,
+  .dashboard-factory-page {
+    background-color: #121212 !important;
+   
+  }
+
+  // 공통: 상단 헤더 배너
+  .dashboard-header-banner {
+    background-color: #1a1a1a !important;
+   
+
+    .user-profile-area {
+      .welcome-text,
+      .user-name,
+      .user-role {
+       
+      }
+    }
+
+    .role-tag {
+      background-color: rgba(197, 168, 128, 0.15) !important;
+      color: #c5a880 !important;
+      border-color: rgba(197, 168, 128, 0.3) !important;
+    }
+
+    .refresh-btn {
+      color: #888888 !important;
+      &:hover { color: #c5a880 !important; }
+    }
+  }
+
+  // 공통: 본문 콘텐츠 영역
+  .dashboard-body-content {
+    background-color: #121212 !important;
+  }
+
+  // 공통: 섹션 헤더
+  .section-header {
+    .section-title-luxury {
+      color: #ffffff !important;
+    }
+    .section-subtitle-luxury {
+      color: #888888 !important;
+    }
+    .section-divider {
+      border-color: #333333 !important;
+    }
+  }
+
+  // 공통: 통계 카드 (stat-card)
+  .stat-card {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+
+    .stat-label {
+      color: #888888 !important;
+    }
+    .stat-value {
+      color: #c5a880 !important;
+    }
+    .stat-number {
+      color: #ffffff !important;
+    }
+    .unit {
+      color: #888888 !important;
+    }
+
+    // 상태별 배경 톤 다운
+    &.stat-warning {
+      background-color: #2a1f10 !important;
+      color: #e6a23c !important;
+    }
+    &.stat-info {
+      background-color: #101b2a !important;
+      color: #409eff !important;
+    }
+  }
+
+  // 공통: 인벤토리/아이템 테이블 카드
+  .inventory-table-card,
+  .chart-container-card {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    .card-title,
+    .chart-card-title {
+      color: #ffffff !important;
+      border-bottom-color: #333333 !important;
+    }
+
+    .card-subtitle {
+      color: #888888 !important;
+    }
+  }
+
+  // 물류: 상태 인디케이터 카드
+  .status-indicator-card {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+
+    .status-label {
+      color: #888888 !important;
+    }
+    .status-count {
+      color: #ffffff !important;
+    }
+  }
+
+  // 공장: 인사이트 카드
+  .insight-card {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+   
+
+    .insight-title {
+      color: #ffffff !important;
+    }
+    .insight-value {
+      color: #c5a880 !important;
+    }
+    .insight-unit {
+      color: #888888 !important;
+    }
+  }
+
+  // 공통: 물류 없음 / 빈 데이터 알림
+  .no-logistics-alert,
+  .empty-data-hint {
+    background-color: #1e1e1e !important;
+    border-color: #333333 !important;
+    color: #888888 !important;
+  }
+
+  /* ============================================
+     Order Card Header / Footer Dark Mode
+     (.card-top-header, .card-bottom-footer)
+     ============================================ */
+
+  // 카드 상단 헤더 영역
+  .card-top-header {
+    background-color: #1a1a1c !important;
+    border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+   
+
+    // 주문 번호 · 날짜 · 상태 텍스트
+    .order-number,
+    .order-date,
+    .header-title {
+     
+    }
+
+    // 보조 텍스트 (레이블, 단위 등)
+    .header-label,
+    .header-sub {
+      color: #888888 !important;
+    }
+
+    // 상태 배지 계열
+    .status-badge,
+    .el-tag {
+      background-color: rgba(197, 168, 128, 0.12) !important;
+      border-color: rgba(197, 168, 128, 0.3) !important;
+      color: #c5a880 !important;
+    }
+  }
+
+  // 카드 하단 푸터 영역
+  .card-bottom-footer {
+    background-color: #242426 !important;
+    border-top-color: rgba(255, 255, 255, 0.06) !important;
+   
+
+    // 합계 · 금액 텍스트
+    .footer-total,
+    .footer-amount,
+    .price-label {
+     
+    }
+
+    // 보조 텍스트
+    .footer-label,
+    .footer-sub,
+    .footer-note {
+      color: #888888 !important;
+    }
+
+    // 골드 강조 텍스트
+    .footer-gold,
+    .price-gold {
+      color: #c5a880 !important;
+    }
+
+    // 버튼 영역
+    .footer-actions .el-button {
+      &.is-plain {
+        border-color: rgba(255, 255, 255, 0.15) !important;
+        color: #cccccc !important;
+        background-color: transparent !important;
+
+        &:hover {
+          border-color: #c5a880 !important;
+          color: #c5a880 !important;
+          background-color: rgba(197, 168, 128, 0.08) !important;
+        }
+      }
+    }
+
+    // ── line 99 영역: 카드 하단 주문금액 표시 ──
+    .price-info-footer {
+      // "합계" 레이블
+      .total-label {
+        color: #888888 !important;
+      }
+
+      // 금액 숫자 + 단위 래퍼
+      .total-amount-display {
+        color: #ffffff !important;
+
+        // 금액 숫자 (.value)
+        .value {
+          color: #ffffff !important;
+        }
+
+        // 단위 "원" (.currency)
+        .currency {
+          color: #aaaaaa !important;
+        }
+      }
+    }
+  }
+
+  /* ============================================
+     Filter Card Dark Mode (.filter-card-luxury)
+     ============================================ */
+  .filter-card-luxury {
+    background-color: #1a1a1a !important;
+    border-color: #333333 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+
+    // 폼 레이블
+    .el-form-item__label {
+      color: #888888 !important;
+    }
+
+    // 인라인 폼 구분선
+    .date-separator {
+      color: #555555 !important;
+    }
+
+    // 입력창 (el-input, luxury-input)
+    .luxury-input,
+    .el-input {
+      .el-input__wrapper {
+        background-color: #242424 !important;
+        border-color: #3a3a3a !important;
+        box-shadow: none !important;
+
+        &:hover, &.is-focus {
+          border-color: #c5a880 !important;
+        }
+
+        .el-input__inner {
+         
+          &::placeholder { color: #666666 !important; }
+        }
+
+        .el-input__prefix-inner,
+        .el-input__suffix-inner {
+          color: #888888 !important;
+        }
+      }
+    }
+
+    // 날짜 피커
+    .luxury-date-picker-single,
+    .el-date-picker {
+      .el-input__wrapper {
+        background-color: #242424 !important;
+        border-color: #3a3a3a !important;
+
+        &:hover, &.is-focus {
+          border-color: #c5a880 !important;
+        }
+
+        .el-input__inner {
+         
+          &::placeholder { color: #666666 !important; }
+        }
+      }
+    }
+
+    // 셀렉트 박스 (CommonSelect → el-select)
+    .el-select {
+      .el-input__wrapper {
+        background-color: #242424 !important;
+        border-color: #3a3a3a !important;
+
+        &:hover, &.is-focus {
+          border-color: #c5a880 !important;
+        }
+
+        .el-input__inner {
+         
+        }
+      }
+    }
+
+    // 검색 버튼
+    .search-btn.el-button {
+      background-color: #c5a880 !important;
+      border-color: #c5a880 !important;
+      color: #ffffff !important;
+
+      &:hover {
+        background-color: #b8956d !important;
+        border-color: #b8956d !important;
+      }
+    }
+
+    // 체크박스 그룹
+    .filter-checkbox-group {
+      .el-checkbox__label {
+        color: #aaaaaa !important;
+      }
+      .el-checkbox__inner {
+        background-color: #2a2a2a !important;
+        border-color: #555555 !important;
+      }
+      .el-checkbox__input.is-checked .el-checkbox__inner {
+        background-color: #c5a880 !important;
+        border-color: #c5a880 !important;
+      }
+    }
+  }
+
+  /* ============================================
+     Order Group Header Dark Mode
+     (.order-group-header-luxury)
+     ============================================ */
+  .order-group-header-luxury {
+    background-color: #171719 !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    border-left-color: #c5a880 !important;
+
+    // 좌측: 아이콘 래퍼
+    .group-icon-wrapper {
+      background-color: rgba(197, 168, 128, 0.1) !important;
+      color: #c5a880 !important;
+    }
+
+    // 묶음주문 번호
+    .group-no {
+      color: #f0f0f0 !important;
+    }
+
+    // 날짜
+    .group-date {
+      color: #888888 !important;
+    }
+
+    // 우측: 총 주문금액 영역
+    .group-total-info {
+      .label {
+        color: #888888 !important;
+      }
+      .amount {
+        color: #ffffff !important;
+
+        .unit {
+          color: #aaaaaa !important;
+        }
+      }
+    }
+  }
+
+  /* ============================================
+     Order Card Expanded Body Dark Mode
+     (.card-expanded-body)
+     ============================================ */
+  .card-expanded-body {
+    background-color: #1a1a1c !important;
+    border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+
+    // 공정·처리이력 섹션 구분선 및 타이틀
+    .order-timeline-section {
+      border-top-color: rgba(255, 255, 255, 0.06) !important;
+
+      .section-title {
+        color: #eaeaea !important;
+      }
+    }
+
+    // 내부 공통 텍스트 요소
+    .section-label,
+    .detail-label {
+      color: #888888 !important;
+    }
+
+    .section-value,
+    .detail-value {
+     
+    }
+
+    // 내부 카드·패널 영역 (OrderDetailExpand 등)
+    .detail-panel,
+    .expand-inner-card {
+      background-color: #222224 !important;
+      border-color: rgba(255, 255, 255, 0.06) !important;
+     
+    }
+
+    // 구분선
+    hr, .divider {
+      border-color: rgba(255, 255, 255, 0.06) !important;
+    }
+  }
+
+  /* ============================================
+     Status Tabs Dark Mode (.status-tabs-luxury)
+     선택된 탭 가시성 보정
+     ============================================ */
+  .status-tabs-luxury {
+    // 탭 하단 구분선
+    .el-tabs__header {
+      background-color: transparent !important;
+      border-bottom-color: #333333 !important;
+    }
+
+    // 활성 골드 바
+    .el-tabs__active-bar {
+      background-color: #c5a880 !important;
+    }
+
+    // 기본 탭 아이템 (비활성)
+    .el-tabs__item {
+      color: #888888 !important;
+
+      // 선택된 탭 — 흰색으로 강제
+      &.is-active {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+      }
+
+      // 호버 시 골드
+      &:hover {
+        color: #c5a880 !important;
+      }
+    }
+
+    // nav-wrap 하단 가상 border 제거
+    .el-tabs__nav-wrap::after {
+      background-color: #333333 !important;
+    }
+  }
+}
+
+body {
+  height: 100%;
+  font-family: "S-CoreDream", "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "맑은 고딕", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  margin: 0;
+}
+
+label {
+  font-weight: 700;
+}
+
+html {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+#app {
+  height: 100%;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+.no-padding {
+  padding: 0rem !important;
+}
+
+.padding-content {
+  padding: 0.25rem 0;
+}
+
+a {
+  color: var(--ep-color-primary);
+}
+
+code {
+  border-radius: 2px;
+  padding: 0.125rem 0.25rem;
+  background-color: var(--ep-color-primary-light-9);
+  color: var(--ep-color-primary);
+}
+
+
+
+a:focus,
+a:active {
+  outline: none;
+}
+
+a,
+a:focus,
+a:hover {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+div:focus {
+  outline: none;
+}
+
+.fr {
+  float: right;
+}
+
+.fl {
+  float: left;
+}
+
+.pr-5 {
+  padding-right: 0.3125rem;
+}
+
+.pl-5 {
+  padding-left: 0.3125rem;
+}
+
+.block {
+  display: block;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.inlineBlock {
+  display: block;
+}
+
+.clearfix {
+  &:after {
+    visibility: hidden;
+    display: block;
+    font-size: 0;
+    content: " ";
+    clear: both;
+    height: 0;
+  }
+}
+
+aside {
+  background: #eef1f6;
+  padding: 0.5rem 1.5rem;
+  margin-bottom: 1.25rem;
+  border-radius: 2px;
+  display: block;
+  line-height: 32px;
+  font-size: 1rem;
+  font-family: -apple-system, 'S-CoreDream', BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  color: #2c3e50;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  a {
+    color: #337ab7;
+    cursor: pointer;
+
+    &:hover {
+      color: rgb(32, 160, 255);
+    }
+  }
+}
+
+// main-container 전역 스타일
+.app-container {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.components-container {
+  margin: 1.875rem 3.125rem;
+  position: relative;
+
+  @media (max-width: 768px) {
+    margin: 1rem 1rem;
+  }
+}
+
+.pagination-container {
+  margin-top: 1.875rem;
+}
+
+.text-center {
+  text-align: center
+}
+
+.sub-navbar {
+  height: 50px;
+  line-height: 50px;
+  position: relative;
+  width: 100%;
+  text-align: right;
+  padding-right: 1.25rem;
+  transition: 600ms ease position;
+  background: linear-gradient(90deg, rgba(32, 182, 249, 1) 0%, rgba(32, 182, 249, 1) 0%, rgba(33, 120, 241, 1) 100%, rgba(33, 120, 241, 1) 100%);
+
+  @media (max-width: 768px) {
+    height: auto;
+    line-height: normal;
+    padding: 0.625rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .subtitle {
+    font-size: 1.25rem;
+    color: #fff;
+  }
+
+  &.draft {
+    background: #d0d0d0;
+  }
+
+  &.deleted {
+    background: #d0d0d0;
+  }
+}
+
+.link-type,
+.link-type:focus {
+  color: #337ab7;
+  cursor: pointer;
+
+  &:hover {
+    color: rgb(32, 160, 255);
+  }
+}
+
+.filter-container {
+  padding-bottom: 0.625rem;
+
+  .filter-item {
+    display: inline-block;
+    vertical-align: middle;
+    margin-bottom: 0.625rem;
+  }
+}
+
+//refine vue-multiselect plugin
+.multiselect {
+  line-height: 16px;
+}
+
+.multiselect--active {
+  z-index: 1000 !important;
+}
+
+
+
+// Global Button
+.el-button {
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+
+
+// Global Primary Button Design (Black Theme)
+.el-button--primary {
+  background-color: #1a1a1a !important;
+  border-color: #1a1a1a !important;
+  color: #fff !important;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+
+  &:hover, &:focus {
+    background-color: #333 !important;
+    border-color: #333 !important;
+    color: #fff !important;
+  }
+
+  &.is-disabled {
+    background-color: #999 !important;
+    border-color: #999 !important;
+    color: #ccc !important;
+  }
+}
+
+// Dark Mode Primary Button Design
+html.dark {
+  .el-button--primary {
+    background-color: #fff !important;
+    border-color: #fff !important;
+      color: #020202 !important;
+
+    &:hover, &:focus {
+      background-color: #ddd !important;
+      border-color: #ddd !important;
+    }
+
+    &.is-disabled {
+      background-color: #444 !important;
+      border-color: #444 !important;
+      color: #666 !important;
+    }
+  }
+}
+
+// Global Primary Input Design (No Border)
+.el-input-primary-no-border {
+  --el-input-bg-color: #1a1a1a !important;
+  --el-input-border-color: transparent !important;
+  --el-input-hover-border-color: transparent !important;
+  --el-input-focus-border-color: transparent !important;
+  border-radius: 0px !important;
+
+  .el-input__wrapper {
+    background-color: #1a1a1a !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0.3125rem;
+  border-radius: 0px !important;
+
+    &.is-focus {
+      box-shadow: none !important;
+    }
+  }
+
+  .el-input__inner {
+    color: #fff !important;
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
+
+  .el-input__prefix {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+}
+
+.root-sidebar-item{
+  line-height: 0px !important;
+}
+
+// Ensure large buttons (like in login/contact) keep their height
+.login-container, .contact-container {
+  .el-button--primary {
+    height: 50px;
+  }
+}
+
+.el-menu-item {
+font-size: 0.9rem !important;
+/* 하위 메뉴가 상위 메뉴와 같은 세로 라인이라 어색하다.*/
+/* margin-left: 0.15em !important;*/
+/*padding-left: 1.5625rem !important;*/
+}
+
+
+
+/* Global Scrollbar Hiding (Scrollable but invisible) */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: none;
+}
+
+/* For IE and Edge */
+* {
+  -ms-overflow-style: none;
+}
+
+
+
+.el-radio-button {
+    --el-radio-button-checked-bg-color: var(--el-color-primary);
+    --el-radio-button-checked-text-color: var(--el-color-white);
+    --el-radio-button-checked-border-color: var(--el-color-primary);
+    --el-radio-button-disabled-checked-fill: var(--el-border-color-extra-light);
+}
+
+// Global Select Design
+.el-select {
+  min-width: 120px;
+}
+
+.dark .el-radio-button {
+    --el-radio-button-checked-bg-color: var(--el-color-primary);
+    --el-radio-button-checked-text-color: var(--el-color-black);
+    --el-radio-button-checked-border-color: var(--el-color-primary);
+    --el-radio-button-disabled-checked-fill: var(--el-border-color-extra-light);
+}
+
+
+
+
+
+/* Global Design */
+
+
+.delete-icon-btn {
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  &:hover { color: #ff4949 !important; }
+}
+
+.add-icon-btn {
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  &:hover { color: #000000 !important; }
+}
+
+.view-icon-btn {
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  &:hover { color: #1890ff !important; }
+}
+
+.copy-icon-btn {
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  &:hover { color: #67c23a !important; }
+}
+
+.edit-icon-btn {
+  color: #bbbbbb;
+  font-size: 1.2rem;
+  &:hover { color: #c5a880 !important; }
+}
+
+.el-select__input{
+padding: 1.1rem;
+    font-size: 0.85rem !important;
+}
+
+
+  .el-input__inner {
+    font-size: 0.85rem !important;
+  }
+
+  .el-select--small .el-select__wrapper{
+    font-size: 0.85rem !important;
+  }
+
+
+  .el-badge__content {
+    font-size: 0.5rem !important;
+    height: 1.1rem;
+    width: 1rem;
+  }
+

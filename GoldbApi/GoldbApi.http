@@ -1,0 +1,6 @@
+@GoldbApi_HostAddress = http://localhost:5290
+
+GET {{GoldbApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

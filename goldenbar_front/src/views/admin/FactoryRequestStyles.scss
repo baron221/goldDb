@@ -1,0 +1,143 @@
+.factory-request-container {
+  height: calc(100vh - 50px - 20px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: 0.9375rem;
+}
+
+:global(.hasTagsView) .factory-request-container {
+  height: calc(100vh - 86px - 20px);
+}
+
+.filter-card {
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background-color: #fcfcfb;
+  border-color: #eae6df;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02) !important;
+}
+
+.order-detail-expand {
+  padding: 0.9375rem 1.5625rem;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 0.9375rem;
+    color: #222;
+    border-left: 3px solid #c5a880;
+    padding-left: 0.95rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+}
+
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
+  border: 1px solid #eee;
+}
+
+.product-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.product-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #222;
+}
+
+.product-no {
+  font-size: 0.8875rem;
+  color: #bbbbbb;
+  font-family: monospace;
+}
+
+.set-tag {
+  display: inline-block;
+  background: #c5a880;
+  color: white;
+  font-size: 0.825rem;
+  padding: 0rem 0.25rem;
+  border-radius: 0;
+  margin-bottom: 0.125rem;
+  width: fit-content;
+}
+
+.item-total {
+  font-weight: 700;
+  color: #222;
+}
+
+.memo-display {
+  margin-top: 0.9375rem;
+  padding: 0.625rem;
+  border-radius: 2px;
+  font-size: 0.9rem;
+}
+
+.modification-memo {
+  background-color: #fbfaf7;
+  border-left: 3px solid #c5a880;
+  color: #8a6d3b;
+}
+
+.factory-remarks {
+  margin-top: 0.9375rem;
+  padding: 0.625rem;
+  background-color: #fff;
+  border-left: 3px solid #409eff;
+  border-radius: 2px;
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #444;
+  }
+}
+
+.action-buttons-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.more-actions-dropdown {
+  margin-left: 0.25rem;
+}
+
+.pagination-container {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: center;
+}
+
+:deep(.child-row) {
+  background-color: #fafafa;
+}
+
+:deep(.el-card) {
+  border-radius: 2px;
+}
+
+:deep(.el-input__wrapper), :deep(.el-select__wrapper) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #dcdfe6;
+  &:hover { border-color: #c5a880; }
+}

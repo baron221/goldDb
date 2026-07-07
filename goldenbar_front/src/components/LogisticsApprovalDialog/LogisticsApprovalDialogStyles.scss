@@ -1,0 +1,134 @@
+﻿.cost-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.cost-label {
+  font-size: 0.95rem;
+  color: #606266;
+  white-space: nowrap;
+}
+.product-info-cell {
+  display: flex;
+  align-items: center;
+}
+.product-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 0;
+  border: none;
+  display: block;
+}
+:deep(.photo-column) {
+  padding: 0 !important;
+}
+:deep(.photo-column .cell) {
+  padding: 0 !important;
+  line-height: 0 !important;
+  display: block !important;
+}
+.product-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.product-name {
+  font-weight: bold;
+  color: #303133;
+}
+.manufacturer-name {
+  font-size: 0.8875rem;
+  color: #e6a23c;
+  margin-bottom: 0.125rem;
+}
+.product-no {
+  font-size: 0.95rem;
+  color: #909399;
+}
+:deep(.child-row) {
+  background-color: #fafafa;
+}
+
+/* Memo Layout Styles */
+.memo-action-row {
+  margin-top: 0.625rem;
+}
+
+.memo-view-panel {
+  border: 1px solid #ebeef5;
+  border-radius: 2px;
+  min-height: 100px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  .memo-header-info {
+    padding: 0.5rem 0.9375rem;
+    border-bottom: 1px solid #e0e6ed;
+    display: flex;
+    gap: 0.9375rem;
+    flex-wrap: wrap;
+    border-radius: 2px 4px 0 0;
+
+    .info-item {
+      font-size: 0.8875rem;
+      color: #303133;
+      font-weight: 600;
+
+      &.date {
+        margin-left: auto;
+        color: #909399;
+      }
+    }
+
+    .label-tiny {
+      font-size: 0.825rem;
+      color: #909399;
+      font-weight: normal;
+      margin-right: 0.25rem;
+    }
+  }
+
+  .memo-body-content {
+    padding: 0.95rem 0.9375rem;
+    display: flex;
+    gap: 0.625rem;
+  }
+
+  .quote-icon {
+    font-size: 0.875rem;
+    color: #c5a880;
+    margin-top: 0.1875rem;
+  }
+
+  .memo-content {
+    font-size: 0.9rem;
+    color: #606266;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    font-weight: 500;
+  }
+}
+
+.luxury-textarea :deep(.el-textarea__inner) {
+  border-color: #dcdfe6;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.95rem 0.9375rem;
+  transition: all 0.3s;
+  min-height: 100px !important;
+
+  &:focus {
+    border-color: #c5a880;
+    box-shadow: 0 0 0 1px rgba(197, 168, 128, 0.2);
+    background-color: #fcfcfb;
+  }
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 700;
+  color: #303133;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
+}

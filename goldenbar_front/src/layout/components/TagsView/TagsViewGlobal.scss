@@ -1,0 +1,83 @@
+.tags-view-wrapper {
+  .tags-view-item {
+    .el-icon-close {
+      width: 14px;
+      height: 14px;
+      padding: 0.125rem;
+      vertical-align: -1px;
+      border-radius: 50%;
+      text-align: center;
+      transition: all 0.2s ease;
+      margin-left: 0.5rem;
+      opacity: 0.4;
+      display: inline-block;
+
+      &:hover {
+        background-color: #222222;
+        color: #ffffff;
+        opacity: 1;
+      }
+    }
+
+    &.router-link-exact-active {
+      .el-icon-close {
+        opacity: 0.6;
+        &:hover {
+          background-color: #c5a880;
+        }
+      }
+    }
+  }
+}
+
+/* Global Dark Mode Overrides for TagsView */
+html.dark {
+  .tags-view-container {
+    background: #141416 !important;
+    border-bottom-color: #2d2d30 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+
+    .tags-view-wrapper {
+      .tags-view-item {
+        color: #888888 !important;
+        border-right-color: #222224 !important;
+
+        .affix-dot {
+          background: #555555 !important;
+        }
+
+        &:hover {
+          color: #ffffff !important;
+          background-color: #1f1f22 !important;
+        }
+
+        &.router-link-exact-active {
+          background-color: #1f1f22 !important;
+          color: #ffffff !important;
+
+          &::after {
+            background-color: #c5a880 !important;
+          }
+
+          .affix-dot {
+            background: #c5a880 !important;
+          }
+        }
+      }
+    }
+
+    .contextmenu {
+      background: #1f1f22 !important;
+      border-color: #2d2d30 !important;
+     
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+      
+      li {
+        &:hover {
+          background-color: #2d2d30 !important;
+          color: #c5a880 !important;
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+.no-border {
+  border: none !important;
+}
+.menu-card {
+  margin-bottom: 0;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mini-header {
+  padding: 0.3125rem 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+.detail-content-wrapper {
+  padding: 0;
+}

@@ -1,0 +1,240 @@
+﻿:deep(.base-popup-dialog) {
+  border-radius: 2px !important;
+  border: 1px solid #eae6df !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+  background-color: #ffffff;
+  overflow: hidden;
+  font-family: 'S-CoreDream', 'Jost', sans-serif;
+}
+
+:deep(.el-dialog__header) {
+  cursor: move;
+  user-select: none;
+  border-bottom: 2px solid #eae6df !important;
+  margin-right: 0;
+  padding: 1.25rem 1.875rem;
+  background-color: #f2efe9;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background-color: #c5a880;
+  }
+}
+
+:deep(.el-dialog__title) {
+  font-size: 1.0625rem;
+  font-weight: 800;
+ 
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: 'S-CoreDream', 'Jost', sans-serif;
+}
+
+:deep(.el-dialog__body) {
+  padding: 2.5rem 1.875rem;
+  background-color: #ffffff;
+}
+
+:deep(.el-dialog__footer) {
+  border-top: 2px solid #eae6df !important;
+  padding: 1.25rem 1.875rem;
+  background-color: #f2efe9;
+}
+
+:deep(.el-dialog__headerbtn) {
+  top: 24px;
+  right: 30px;
+  transition: all 0.3s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #f2efe9;
+    transform: rotate(90deg);
+    .el-dialog__close { color: #c5a880 !important; }
+  }
+}
+
+:deep(.el-dialog__headerbtn .el-dialog__close) {
+  color: #888888 !important;
+  font-size: 1.125rem;
+  transition: color 0.3s;
+}
+
+/* Luxury Button Styling for Dialog Footer */
+:deep(.el-dialog__footer .el-button) {
+  border-radius: 2px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0.625rem 1.5rem;
+  height: 40px;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  font-family: 'S-CoreDream', sans-serif;
+}
+
+:deep(.el-dialog__footer .el-button:not(.el-button--primary)) {
+  border: 1px solid #eae6df !important;
+  color: #888888 !important;
+  background-color: transparent !important;
+
+  &:hover {
+    border-color: #222222 !important;
+    color: #222222 !important;
+    background-color: #f7f5f0 !important;
+  }
+}
+
+:deep(.el-dialog__footer .el-button--primary) {
+  border: none !important;
+  color: #ffffff !important;
+  background-color: #222222 !important;
+
+  &:hover {
+    background-color: #c5a880 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(197, 168, 128, 0.2);
+  }
+}
+
+/* Dark Mode Overrides */
+:global(html.dark) {
+  :deep(.base-popup-dialog) {
+    background-color: #1a1a1a;
+    border-color: #333333 !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
+  }
+  :deep(.el-dialog__header) {
+    background-color: #222222;
+    border-bottom-color: #262626 !important;
+    .el-dialog__title { color: #ffffff; }
+  }
+  :deep(.el-dialog__body) {
+    background-color: #1a1a1a;
+  }
+  :deep(.el-dialog__footer) {
+    background-color: #222222;
+    border-top-color: #262626 !important;
+  }
+  :deep(.el-dialog__headerbtn .el-dialog__close) {
+    color: #666666 !important;
+  }
+  :deep(.el-dialog__footer .el-button:not(.el-button--primary)) {
+    border-color: #333333 !important;
+    color: #888888 !important;
+    &:hover { color: #ffffff !important; border-color: #ffffff !important; }
+  }
+}
+
+@media (max-width: 768px) {
+  :global(.el-overlay-dialog) {
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  :global(.base-popup-dialog) {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  :global(.base-popup-dialog .el-dialog__body) {
+    padding: 1.25rem 1rem !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  :global(.base-popup-dialog .el-dialog__header) {
+    padding: 1rem 1.25rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  :global(.base-popup-dialog .el-dialog__footer) {
+    padding: 1rem 1.25rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  :global(.base-popup-dialog .el-dialog__headerbtn) {
+    top: 16px !important;
+    right: 16px !important;
+  }
+
+  /* Form and Content responsive improvements inside popups */
+  :global(.base-popup-dialog .el-form) {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  :global(.base-popup-dialog .el-form-item) {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    margin-bottom: 1rem !important;
+  }
+  :global(.base-popup-dialog .el-form-item__label) {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left !important;
+    margin-bottom: 6px !important;
+    justify-content: flex-start !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    font-weight: bold !important;
+    line-height: 1.2 !important;
+  }
+  :global(.base-popup-dialog .el-form-item__content) {
+    width: 100% !important;
+    margin-left: 0 !important;
+    display: block !important;
+  }
+  :global(.base-popup-dialog .el-form-item .el-input),
+  :global(.base-popup-dialog .el-form-item .el-select),
+  :global(.base-popup-dialog .el-form-item .el-date-editor),
+  :global(.base-popup-dialog .el-form-item .el-input-number) {
+    width: 100% !important;
+  }
+
+  /* Description list improvements inside popups */
+  :global(.base-popup-dialog .el-descriptions) {
+    width: 100% !important;
+  }
+  :global(.base-popup-dialog .el-descriptions__table) {
+    table-layout: fixed !important;
+  }
+  :global(.base-popup-dialog .el-descriptions__row) {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  :global(.base-popup-dialog .el-descriptions__cell) {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}

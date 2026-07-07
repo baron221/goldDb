@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@layer components {
+  .left-menu-item{
+    @apply inline-flex items-center;
+  }
+
+
+  .right-menu-item {
+    @apply inline-flex items-center;
+  }
+}
+

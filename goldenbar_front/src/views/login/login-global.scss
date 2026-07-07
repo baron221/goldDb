@@ -1,0 +1,69 @@
+$text_main: #1a1a1a;
+$cursor: #1a1a1a;
+
+/* reset element-plus css to match contact page style */
+.login-container {
+  .el-input,
+  .el-textarea {
+    width: 90%;
+
+    .el-input__wrapper,
+    .el-textarea__inner,
+    input,
+    textarea {
+      background: transparent;
+      border: 0px;
+      -webkit-appearance: none;
+      border-radius: 0px;
+      box-shadow: none !important;
+    }
+
+    input, textarea {
+      padding: 0.95rem 0.3125rem 0.95rem 0;
+      color: $text_main;
+      caret-color: $cursor;
+      font-size: 1rem;
+      font-family: inherit;
+
+      &:-webkit-autofill {
+        box-shadow: 0 0 0px 1000px #fff inset !important;
+        -webkit-text-fill-color: $text_main !important;
+      }
+    }
+    
+    input {
+      height: 47px;
+    }
+  }
+
+  .el-textarea {
+    width: 100%;
+    
+    textarea {
+      padding-top: 0.95rem;
+      padding-bottom: 0.95rem;
+      resize: none;
+    }
+  }
+
+  .el-form-item {
+    border: none;
+    border-bottom: 1px solid #ddd;
+    background: transparent;
+    border-radius: 0;
+    margin-bottom: 1.5625rem;
+    transition: border-color 0.3s;
+
+    &.is-error {
+      border-bottom-color: #f56c6c;
+    }
+
+    &:focus-within {
+      border-bottom-color: #1a1a1a;
+    }
+  }
+
+  .el-form-item__error {
+    padding-top: 0.25rem;
+  }
+}

@@ -1,0 +1,18 @@
+﻿.responsive-form-body {
+  width: 100%;
+  max-width: 400px;
+  margin-left: 3.125rem;
+}
+@media (max-width: 768px) {
+  .responsive-form-body {
+    margin-left: 0;
+  }
+  :deep(.responsive-dialog-500) {
+    width: 90% !important;
+  }
+}
+@media (min-width: 768px) {
+  :deep(.responsive-dialog-500) {
+    width: 500px !important;
+  }
+}

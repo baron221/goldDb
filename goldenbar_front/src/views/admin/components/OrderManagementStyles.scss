@@ -1,0 +1,130 @@
+.order-management-container {
+  .filter-card {
+    background-color: #fcfcfb;
+    border-radius: 2px;
+    border-color: #eae6df;
+    padding: 0.9375rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  }
+}
+
+:deep(.el-card) {
+  border-radius: 2px;
+}
+
+:deep(.el-table) {
+  border-radius: 0;
+  th.el-table__cell {
+    background-color: #fbfaf7 !important;
+    color: #222 !important;
+    font-size: 0.8875rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0 !important;
+  }
+}
+
+.action-buttons-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.order-detail-expand {
+  padding: 0.9375rem 1.5625rem;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 0.9375rem;
+    color: #222;
+    border-left: 3px solid #c5a880;
+    padding-left: 0.95rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  :deep(.hide-expand .el-table__expand-column .el-table__expand-icon) {
+    display: none;
+  }
+}
+
+.sub-items-container {
+  padding: 0.625rem 0.625rem 0.625rem 3rem;
+  background-color: #fbfaf7;
+  border-left: 2px solid #eae6df;
+
+  .sub-items-title {
+    font-size: 0.8875rem;
+    font-weight: 700;
+    color: #999;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+
+  .product-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 0;
+    border: 1px solid #eee;
+
+    &.small {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  .product-text {
+    .set-tag {
+      display: inline-block;
+      background: #c5a880;
+      color: white;
+      font-size: 0.825rem;
+      padding: 0rem 0.25rem;
+      border-radius: 0;
+      margin-bottom: 0.125rem;
+    }
+    .product-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #222;
+    }
+    .product-no {
+      font-size: 0.8875rem;
+      color: #bbbbbb;
+      font-family: monospace;
+    }
+  }
+}
+
+.item-total {
+  font-weight: 700;
+  color: #222;
+}
+
+.pagination-container {
+  margin-top: 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.el-button) {
+  border-radius: 0;
+}
+
+:deep(.el-tag) {
+  border-radius: 0;
+}
+
+:deep(.child-row) {
+  background-color: #fafafa;
+}

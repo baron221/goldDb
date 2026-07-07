@@ -1,0 +1,36 @@
+.summary-card {
+  background: #fdf6ec;
+  .summary-item {
+    text-align: center;
+    .label {
+      font-size: 0.9rem;
+      color: #909399;
+      margin-bottom: 0.3125rem;
+    }
+    .value {
+      font-size: 1.125rem;
+      font-weight: bold;
+      color: #303133;
+    }
+    &.highlight {
+      .label { color: #e6a23c; }
+      .value { color: #e6a23c; font-size: 1.25rem; }
+      .formula { font-size: 0.875rem; font-weight: normal; margin-top: 0.3125rem; }
+    }
+  }
+}
+
+.product-info {
+  .product-no {
+    font-size: 0.95rem;
+    color: #909399;
+  }
+  .product-name {
+    font-weight: bold;
+    color: #409eff;
+  }
+  .category {
+    font-size: 0.8875rem;
+    color: #909399;
+  }
+}

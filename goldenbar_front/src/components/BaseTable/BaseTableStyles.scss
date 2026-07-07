@@ -1,0 +1,242 @@
+.base-table-container {
+  font-family: 'S-CoreDream', 'Jost', sans-serif;
+ 
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+
+  :deep(.el-table) {
+    flex: 1;
+    border-color: #eae6df;
+   
+
+    th.el-table__cell {
+      background-color: #fbfaf7 !important;
+     
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.8875rem;
+      height: 45px;
+      border-bottom: 1px solid #eae6df;
+
+      .cell {
+        display: flex;
+        align-items: center;
+        position: relative;
+        padding-right: 20px; // 정렬 아이콘 공간 확보
+        white-space: nowrap; // 텍스트 줄바꿈 방지
+        overflow: hidden; // 넘치는 부분 숨김
+        text-overflow: ellipsis; // 말줄임표 적용
+
+        // 내부 텍스트 영역이 말줄임표를 제대로 표현하도록 설정
+        word-break: break-all;
+        line-height: 1.2;
+        width: 100%; // flex 컨테이너에서 너비 확보
+        
+        .caret-wrapper {
+          position: absolute;
+          right: 4px;
+          margin-left: 0;
+          background-color: inherit;
+        }
+      }
+
+      // Element Plus의 정렬 클래스에 따라 flex 정렬 조정
+      &.is-center .cell {
+        justify-content: center;
+      }
+      &.is-right .cell {
+        justify-content: flex-end;
+      }
+      &.is-left .cell {
+        justify-content: flex-start;
+      }
+    }
+
+    td.el-table__cell {
+      border-bottom: 1px solid #f7f5f0;
+      padding: 0.95rem 0;
+    }
+
+    .el-table__row:hover > td.el-table__cell {
+      background-color: #fbfaf7 !important;
+    }
+
+    .current-row > td.el-table__cell {
+      background-color: #f2efe9 !important;
+    }
+  }
+
+  .pagination-container-luxury {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    background-color: #fbfaf7;
+    border: 1px solid #eae6df;
+    border-top: none;
+    padding: 0.5rem 1rem;
+    min-height: 40px;
+    box-sizing: border-box;
+    width: 100%;
+
+    .pagination-side-spacer {
+      width: 120px;
+      flex-shrink: 0;
+    }
+
+    .pagination-wrapper {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .pagination-main-spacer {
+      flex: 1;
+      flex-grow: 1;
+    }
+
+    .row-count-info {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: #909399;
+      font-family: 'S-CoreDream', sans-serif;
+      width: 120px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+
+      &.no-pagination {
+        width: 100%;
+      }
+
+      .count-item {
+        white-space: nowrap;
+      }
+
+      .count-value {
+        color: #c5a880;
+        font-weight: 700;
+      }
+    }
+
+    :deep(.el-pagination) {
+      background-color: transparent !important;
+      padding: 0;
+
+      .btn-prev, .btn-next, .el-pager li {
+        margin: 0 2px !important;
+        background-color: #ffffff !important;
+        border: 1px solid #eae6df !important;
+        border-radius: 3px !important;
+        color: #888888 !important;
+        font-family: 'S-CoreDream','Jost', sans-serif;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        height: 28px !important;
+        min-width: 28px !important;
+        line-height: 26px !important;
+
+        &:hover {
+          border-color: #c5a880 !important;
+          color: #c5a880 !important;
+        }
+      }
+
+      .el-pager li.is-active {
+        background-color: #c5a880 !important;
+        border-color: #c5a880 !important;
+        color: #ffffff !important;
+      }
+
+      .el-pagination__total, .el-pagination__jump {
+        font-size: 0.85rem;
+        color: #999;
+        font-family: 'S-CoreDream', sans-serif;
+      }
+    }
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+
+      .pagination-side-spacer {
+        display: none;
+      }
+
+      .pagination-wrapper {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .pagination-main-spacer {
+        display: none;
+      }
+
+      .row-count-info {
+        justify-content: center;
+        width: 100%;
+        border-top: 1px dashed #eae6df;
+        padding-top: 0.375rem;
+      }
+
+      :deep(.el-pagination) {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+
+        .el-pagination__total {
+          font-size: 0.8125rem;
+          width: 100%;
+          text-align: center;
+        }
+
+        .btn-prev, .btn-next, .el-pager li {
+          min-width: 30px;
+          height: 30px;
+          line-height: 30px;
+          font-size: 0.8125rem;
+        }
+      }
+    }
+  }
+}
+
+
+
+.custom-context-menu {
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid #eae6df;
+  border-radius: 2px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+  z-index: 3000;
+  padding: 4px 0;
+  min-width: 150px;
+  font-family: 'S-CoreDream', sans-serif;
+
+  .menu-item {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #fbfaf7;
+      color: #c5a880;
+    }
+
+    .el-icon {
+      font-size: 1rem;
+    }
+  }
+}

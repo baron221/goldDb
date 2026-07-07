@@ -1,0 +1,8 @@
+<template>
+<div style="padding: 1.875rem;">
+    <el-alert :closable="false" title="menu 1-1" type="success">
+      <router-view />
+    </el-alert>
+  </div>
+</template>
+

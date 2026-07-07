@@ -1,0 +1,367 @@
+.product-info-section {
+  padding-left: 0.625rem;
+
+  .meta-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.95rem;
+
+    .company-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #c5a880;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .right-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+
+      .category-path {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.8875rem;
+        color: #777;
+
+        .category-separator {
+          color: #d0d0d0;
+          font-size: 0.825rem;
+        }
+      }
+
+      .product-no {
+        font-size: 0.8875rem;
+        color: #999;
+        letter-spacing: 0.5px;
+        font-family: monospace;
+      }
+    }
+  }
+
+  .product-title {
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.5px;
+  }
+
+  .price-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-end;
+    text-align: right;
+
+    .price-value {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.3125rem;
+      line-height: 1;
+
+      .currency-symbol {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #c5a880;
+        letter-spacing: 0.5px;
+        align-self: flex-end;
+        margin-bottom: 0.125rem;
+      }
+
+      .price-amount {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1a1a1a;
+        letter-spacing: -1px;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+  }
+
+  .divider-thin {
+    height: 1px;
+    background-color: #eaeaea;
+    margin: 1.25rem 0;
+  }
+
+  .info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-end;
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      font-size: 0.9rem;
+      line-height: 1.5;
+
+      .value {
+        color: #222;
+        font-weight: 500;
+
+        &.weight-display {
+          display: inline-flex;
+          align-items: baseline;
+          gap: 0.25rem;
+        }
+
+        .weight-number {
+          font-size: 1.375rem;
+          font-weight: 700;
+          color: #1a1a1a;
+          letter-spacing: -0.5px;
+          line-height: 1;
+        }
+
+        .weight-unit {
+          font-size: 0.8875rem;
+          font-weight: 500;
+          color: #aaa;
+          letter-spacing: 0.5px;
+          text-transform: lowercase;
+        }
+
+        &.highlight-gold {
+          .weight-number {
+            color: #c5a880 !important;
+            font-weight: 800 !important;
+          }
+          .weight-unit {
+            color: #d4b896 !important;
+          }
+        }
+
+        .option-weight-badge {
+          background-color: #fdf6ec;
+          color: #c5a880;
+          border: 1px solid #faecd8;
+          font-size: 0.825rem;
+          font-weight: 700;
+          padding: 0.0625rem 0.3125rem;
+          border-radius: 20px;
+          align-self: center;
+        }
+      }
+    }
+  }
+
+  .option-section {
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+
+    .option-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+
+      .option-label {
+        font-size: 0.8875rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+        font-weight: 600;
+      }
+
+      .jovenca-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+
+        :deep(.el-radio-button) {
+          margin-right: 0;
+        }
+
+        :deep(.el-radio-button__inner) {
+          border: 1px solid #d9d9d9 !important;
+          border-radius: 0px !important;
+          background: transparent;
+          color: #555;
+          font-weight: 600;
+          font-size: 0.95rem;
+          padding: 0.5rem 1rem;
+          margin-right: 0.5rem;
+          transition: all 0.3s ease;
+          box-shadow: none !important;
+
+          &:hover {
+            color: #c5a880;
+            border-color: #c5a880 !important;
+          }
+        }
+
+        :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+          background-color: #1a1a1a !important;
+          border-color: #1a1a1a !important;
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  .action-section {
+    border: 1px solid #f2efeb;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+
+    .quantity-input-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+
+      .qty-label {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .jovenca-qty {
+        width: 120px;
+
+        :deep(.el-input-number__decrease), :deep(.el-input-number__increase) {
+          background: transparent;
+          border: none;
+          color: #777;
+
+          &:hover {
+            color: #c5a880;
+          }
+        }
+
+        :deep(.el-input__inner) {
+          font-weight: 700;
+          border-radius: 0px;
+        }
+      }
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.95rem;
+      align-items: center;
+      width: 100%;
+
+      .btn-favorite {
+        width: 48px;
+        height: 48px;
+        border: 1px solid #e5e5e5;
+        background-color: #ffffff;
+        color: #777777;
+        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        border-radius: 50% !important;
+
+        &:hover {
+          color: #c5a880;
+          border-color: #c5a880;
+          background-color: #fcfbfa;
+        }
+
+        &.is-active {
+          background-color: #fdf6ec;
+          border-color: #e6a23c;
+          color: #e6a23c;
+
+          &:hover {
+            background-color: #fdf6ec;
+            border-color: #e6a23c;
+            color: #e6a23c;
+          }
+        }
+      }
+
+      .btn-jovenca {
+        height: 48px;
+        border-radius: 0px !important;
+        font-weight: 600;
+        font-size: 0.875rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &.btn-secondary {
+          flex: 1;
+          background-color: transparent !important;
+          border: 1px solid #1a1a1a !important;
+          color: #1a1a1a !important;
+
+          &:hover {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+          }
+        }
+
+        &.btn-primary {
+          flex: 1.2;
+          background-color: #1a1a1a !important;
+          border: 1px solid #1a1a1a !important;
+          color: #ffffff !important;
+
+          &:hover {
+            background-color: #c5a880 !important;
+            border-color: #c5a880 !important;
+            box-shadow: 0 4px 12px rgba(197, 168, 128, 0.25);
+          }
+        }
+      }
+    }
+  }
+
+  .action-section.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    user-select: none;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      cursor: not-allowed;
+    }
+  }
+
+  .non-retail-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    background: #fdf6ec;
+    border: 1px solid #f0d9b5;
+    border-left: 4px solid #c5a880;
+    padding: 0.875rem 1rem;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+
+    .alert-icon {
+      color: #c5a880;
+      font-size: 1.125rem;
+      flex-shrink: 0;
+      margin-top: 0.0625rem;
+    }
+
+    .alert-desc {
+      font-size: 0.9rem;
+      color: #7a6040;
+      line-height: 1.6;
+    }
+  }
+}

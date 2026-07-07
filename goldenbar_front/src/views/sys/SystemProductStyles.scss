@@ -1,0 +1,109 @@
+.section-header {
+  .section-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+   
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    padding-left: 0.9375rem;
+    line-height: 1.2;
+    margin: 0;
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background-color: #c5a880;
+    }
+  }
+}
+
+.filter-container {
+  padding: 0.9375rem 1.25rem;
+  border: 1px solid #f0eeeb;
+  border-radius: 0;
+
+  :deep(.el-form-item__label) {
+    font-size: 0.8875rem;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 0.5px;
+  }
+}
+
+:deep(.el-card) {
+  border-radius: 2px;
+  border-color: #eae6df;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02) !important;
+}
+
+:deep(.el-table) {
+  th.el-table__cell {
+    background-color: #fbfaf7 !important;
+    color: #222 !important;
+    font-size: 0.8875rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0 !important;
+  }
+}
+
+:deep(.photo-column) {
+  padding: 0 !important;
+}
+:deep(.photo-column .cell) {
+  padding: 0 !important;
+  line-height: 0;
+  width: 80px !important;
+  height: 80px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.el-button) {
+  border-radius: 0;
+}
+
+:deep(.el-tag) {
+  border-radius: 0;
+}
+
+:deep(.el-input__wrapper), :deep(.el-input-number__wrapper) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: 1px solid #dcdfe6;
+  &:hover { border-color: #c5a880; }
+}
+
+.option-weights-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.option-weight-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8875rem;
+}
+.mini-tag {
+  height: 18px;
+  line-height: 16px;
+  padding: 0 0.25rem;
+  font-size: 0.825rem;
+}
+.weight-text {
+  font-weight: 700;
+  color: #c5a880;
+  margin-left: auto;
+  font-family: monospace;
+}
+.center-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

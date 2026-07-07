@@ -1,0 +1,20 @@
+using GoldbApi.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace GoldbApi.Data.Configurations;
+
+public class OrderConfiguration : IEntityTypeConfiguration<Order>
+{
+    public void Configure(EntityTypeBuilder<Order> builder)
+    {
+        builder.HasKey(e => e.Id);
+        builder.HasOne(e => e.User)
+               .WithMany()
+               .HasForeignKey(e => e.UserId);
+        builder.HasOne(e => e.Customer)
+               .WithMany()
+               .HasForeignKey(e => e.CustomerId)
+               .OnDelete(DeleteBehavior.SetNull);
+    }
+}

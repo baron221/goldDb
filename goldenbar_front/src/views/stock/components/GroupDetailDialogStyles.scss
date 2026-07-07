@@ -1,0 +1,141 @@
+﻿.product-dashboard {
+  display: flex;
+  background-color: #faf9f6; // Warm Ivory background
+  border: 1px solid #eae6df;
+  border-radius: 2px;
+  padding: 0.9375rem 1.25rem;
+  margin-bottom: 1.25rem;
+  align-items: center;
+
+  .dashboard-photo {
+    width: 90px;
+    height: 90px;
+    background-color: #ffffff;
+    border: 1px solid #eae6df;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-right: 1.25rem;
+    border-radius: 0;
+
+    .dashboard-img {
+      width: 90px;
+      height: 90px;
+      display: block;
+    }
+
+    .no-image-placeholder {
+      font-size: 0.825rem;
+      color: #909399;
+      font-family: 'S-CoreDream', 'Jost', sans-serif;
+    }
+  }
+
+  .dashboard-details {
+    flex: 1;
+
+    .prod-no {
+      font-size: 0.8875rem;
+      font-weight: 500;
+      color: #888;
+      font-family: 'S-CoreDream', 'Jost', sans-serif;
+      margin-bottom: 0.125rem;
+    }
+
+    .prod-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 0.375rem;
+    }
+
+    .prod-meta {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 0.95rem;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+
+      .meta-label {
+        font-weight: 500;
+        margin-right: 0.25rem;
+      }
+
+      .meta-val {
+        margin-right: 0.625rem;
+      }
+
+      .meta-divider {
+        color: #ddd;
+        margin-right: 0.625rem;
+      }
+    }
+
+    .dashboard-stats {
+      display: flex;
+      gap: 1.5625rem;
+
+      .stat-box {
+        .stat-label {
+          font-size: 0.825rem;
+          color: #888;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 0.0625rem;
+        }
+
+        .stat-value {
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: #c5a880; // Jovenca Gold
+          font-family: 'S-CoreDream', 'Jost', sans-serif;
+
+          span {
+            font-size: 0.95rem;
+            font-weight: 400;
+            color: #222;
+            margin-left: 0.125rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+:deep(.premium-dialog) {
+  border-radius: 2px;
+  .el-dialog__header {
+    background-color: #faf9f6 !important;
+    border-bottom: 1px solid #eae6df;
+    margin-right: 0 !important;
+    padding: 0.95rem 1.25rem !important;
+
+    .el-dialog__title {
+      font-weight: 600;
+      color: #222;
+      font-size: 0.9375rem;
+    }
+  }
+
+  .el-dialog__body {
+    padding: 0.9375rem 1.25rem !important;
+  }
+
+  .el-dialog__footer {
+    border-top: 1px solid #eae6df;
+    padding: 0.5rem 1.25rem !important;
+    background-color: #faf9f6;
+  }
+}
+
+:deep(.el-table) {
+  th.el-table__cell {
+    padding: 0.375rem 0 !important;
+    background-color: #faf9f6 !important;
+    color: #222222 !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+  }
+}
