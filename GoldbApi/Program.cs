@@ -144,12 +144,9 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
 var storagePath = builder.Configuration["Storage:LocalPath"];
-
 if (string.IsNullOrEmpty(storagePath))
 {
-    storagePath = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
-        ? @"c:\goldb_storage"
-        : "/home/lee/goldb_storage";
+    storagePath = Path.Combine(builder.Environment.ContentRootPath, "goldb_storage");
 }
 
 if (!Directory.Exists(storagePath))
