@@ -154,8 +154,8 @@ public class ProductService : IProductService
         {
             Items = items,
             TotalCount = totalCount,
-            Page = query.Page,
-            PageSize = query.PageSize
+            Page = query.Page ?? 1,
+            PageSize = query.PageSize ?? 20
         });
     }
 
