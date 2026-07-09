@@ -12,12 +12,12 @@
                 <component :is="get2MetaIconPath(onlyOneChild, item)" />
               </el-icon>
               <svg-icon v-else :icon-class="get2MetaIconPath(onlyOneChild, item)" />
-              <span v-if="secondMenuPopup && isTopRoute" class="text text-one text-one-added">{{ onlyOneChild.meta.title }}</span>
+              <span v-if="secondMenuPopup && isTopRoute" class="text text-one text-one-added">{{ generateTitle(onlyOneChild.meta.title) }}</span>
             </template>
             <component v-else :is="get2MetaIconPath(onlyOneChild, item)" class="svg-icon el-svg-icon" />
           </template>
           <template #title>
-            <span class="text text-one">{{ onlyOneChild.meta.title }}</span>
+            <span class="text text-one">{{ generateTitle(onlyOneChild.meta.title) }}</span>
           </template>
         </el-menu-item>
       </app-link>
@@ -36,7 +36,7 @@
           <component v-else :is="getMetaIconPath(item)" class="svg-icon el-svg-icon" />
         </template>
 
-        <span class="text text-two">{{ item.meta.title }}</span>
+        <span class="text text-two">{{ generateTitle(item.meta.title) }}</span>
       </template>
       <sidebar-item v-for="child in item.children" :key="child.path" :is-nest="true" :item="child"
                     :base-path="resolvePath(child.path)" class="nest-menu" />
@@ -156,6 +156,14 @@ export default defineComponent({
         return this.basePath;
       }
       return path.resolve(this.basePath, routePath);
+    },
+    generateTitle(title) {
+      if (!title) return '';
+      const key = 'route.' + title;
+      if (this.$te && this.$te(key)) {
+        return this.$t(key);
+      }
+      return title;
     }
   }
 });
