@@ -101,7 +101,10 @@ export function transformMenus(menus: any[], permissionMap: Record<string, any> 
     if (menu.component === 'Layout') {
       route.component = Layout;
     } else if (menu.component) {
-      const componentPath = menu.component.startsWith('/') ? menu.component.substring(1) : menu.component;
+      let componentPath = menu.component.startsWith('/') ? menu.component.substring(1) : menu.component;
+      if (componentPath.startsWith('views/')) {
+        componentPath = componentPath.substring('views/'.length);
+      }
       const fullPathToComp = `../../views/${componentPath}.vue`;
       if (modules[fullPathToComp]) {
         route.component = modules[fullPathToComp];
