@@ -53,7 +53,7 @@
             <el-row :gutter="10" style="width: 100%;">
 
               <el-col :span="11">
-                <div class="table-title">현재 센터 소매업체</div>
+                <div class="table-title">현재 센터 생산업체</div>
                 <el-input
                   v-model="assignedFilter"
                   placeholder="업체명 검색"
@@ -102,7 +102,7 @@
               </el-col>
 
               <el-col :span="11">
-                <div class="table-title">미할당 소매업체</div>
+                <div class="table-title">미할당 생산업체</div>
                 <div style="display: flex; gap: 0.3125rem; margin-bottom: 0.625rem;">
                   <el-input
                     v-model="unassignedFilter"
