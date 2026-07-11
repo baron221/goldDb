@@ -12,9 +12,9 @@ public static class UserEndpoints
     {
         var group = app.MapGroup("/user").RequireAuthorization();
 
-        group.MapGet("/", async ([FromQuery] string? companyType, [FromQuery] string? searchText, [FromQuery] bool? isUnassignedOnly, [FromQuery] bool? isLogisticsUnassigned, IUserService userService) =>
+        group.MapGet("/", async ([FromQuery] string? companyType, [FromQuery] string? searchText, [FromQuery] bool? isUnassignedOnly, [FromQuery] bool? isLogisticsUnassigned, [FromQuery] bool? isPendingApprovalOnly, IUserService userService) =>
         {
-            var result = await userService.GetUsersAsync(companyType, searchText, isUnassignedOnly ?? false, isLogisticsUnassigned ?? false);
+            var result = await userService.GetUsersAsync(companyType, searchText, isUnassignedOnly ?? false, isLogisticsUnassigned ?? false, isPendingApprovalOnly ?? false);
             return Results.Ok(result);
         });
 

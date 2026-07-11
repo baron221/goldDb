@@ -31,6 +31,9 @@
       <el-checkbox v-model="localQuery.isLogisticsUnassigned" @change="onFilter">
         물류 미지정 (소매)
       </el-checkbox>
+      <el-checkbox v-model="localQuery.isPendingApprovalOnly" @change="onFilter">
+        승인 대기만 보기
+      </el-checkbox>
     </div>
   </div>
 </template>

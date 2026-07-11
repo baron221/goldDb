@@ -1,5 +1,5 @@
 import { ref, reactive } from 'vue';
-import { getUsers, getUserDetail, deleteUser, createUser, updateUser } from '@/api/user';
+import { getUsers, getUserDetail, deleteUser, createUser, updateUser, approveUser } from '@/api/user';
 import { getRoles } from '@/api/role';
 import { getCompanies } from '@/api/company';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -17,6 +17,7 @@ export function useUser() {
     searchText: '',
     isUnassignedOnly: false,
     isLogisticsUnassigned: false,
+    isPendingApprovalOnly: false,
     page: 1,
     pageSize: 20
   });
@@ -52,6 +53,18 @@ export function useUser() {
       console.error('사용자 상세 조회 실패:', error);
       ElMessage.error(t('userManage.loadFail'));
       return null;
+    }
+  };
+
+  const approveUserRow = async (id: number) => {
+    try {
+      await approveUser(id);
+      ElMessage.success('사용자가 승인되었습니다.');
+      fetchUsers();
+      return true;
+    } catch (error: any) {
+      ElMessage.error('승인 실패: ' + (error.response?.data?.message || error.message));
+      return false;
     }
   };
 
@@ -101,6 +114,7 @@ export function useUser() {
     fetchUsers,
     handleFilter,
     fetchUserDetail,
+    approveUserRow,
     removeUser,
     fetchInitialData
   };

@@ -206,10 +206,10 @@ public class AuthService : IAuthService
 
         string assignedRoleKey = request.UserType switch
         {
-            "RETAIL" => "retail",
-            "LOGISTICS" => "market",
-            "MANUFACTURER" => "manufacturer",
-            _ => "retail"
+            "RETAIL" => "editor",
+            "LOGISTICS" => "dc",
+            "MANUFACTURER" => "mfg",
+            _ => "editor"
         };
         var assignedRole = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == assignedRoleKey);
         if (assignedRole != null)
@@ -226,6 +226,14 @@ public class AuthService : IAuthService
             fileUrl = await _fileService.SaveFileAsync(businessLicenseFile, "company_licenses");
         }
 
+        string companyCategory = request.UserType switch
+        {
+            "RETAIL" => "RTL",
+            "LOGISTICS" => "DCC",
+            "MANUFACTURER" => "MFG",
+            _ => "RTL"
+        };
+
         var company = new Company
         {
             Name = request.CompanyName ?? string.Empty,
@@ -241,7 +249,7 @@ public class AuthService : IAuthService
             CEO = request.Name ?? string.Empty,
             Region = "서울", // Default or extract from address?
             IsDirectManagement = false,
-            Category = request.UserType ?? "RETAIL"
+            Category = companyCategory
         };
 
         await _companyRepository.AddAsync(company);

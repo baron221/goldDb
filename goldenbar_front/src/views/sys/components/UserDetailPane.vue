@@ -73,6 +73,21 @@
                 <el-input v-model="localUser.addressBase" :placeholder="$t('userManage.addressBase')" readonly style="margin-bottom: 8px;" />
                 <el-input v-model="localUser.addressDetail" :placeholder="$t('userManage.addressDetailPlaceholder')" />
               </el-form-item>
+
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <el-form-item :label="$t('userManage.reception')">
+                    <el-radio-group v-model="localUser.smsAllowed">
+                      <el-radio :value="true">수신</el-radio>
+                      <el-radio :value="false">거부</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-form-item :label="$t('userManage.introduction')">
+                <el-input v-model="localUser.introduction" type="textarea" :rows="4" />
+              </el-form-item>
             </el-form>
           </div>
         </el-tab-pane>

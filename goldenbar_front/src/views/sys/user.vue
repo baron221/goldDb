@@ -16,7 +16,7 @@
             <user-filter :query="listQuery" @filter="handleFilter" style="margin-top: 15px;" />
           </template>
 
-          <user-table :data="userList" @row-click="handleRowClick" v-loading="loading" />
+          <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
         </el-card>
       </div>
 
@@ -55,7 +55,7 @@
           </div>
           <user-filter :query="listQuery" @filter="handleFilter" style="margin-top: 15px;" />
         </template>
-        <user-table :data="userList" @row-click="handleRowClick" v-loading="loading" />
+        <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
       </el-card>
 
       <div v-else class="mobile-detail-wrapper">
@@ -95,7 +95,7 @@
 import { ref, onMounted, reactive, watch, nextTick } from 'vue';
 import { useMobile } from '@/hooks/useMobile';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue';
 import { createUser, updateUser, approveUser } from '@/api/user';
 
@@ -117,6 +117,7 @@ const {
   fetchUsers,
   handleFilter,
   fetchUserDetail,
+  approveUserRow,
   removeUser,
   fetchInitialData
 } = useUser();
@@ -211,6 +212,7 @@ const handleSave = async () => {
 };
 
 const handleApprove = async () => {
+  if (!userDetail.id) return;
   try {
     await approveUser(userDetail.id);
     ElMessage.success('사용자가 승인되었습니다.');
@@ -218,6 +220,23 @@ const handleApprove = async () => {
     fetchUsers();
   } catch (error: any) {
     ElMessage.error('승인 실패: ' + (error.response?.data?.message || error.message));
+  }
+};
+
+const handleApproveRow = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`'${row.name}' (${row.username}) 사용자를 승인하시겠습니까?`, '사용자 승인', {
+      confirmButtonText: '승인',
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    });
+  } catch {
+    return;
+  }
+
+  const success = await approveUserRow(row.id);
+  if (success && userDetail.id === row.id) {
+    userDetail.isApproved = true;
   }
 };
 
@@ -301,7 +320,7 @@ const openPostcode = () => {
 
 onMounted(() => {
   fetchInitialData();
-
+  fetchUsers();
 });
 </script>
 

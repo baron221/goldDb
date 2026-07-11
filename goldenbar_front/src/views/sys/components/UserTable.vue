@@ -69,6 +69,24 @@
         </div>
       </template>
     </el-table-column>
+    <el-table-column
+      prop="isApproved"
+      label="승인 상태"
+      min-width="130"
+      align="center"
+    >
+      <template #default="scope">
+        <el-tag v-if="scope.row.isApproved" type="success" size="small" class="tiny-tag">승인됨</el-tag>
+        <el-button
+          v-else
+          type="success"
+          size="small"
+          @click.stop="onApproveClick(scope.row)"
+        >
+          승인 (Approve)
+        </el-button>
+      </template>
+    </el-table-column>
   </base-table>
 </template>
 
@@ -80,7 +98,7 @@ const props = defineProps<{
   data: any[];
 }>();
 
-const emit = defineEmits(['row-click']);
+const emit = defineEmits(['row-click', 'approve']);
 
 const { t } = useI18n();
 
@@ -88,11 +106,15 @@ const onRowClick = (row: any) => {
   emit('row-click', row);
 };
 
+const onApproveClick = (row: any) => {
+  emit('approve', row);
+};
+
 const getTagType = (row: any) => {
   if (row.userType === 'ADMIN') return 'danger';
   switch (row.companyCategory) {
     case 'MFG': return 'warning';
-    case 'LOG': return 'success';
+    case 'DCC': return 'success';
     case 'RTL': return 'primary';
     default: return 'info';
   }
@@ -101,7 +123,7 @@ const getTagType = (row: any) => {
 const getCompanyTypeName = (category: string) => {
   switch (category) {
     case 'MFG': return t('userManage.manufacturer');
-    case 'LOG': return t('userManage.logistics');
+    case 'DCC': return t('userManage.logistics');
     case 'RTL': return t('userManage.retailer');
     default: return t('userManage.none');
   }

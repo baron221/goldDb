@@ -11,7 +11,7 @@ namespace GoldbApi.Services;
 public interface IUserService
 {
 
-    Task<ApiResponse<List<UserListItemResponse>>> GetUsersAsync(string? companyType = null, string? searchText = null, bool isUnassignedOnly = false, bool isLogisticsUnassigned = false);
+    Task<ApiResponse<List<UserListItemResponse>>> GetUsersAsync(string? companyType = null, string? searchText = null, bool isUnassignedOnly = false, bool isLogisticsUnassigned = false, bool isPendingApprovalOnly = false);
 
     Task<ApiResponse<UserDetailResponse>> GetUserDetailAsync(int id);
 
@@ -52,7 +52,7 @@ public class UserService : IUserService
         _userPhotoRepository = userPhotoRepository;
     }
 
-    public async Task<ApiResponse<List<UserListItemResponse>>> GetUsersAsync(string? companyType = null, string? searchText = null, bool isUnassignedOnly = false, bool isLogisticsUnassigned = false)
+    public async Task<ApiResponse<List<UserListItemResponse>>> GetUsersAsync(string? companyType = null, string? searchText = null, bool isUnassignedOnly = false, bool isLogisticsUnassigned = false, bool isPendingApprovalOnly = false)
     {
         var query = _userRepository.GetQueryable()
             .Include(u => u.UserCompanies)
@@ -60,7 +60,11 @@ public class UserService : IUserService
                 .ThenInclude(c => c!.LogisticsCompany)
             .AsQueryable();
 
-        if (isUnassignedOnly)
+        if (isPendingApprovalOnly)
+        {
+            query = query.Where(u => !u.IsApproved);
+        }
+        else if (isUnassignedOnly)
         {
             query = query.Where(u => u.UserType == "COMPANY" && !u.UserCompanies.Any());
         }

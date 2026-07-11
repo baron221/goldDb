@@ -91,6 +91,8 @@ public class UserListItemResponse
 
     public bool IsDirectManagement { get; set; }
 
+    public bool IsApproved { get; set; }
+
     public string? LastLoginIp { get; set; }
 
     public DateTime? LastLoginAt { get; set; }
