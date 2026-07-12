@@ -198,12 +198,6 @@ public class AuthService : IAuthService
             user.UserPhones.Add(new UserPhone { PhoneNumber = request.Phone, IsPrimary = true });
         }
 
-        var visitorRole = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == "visitor");
-        if (visitorRole != null)
-        {
-            user.UserRoles.Add(new UserRole { RoleId = visitorRole.Id });
-        }
-
         string assignedRoleKey = request.UserType switch
         {
             "RETAIL" => "editor",

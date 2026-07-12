@@ -134,13 +134,6 @@ public class UserService : IUserService
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        var visitorRole = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == "visitor");
-        if (visitorRole != null)
-        {
-            await _userRoleRepository.AddAsync(new UserRole { UserId = user.Id, RoleId = visitorRole.Id });
-            await _userRoleRepository.SaveChangesAsync();
-        }
-
         return ApiResponse<UserListItemResponse>.Success(new UserListItemResponse
         {
             Id = user.Id,
