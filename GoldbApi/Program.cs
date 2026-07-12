@@ -146,7 +146,7 @@ app.UseHttpsRedirection();
 var storagePath = builder.Configuration["Storage:LocalPath"];
 if (string.IsNullOrEmpty(storagePath))
 {
-    storagePath = Path.Combine(builder.Environment.ContentRootPath, "goldb_storage");
+    storagePath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
 }
 
 if (!Directory.Exists(storagePath))

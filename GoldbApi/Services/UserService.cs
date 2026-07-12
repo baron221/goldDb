@@ -171,7 +171,7 @@ public class UserService : IUserService
             _userRepository.Update(user);
 
             await _userCompanyRepository.GetQueryable().Where(uc => uc.UserId == user.Id).ExecuteDeleteAsync();
-            if (request.UserType == "COMPANY" && request.CompanyId.HasValue)
+            if (request.CompanyId.HasValue)
             {
                 user.UserCompanies.Add(new UserCompany { UserId = user.Id, CompanyId = request.CompanyId.Value });
             }

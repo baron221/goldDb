@@ -66,8 +66,6 @@ public class User : BaseModel
     [Description("로그인 횟수")]
     public int LoginCount { get; set; } = 0;
 
-    public bool IsDeleted { get; set; } = false;
-
     public bool IsApproved { get; set; } = false;
 
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
