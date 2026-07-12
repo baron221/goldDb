@@ -88,7 +88,7 @@
           <h2 class="section-title">{{ $t('dashboard.factory.categoryDistribution') || '분류별 제품 현황' }}</h2>
         </div>
         <div class="inventory-table-card">
-          <category-distribution-chart :chart-data="stats.productTrendByCategory" :dates="stats.recentDates" title="제품등록 현황" />
+          <category-distribution-chart :chart-data="stats.productTrendByCategory" :dates="stats.recentDates" :title="$t('dashboard.factory.productRegistrationChartTitle')" />
         </div>
       </section>
 
@@ -97,7 +97,7 @@
           <h2 class="section-title">{{ $t('dashboard.factory.orderCategoryDistribution') || '분류별 주문 현황' }}</h2>
         </div>
         <div class="inventory-table-card">
-          <category-distribution-chart :chart-data="stats.orderTrendByCategory" :dates="stats.recentDates" title="주문 현황" />
+          <category-distribution-chart :chart-data="stats.orderTrendByCategory" :dates="stats.recentDates" :title="$t('dashboard.factory.orderChartTitle')" />
         </div>
       </section>
 

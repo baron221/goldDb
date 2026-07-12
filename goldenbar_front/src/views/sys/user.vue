@@ -13,7 +13,7 @@
                 <el-button :icon="Refresh" size="small" circle @click="fetchUsers" />
               </div>
             </div>
-            <user-filter :query="listQuery" @filter="handleFilter" style="margin-top: 15px;" />
+            <user-filter :query="listQuery" @update:query="(val) => Object.assign(listQuery, val)" @filter="handleFilter" style="margin-top: 15px;" />
           </template>
 
           <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
@@ -26,6 +26,7 @@
         <user-detail-pane
           :user="userDetail"
           :roles="allRoles"
+          @update:user="(val) => Object.assign(userDetail, val)"
           @save="handleSave"
           @approve="handleApprove"
           @delete="() => removeUser(userDetail.id)"
@@ -53,7 +54,7 @@
             <span>{{ $t('userManage.listTitle') }}</span>
             <el-button v-permission="'create'" type="primary" size="small" @click="handleCreate">{{ $t('userManage.addUser') }}</el-button>
           </div>
-          <user-filter :query="listQuery" @filter="handleFilter" style="margin-top: 15px;" />
+          <user-filter :query="listQuery" @update:query="(val) => Object.assign(listQuery, val)" @filter="handleFilter" style="margin-top: 15px;" />
         </template>
         <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
       </el-card>
@@ -61,11 +62,12 @@
       <div v-else class="mobile-detail-wrapper">
         <div class="mobile-detail-header">
           <el-button :icon="ArrowLeft" circle @click="showMobileDetail = false" />
-          <span class="header-title">{{ userDetail.name || '사용자 상세' }}</span>
+          <span class="header-title">{{ userDetail.name || $t('userManage.detailFallback') }}</span>
         </div>
         <user-detail-pane
           :user="userDetail"
           :roles="allRoles"
+          @update:user="(val) => Object.assign(userDetail, val)"
           @save="handleSave"
           @approve="handleApprove"
           @delete="() => removeUser(userDetail.id)"
@@ -215,18 +217,18 @@ const handleApprove = async () => {
   if (!userDetail.id) return;
   try {
     await approveUser(userDetail.id);
-    ElMessage.success('사용자가 승인되었습니다.');
+    ElMessage.success(t('userManage.approveSuccess'));
     userDetail.isApproved = true;
     fetchUsers();
   } catch (error: any) {
-    ElMessage.error('승인 실패: ' + (error.response?.data?.message || error.message));
+    ElMessage.error(t('userManage.approveFail') + ': ' + (error.response?.data?.message || error.message));
   }
 };
 
 const handleApproveRow = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`'${row.name}' (${row.username}) 사용자를 승인하시겠습니까?`, '사용자 승인', {
-      confirmButtonText: '승인',
+    await ElMessageBox.confirm(`'${row.name}' (${row.username}) ${t('userManage.approveConfirmMessage')}`, t('userManage.approveConfirmTitle'), {
+      confirmButtonText: t('userManage.approve'),
       cancelButtonText: t('common.cancel'),
       type: 'warning'
     });

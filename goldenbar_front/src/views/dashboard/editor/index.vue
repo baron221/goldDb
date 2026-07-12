@@ -60,9 +60,9 @@
         <retail-panel-group v-if="logisticsCompanyId" :stats="stats" @handleSetLineChartData="handleSetLineChartData" />
         <div v-else class="no-logistics-alert">
           <el-alert
-            title="관리 물류업체가 지정되지 않았습니다."
+            :title="$t('dashboard.retailer.noLogisticsWarningTitle')"
             type="warning"
-            description="현재 귀하의 업체에 할당된 관리 물류업체가 없습니다. 정확한 정산 및 배송 정보 확인을 위해 관리자에게 물류업체 지정을 요청해 주세요."
+            :description="$t('dashboard.retailer.noLogisticsWarningDesc')"
             show-icon
             :closable="false"
           />
@@ -71,32 +71,32 @@
 
       <section class="section-container">
         <div class="section-header">
-          <h2 class="section-title">자사 미수금 현황</h2>
+          <h2 class="section-title">{{ $t('dashboard.retailer.receivablesTitle') }}</h2>
         </div>
 
         <el-row :gutter="24" class="summary-grid">
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">총 미수금액</div>
-              <div class="stat-value" style="color: #f56c6c;">{{ formatPrice(stats.totalUnpaid) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.retailer.totalUnpaid') }}</div>
+              <div class="stat-value" style="color: #f56c6c;">{{ formatPrice(stats.totalUnpaid) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 발생 미수금</div>
-              <div class="stat-value">{{ formatPrice(stats.currentMonthUnpaid) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.retailer.currentMonthUnpaid') }}</div>
+              <div class="stat-value">{{ formatPrice(stats.currentMonthUnpaid) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 청구액</div>
-              <div class="stat-value">{{ formatPrice(stats.currentMonthCharge) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.retailer.currentMonthCharge') }}</div>
+              <div class="stat-value">{{ formatPrice(stats.currentMonthCharge) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 수납액</div>
-              <div class="stat-value" style="color: #67c23a;">{{ formatPrice(stats.currentMonthDeposit) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.retailer.currentMonthDeposit') }}</div>
+              <div class="stat-value" style="color: #67c23a;">{{ formatPrice(stats.currentMonthDeposit) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
         </el-row>

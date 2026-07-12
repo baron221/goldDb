@@ -7,13 +7,13 @@
       </pan-thumb>
       <div class="info-container">
         <span class="display_name">{{ name }}</span>
-        <span style="font-size: 1.25rem;padding-top: 1.25rem;display:inline-block;">기타 대시보드</span>
+        <span style="font-size: 1.25rem;padding-top: 1.25rem;display:inline-block;">{{ $t('dashboard.others.title') }}</span>
       </div>
     </div>
 
     <el-card style="margin-top: 1.25rem;">
       <div style="padding: 1.25rem; text-align: center;">
-        준비 중인 대시보드입니다.
+        {{ $t('dashboard.others.comingSoon') }}
       </div>
     </el-card>
 

@@ -1,14 +1,14 @@
 <template>
 <base-popup
     v-model="visible"
-    :title="dialogStatus === 'create' ? '새 제품 등록' : '제품 정보 수정'"
+    :title="dialogStatus === 'create' ? $t('productDialog.createTitle') : $t('productDialog.editTitle')"
     draggable
     class="product-dialog responsive-dialog-800"
   >
     <el-form ref="dataForm" :rules="formRules" :model="temp" label-position="left" label-width="120px" class="dialog-form">
       <el-tabs v-model="activeTab" class="fixed-height-tabs">
 
-        <el-tab-pane label="기본 정보" name="basic">
+        <el-tab-pane :label="$t('productDialog.tabBasic')" name="basic">
           <product-basic-info
             :temp="temp"
             :product-colors="productColors"
@@ -18,6 +18,7 @@
             :current-view-photo-url="currentViewPhotoUrl"
             :sorted-photos="sortedPhotos"
             v-model:active-photo-url="activePhotoUrl"
+            @update:temp="(val) => Object.assign(temp, val)"
             @change-large-category="handleLargeCategoryChange"
             @change-medium-category="handleMediumCategoryChange"
             @loaded-large-options="onLargeOptionsLoaded"
@@ -26,19 +27,20 @@
           />
         </el-tab-pane>
 
-        <el-tab-pane label="옵션 정보" name="options">
+        <el-tab-pane :label="$t('productDialog.tabOptions')" name="options">
           <product-option-info
             :temp="temp"
             :product-sizes="productSizes"
             :combination-grid-data="combinationGridData"
             v-model:calc-base-purity="calcBasePurity"
             v-model:calc-base-weight="calcBaseWeight"
+            @update:temp="(val) => Object.assign(temp, val)"
             @apply-bulk-conversion="applyBulkWeightConversion"
           />
         </el-tab-pane>
 
-        <el-tab-pane label="스톤 정보" name="stones">
-          <product-stone-info :temp="temp" />
+        <el-tab-pane :label="$t('productDialog.tabStones')" name="stones">
+          <product-stone-info :temp="temp" @update:temp="(val) => Object.assign(temp, val)" />
         </el-tab-pane>
       </el-tabs>
     </el-form>
@@ -50,13 +52,13 @@
     />
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="visible = false">취소</el-button>
+        <el-button @click="visible = false">{{ $t('productDialog.cancel') }}</el-button>
         <template v-if="dialogStatus === 'create'">
-          <el-button type="success" @click="createData(true)">저장 후 계속 등록</el-button>
-          <el-button type="primary" @click="createData(false)">저장</el-button>
+          <el-button type="success" @click="createData(true)">{{ $t('productDialog.saveAndContinue') }}</el-button>
+          <el-button type="primary" @click="createData(false)">{{ $t('productDialog.save') }}</el-button>
         </template>
         <template v-else>
-          <el-button type="primary" @click="updateData()">저장</el-button>
+          <el-button type="primary" @click="updateData()">{{ $t('productDialog.save') }}</el-button>
         </template>
       </div>
     </template>
@@ -65,6 +67,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import BasePopup from '@/components/BasePopup/index.vue';
 import PhotoManagerDialog from '@/components/PhotoManagerDialog/index.vue';
 
@@ -108,14 +111,15 @@ const {
 } = useProductDialog(props, emit, dataForm);
 
 const dialogStatus = computed(() => props.productId ? 'update' : 'create');
+const { t } = useI18n();
 
 const formRules = {
-  name: [{ required: true, message: '상품명을 입력해 주세요', trigger: 'blur' }],
-  categoryLarge: [{ required: true, message: '대분류를 선택해 주세요', trigger: 'change' }],
-  purity: [{ type: 'array', required: true, message: '함량을 하나 이상 선택해 주세요', trigger: 'change' }],
-  colors: [{ type: 'array', required: true, message: '제품 컬러를 하나 이상 선택해 주세요', trigger: 'change' }],
-  weight: [{ required: true, message: '중량을 입력해 주세요', trigger: 'blur' }],
-  laborCost: [{ required: true, message: '수공비를 입력해 주세요', trigger: 'blur' }]
+  name: [{ required: true, message: t('productDialog.nameRequired'), trigger: 'blur' }],
+  categoryLarge: [{ required: true, message: t('productDialog.categoryLargeRequired'), trigger: 'change' }],
+  purity: [{ type: 'array', required: true, message: t('productDialog.purityRequired'), trigger: 'change' }],
+  colors: [{ type: 'array', required: true, message: t('productDialog.colorsRequired'), trigger: 'change' }],
+  weight: [{ required: true, message: t('productDialog.weightRequired'), trigger: 'blur' }],
+  laborCost: [{ required: true, message: t('productDialog.laborCostRequired'), trigger: 'blur' }]
 };
 </script>
 

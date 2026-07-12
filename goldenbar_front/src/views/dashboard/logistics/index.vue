@@ -61,53 +61,53 @@
 
       <section class="section-container">
         <div class="section-header">
-          <h2 class="section-title">협력 소매점 현황</h2>
+          <h2 class="section-title">{{ $t('dashboard.logistics.partnerRetailersStatus') }}</h2>
         </div>
         <partner-retailer-summary ref="partnerSummaryRef" />
       </section>
 
       <section class="section-container">
         <div class="section-header">
-          <h2 class="section-title">소매점 미수금 현황</h2>
+          <h2 class="section-title">{{ $t('dashboard.logistics.retailerReceivablesTitle') }}</h2>
         </div>
 
         <el-row :gutter="24" class="summary-grid" style="margin-bottom: 1.25rem;">
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">총 미수금액수</div>
-              <div class="stat-value" style="color: #f56c6c;">{{ formatPrice(receivableSummary.totalUnpaid) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.logistics.totalUnpaidAmount') }}</div>
+              <div class="stat-value" style="color: #f56c6c;">{{ formatPrice(receivableSummary.totalUnpaid) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 발생 미수금</div>
-              <div class="stat-value">{{ formatPrice(receivableSummary.currentMonthUnpaid) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.logistics.currentMonthUnpaid') }}</div>
+              <div class="stat-value">{{ formatPrice(receivableSummary.currentMonthUnpaid) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 청구액</div>
-              <div class="stat-value">{{ formatPrice(receivableSummary.currentMonthCharge) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.logistics.currentMonthCharge') }}</div>
+              <div class="stat-value">{{ formatPrice(receivableSummary.currentMonthCharge) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
             <div class="stat-card minimalist">
-              <div class="stat-label">당월 수납액</div>
-              <div class="stat-value" style="color: #67c23a;">{{ formatPrice(receivableSummary.currentMonthDeposit) }}<span class="unit">원</span></div>
+              <div class="stat-label">{{ $t('dashboard.logistics.currentMonthDeposit') }}</div>
+              <div class="stat-value" style="color: #67c23a;">{{ formatPrice(receivableSummary.currentMonthDeposit) }}<span class="unit">{{ $t('common.currency') }}</span></div>
             </div>
           </el-col>
         </el-row>
 
         <el-card shadow="never">
           <base-table :data="receivableSummary.retailerSummaries" border style="width: 100%">
-            <el-table-column prop="companyName" label="소매점명" />
-            <el-table-column prop="totalUnpaid" label="총 미수금" align="right" :excel-formatter="row => formatPrice(row.totalUnpaid)">
+            <el-table-column prop="companyName" :label="$t('dashboard.logistics.retailerNameCol')" />
+            <el-table-column prop="totalUnpaid" :label="$t('dashboard.logistics.totalUnpaidCol')" align="right" :excel-formatter="row => formatPrice(row.totalUnpaid)">
               <template #default="{row}">{{ formatPrice(row.totalUnpaid) }}</template>
             </el-table-column>
-            <el-table-column prop="currentMonthCharge" label="당월 청구" align="right" :excel-formatter="row => formatPrice(row.currentMonthCharge)">
+            <el-table-column prop="currentMonthCharge" :label="$t('dashboard.logistics.currentMonthChargeCol')" align="right" :excel-formatter="row => formatPrice(row.currentMonthCharge)">
               <template #default="{row}">{{ formatPrice(row.currentMonthCharge) }}</template>
             </el-table-column>
-            <el-table-column prop="currentMonthDeposit" label="당월 수납" align="right" :excel-formatter="row => formatPrice(row.currentMonthDeposit)">
+            <el-table-column prop="currentMonthDeposit" :label="$t('dashboard.logistics.currentMonthDepositCol')" align="right" :excel-formatter="row => formatPrice(row.currentMonthDeposit)">
               <template #default="{row}">{{ formatPrice(row.currentMonthDeposit) }}</template>
             </el-table-column>
           </base-table>

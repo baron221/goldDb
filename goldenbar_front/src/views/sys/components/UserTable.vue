@@ -71,19 +71,19 @@
     </el-table-column>
     <el-table-column
       prop="isApproved"
-      label="승인 상태"
+      :label="$t('userManage.approveStatus')"
       min-width="130"
       align="center"
     >
       <template #default="scope">
-        <el-tag v-if="scope.row.isApproved" type="success" size="small" class="tiny-tag">승인됨</el-tag>
+        <el-tag v-if="scope.row.isApproved" type="success" size="small" class="tiny-tag">{{ $t('userManage.approved') }}</el-tag>
         <el-button
           v-else
           type="success"
           size="small"
           @click.stop="onApproveClick(scope.row)"
         >
-          승인 (Approve)
+          {{ $t('userManage.approve') }}
         </el-button>
       </template>
     </el-table-column>

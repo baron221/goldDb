@@ -52,7 +52,7 @@
     <el-col :xs="24" :sm="12" :lg="3" class="stat-col">
       <div class="stat-card highlight-warning" @click="handleCardClick('unassigned_company')">
         <div class="stat-content">
-          <div class="stat-label">업체 미지정 사용자</div>
+          <div class="stat-label">{{ $t('dashboard.admin.unassignedCompanyUsers') }}</div>
           <div class="stat-value">{{ data.unassignedCompanyUserCount }}</div>
         </div>
       </div>
@@ -60,7 +60,7 @@
     <el-col :xs="24" :sm="12" :lg="3" class="stat-col">
       <div class="stat-card highlight-danger" @click="handleCardClick('unassigned_logistics')">
         <div class="stat-content">
-          <div class="stat-label">물류 미연결 소매점</div>
+          <div class="stat-label">{{ $t('dashboard.admin.unassignedLogisticsRetailers') }}</div>
           <div class="stat-value">{{ data.unassignedLogisticsRetailerCount }}</div>
         </div>
       </div>

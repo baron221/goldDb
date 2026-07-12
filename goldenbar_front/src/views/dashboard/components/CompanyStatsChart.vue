@@ -61,7 +61,7 @@ export default defineComponent({
 
       this.chart.setOption({
         title: {
-          text: '소속 업체 현황',
+          text: this.$t('dashboard.common.companyStatsTitle'),
           left: 'center'
         },
         tooltip: {
@@ -79,7 +79,7 @@ export default defineComponent({
         },
         xAxis: [{
           type: 'category',
-          data: ['직원 수', '주문 건수'],
+          data: [this.$t('dashboard.common.employeeCount'), this.$t('dashboard.common.orderCount')],
           axisTick: {
             alignWithLabel: true
           }
@@ -88,7 +88,7 @@ export default defineComponent({
           type: 'value'
         }],
         series: [{
-          name: '현황',
+          name: this.$t('dashboard.common.currentStatus'),
           type: 'bar',
           barWidth: '40%',
           data: [

@@ -1,48 +1,51 @@
 <template>
-<base-popup v-model="visible" title="신규 사용자 추가" width="420px" @close="handleClose">
+<base-popup v-model="visible" :title="$t('userManage.createDialogTitle')" width="420px" @close="handleClose">
     <el-form ref="userForm" :model="tempUser" :rules="rules" label-width="110px" style="padding-right: 0.9375rem; margin-top: 0.625rem;">
 
-      <el-form-item label="구분" prop="userType">
+      <el-form-item :label="$t('userManage.userTypeLabel')" prop="userType">
         <el-radio-group v-model="tempUser.userType">
-          <el-radio value="ADMIN">관리자</el-radio>
-          <el-radio value="COMPANY">업체</el-radio>
+          <el-radio value="ADMIN">{{ $t('userManage.userTypeAdmin') }}</el-radio>
+          <el-radio value="COMPANY">{{ $t('userManage.userTypeCompany') }}</el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item label="업체" v-if="tempUser.userType === 'COMPANY'" prop="companyId">
+      <el-form-item :label="$t('userManage.companyLabel')" v-if="tempUser.userType === 'COMPANY'" prop="companyId">
         <company-select v-model="tempUser.companyId" />
       </el-form-item>
 
-      <el-form-item label="이름" prop="name">
-        <el-input v-model="tempUser.name" placeholder="이름을 입력하세요" />
+      <el-form-item :label="$t('userManage.nameLabel')" prop="name">
+        <el-input v-model="tempUser.name" :placeholder="$t('userManage.namePlaceholder')" />
       </el-form-item>
 
-      <el-form-item label="아이디" prop="username">
-        <el-input v-model="tempUser.username" autocomplete="off" placeholder="아이디를 입력하세요" />
+      <el-form-item :label="$t('userManage.idLabel')" prop="username">
+        <el-input v-model="tempUser.username" autocomplete="off" :placeholder="$t('userManage.idPlaceholder')" />
       </el-form-item>
 
-      <el-form-item label="비밀번호" prop="password">
-        <el-input v-model="tempUser.password" type="password" show-password autocomplete="new-password" placeholder="비밀번호를 입력하세요" />
+      <el-form-item :label="$t('userManage.pwLabel')" prop="password">
+        <el-input v-model="tempUser.password" type="password" show-password autocomplete="new-password" :placeholder="$t('userManage.pwPlaceholder')" />
       </el-form-item>
 
-      <el-form-item label="비밀번호 확인" prop="confirmPassword">
-        <el-input v-model="tempUser.confirmPassword" type="password" show-password autocomplete="new-password" placeholder="비밀번호를 한번 더 입력하세요" />
+      <el-form-item :label="$t('userManage.pwConfirmLabel')" prop="confirmPassword">
+        <el-input v-model="tempUser.confirmPassword" type="password" show-password autocomplete="new-password" :placeholder="$t('userManage.pwConfirmPlaceholder')" />
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">취소</el-button>
-      <el-button type="primary" :loading="submitting" @click="confirmCreate">확인</el-button>
+      <el-button @click="visible = false">{{ $t('userManage.cancel') }}</el-button>
+      <el-button type="primary" :loading="submitting" @click="confirmCreate">{{ $t('userManage.confirm') }}</el-button>
     </template>
   </base-popup>
 </template>
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { createUser } from '@/api/user';
 import { getCompanies } from '@/api/company';
 import { ElMessage } from 'element-plus';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import BasePopup from '@/components/BasePopup/index.vue';
+
+const { t } = useI18n();
 
 const props = defineProps({
   modelValue: Boolean,
@@ -74,9 +77,9 @@ const tempUser = reactive({
 
 const validateConfirmPassword = (rule, value, callback) => {
   if (value === '') {
-    callback(new Error('비밀번호 확인을 입력해 주세요'));
+    callback(new Error(t('userManage.pwConfirmRequired')));
   } else if (value !== tempUser.password) {
-    callback(new Error('비밀번호가 일치하지 않습니다'));
+    callback(new Error(t('userManage.pwMismatch')));
   } else {
     callback();
   }
@@ -84,7 +87,7 @@ const validateConfirmPassword = (rule, value, callback) => {
 
 const validatePassword = (rule, value, callback) => {
   if (value === '') {
-    callback(new Error('비밀번호를 입력해 주세요'));
+    callback(new Error(t('userManage.pwRequired')));
   } else {
     if (tempUser.confirmPassword !== '') {
       if (userForm.value) {
@@ -97,13 +100,13 @@ const validatePassword = (rule, value, callback) => {
 
 const rules = {
   userType: [
-    { required: true, message: '구분을 선택해 주세요', trigger: 'change' }
+    { required: true, message: t('userManage.userTypeRequired'), trigger: 'change' }
   ],
   name: [
-    { required: true, message: '이름을 입력해 주세요', trigger: 'blur' }
+    { required: true, message: t('userManage.nameRequired'), trigger: 'blur' }
   ],
   username: [
-    { required: true, message: '아이디를 입력해 주세요', trigger: 'blur' }
+    { required: true, message: t('userManage.idRequired'), trigger: 'blur' }
   ],
   password: [
     { required: true, validator: validatePassword, trigger: 'blur' }
@@ -138,13 +141,13 @@ const resetForm = () => {
 };
 
 const getCompanyTypeName = (category) => {
-  if (!category) return '업체';
+  if (!category) return t('userManage.categoryDefault');
   const map = {
-    'RTL': '소매점',
-    'MFG': '제조사',
-    'DCC': '물류센터'
+    'RTL': t('userManage.categoryRetail'),
+    'MFG': t('userManage.categoryManufacturer'),
+    'DCC': t('userManage.categoryLogistics')
   };
-  return map[category] || '업체';
+  return map[category] || t('userManage.categoryDefault');
 };
 
 const fetchCompanies = async () => {
@@ -168,16 +171,16 @@ const confirmCreate = async () => {
       submitting.value = true;
       try {
         const res = await createUser(tempUser);
-        ElMessage.success('사용자가 추가되었습니다');
+        ElMessage.success(t('userManage.createSuccess'));
         visible.value = false;
         emit('created', res.data);
       } catch (error) {
-        ElMessage.error('추가 실패: ' + (error.response?.data?.message || error.message));
+        ElMessage.error(t('userManage.createFail') + ': ' + (error.response?.data?.message || error.message));
       } finally {
         submitting.value = false;
       }
     } else {
-      ElMessage.warning('필수 입력 항목을 확인해 주세요');
+      ElMessage.warning(t('userManage.formCheckWarning'));
     }
   });
 };

@@ -1,7 +1,7 @@
 <template>
 <div class="user-management-section" :style="isMobile ? 'padding: 0.5rem;' : 'margin-top: 1.25rem;'">
     <div class="section-header" style="margin-bottom: 1.25rem; display: flex; gap: 0.625rem; flex-wrap: wrap;">
-      <el-select v-model="selectedUserId" placeholder="사용자 선택 (업체 구분 사용자)" style="flex: 1; min-width: 200px;" filterable>
+      <el-select v-model="selectedUserId" :placeholder="$t('sys.company.selectUserPlaceholder')" style="flex: 1; min-width: 200px;" filterable>
         <el-option
           v-for="user in availableUsers"
           :key="user.id"
@@ -10,8 +10,8 @@
           :disabled="isUserInCompany(user.id)"
         />
       </el-select>
-      <el-button type="primary" :icon="Plus" @click="handleAddUser">사용자 연결</el-button>
-      <el-button v-if="!isMobile" type="success" :icon="Plus" @click="handleCreateUser">신규 사용자 생성</el-button>
+      <el-button type="primary" :icon="Plus" @click="handleAddUser">{{ $t('sys.company.linkUser') }}</el-button>
+      <el-button v-if="!isMobile" type="success" :icon="Plus" @click="handleCreateUser">{{ $t('sys.company.createNewUser') }}</el-button>
     </div>
 
     <base-table :data="companyUsers" border style="width: 100%" :size="isMobile ? 'small' : 'default'">
@@ -29,7 +29,7 @@
           <span>{{ formatDateTime(scope.row.lastLoginAt) }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" :label="isMobile ? '해제' : $t('common.delete')" :width="isMobile ? 50 : 80">
+      <el-table-column align="center" :label="isMobile ? $t('sys.company.unlink') : $t('common.delete')" :width="isMobile ? 50 : 80">
         <template #default="scope">
           <el-button link class="delete-icon-btn" :icon="Delete" :type="isMobile ? 'danger' : 'default'" @click.stop="handleRemoveUser(scope.row)" />
         </template>
@@ -47,8 +47,11 @@
 
 <script setup>
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Plus, Delete } from '@element-plus/icons-vue';
 import { getCompanyUsers, addUserToCompany, removeUserFromCompany, getAvailableUsers } from '@/api/company';
+
+const { t } = useI18n();
 import { ElMessage } from 'element-plus';
 import BaseTable from '@/components/BaseTable/index.vue';
 import UserCreateDialog from './UserCreateDialog.vue';
@@ -88,7 +91,7 @@ const fetchCompanyUsers = async (companyId) => {
     const res = await getCompanyUsers(companyId);
     companyUsers.value = res.data;
   } catch (error) {
-    ElMessage.error('사용자 로드 실패');
+    ElMessage.error(t('sys.company.loadUsersFail'));
   }
 };
 
@@ -100,21 +103,21 @@ const handleAddUser = async () => {
   if (!selectedUserId.value) return;
   try {
     await addUserToCompany(props.companyId, selectedUserId.value);
-    ElMessage.success('사용자가 연결되었습니다');
+    ElMessage.success(t('sys.company.linkSuccess'));
     selectedUserId.value = null;
     fetchCompanyUsers(props.companyId);
   } catch (error) {
-    ElMessage.error('연결 실패');
+    ElMessage.error(t('sys.company.linkFail'));
   }
 };
 
 const handleRemoveUser = async (user) => {
   try {
     await removeUserFromCompany(props.companyId, user.id);
-    ElMessage.success('사용자 연결이 해제되었습니다');
+    ElMessage.success(t('sys.company.unlinkSuccess'));
     fetchCompanyUsers(props.companyId);
   } catch (error) {
-    ElMessage.error('해제 실패');
+    ElMessage.error(t('sys.company.unlinkFail'));
   }
 };
 

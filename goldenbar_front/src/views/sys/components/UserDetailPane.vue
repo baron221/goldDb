@@ -5,7 +5,7 @@
         <span>{{ $t('userManage.detailTitle') }} <el-tag v-if="localUser && !localUser.isApproved" type="warning" size="small" style="margin-left: 10px;">Pending Approval</el-tag></span>
         <div class="header-actions">
           <el-button v-if="localUser && !localUser.isApproved" v-permission="'save'" type="success" size="small" @click="emit('approve')">
-            승인 (Approve)
+            {{ $t('userManage.approve') }}
           </el-button>
           <el-button v-permission="'save'" type="primary" size="small" :icon="Check" @click="emit('save')">
             {{ $t('common.save') }}
@@ -78,8 +78,8 @@
                 <el-col :span="12">
                   <el-form-item :label="$t('userManage.reception')">
                     <el-radio-group v-model="localUser.smsAllowed">
-                      <el-radio :value="true">수신</el-radio>
-                      <el-radio :value="false">거부</el-radio>
+                      <el-radio :value="true">{{ $t('userManage.receptionYes') }}</el-radio>
+                      <el-radio :value="false">{{ $t('userManage.receptionNo') }}</el-radio>
                     </el-radio-group>
                   </el-form-item>
                 </el-col>

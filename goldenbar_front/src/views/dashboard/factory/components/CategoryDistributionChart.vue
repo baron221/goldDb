@@ -97,7 +97,7 @@ export default defineComponent({
       });
 
       const totalSeries = {
-        name: '전체 합계',
+        name: this.$t('dashboard.factory.totalSum'),
         type: 'line',
         smooth: true,
         symbol: 'diamond',
@@ -130,7 +130,7 @@ export default defineComponent({
             params.forEach(item => {
               res += `<div style="display: flex; justify-content: space-between; gap: 20px;">
                         <span>${item.marker} ${item.seriesName}</span>
-                        <span style="font-weight: bold;">${item.value} 건</span>
+                        <span style="font-weight: bold;">${item.value} ${this.$t('dashboard.common.units.qty')}</span>
                       </div>`;
             });
             return res;
@@ -150,7 +150,7 @@ export default defineComponent({
         },
         xAxis: {
           type: 'category',
-          name: '날짜',
+          name: this.$t('dashboard.factory.dateAxis'),
           boundaryGap: false,
           data: this.dates,
           axisTick: {
@@ -162,7 +162,7 @@ export default defineComponent({
         },
         yAxis: {
           type: 'value',
-          name: '수량(개)',
+          name: this.$t('dashboard.factory.quantityAxis'),
           minInterval: 1, 
           axisTick: {
             show: false

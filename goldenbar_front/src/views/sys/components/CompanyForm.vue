@@ -54,7 +54,7 @@
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="12">
-        <el-form-item label="법인번호">
+        <el-form-item :label="$t('sys.company.labels.corporateNumber')">
           <el-input v-model="localForm.corporateNumber" />
         </el-form-item>
       </el-col>
@@ -62,12 +62,12 @@
 
     <el-row :gutter="20">
       <el-col :xs="24" :sm="12">
-        <el-form-item label="업태">
+        <el-form-item :label="$t('sys.company.labels.businessType')">
           <el-input v-model="localForm.businessType" />
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="12">
-        <el-form-item label="종목">
+        <el-form-item :label="$t('sys.company.labels.businessCategory')">
           <el-input v-model="localForm.businessCategory" />
         </el-form-item>
       </el-col>
@@ -80,58 +80,58 @@
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="5">
-        <el-form-item label="물류코드">
+        <el-form-item :label="$t('sys.company.labels.logisticsCode')">
           <el-input v-model="localForm.logisticsCode" />
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="5">
-        <el-form-item label="센터번호">
+        <el-form-item :label="$t('sys.company.labels.centerNumber')">
           <el-input v-model="localForm.centerNumber" />
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="6" v-if="localForm.category === 'RTL'">
-        <el-form-item label="직영여부">
-          <el-switch v-model="localForm.isDirectManagement" active-text="직영" inactive-text="일반" />
+        <el-form-item :label="$t('sys.company.labels.isDirectManagement')">
+          <el-switch v-model="localForm.isDirectManagement" :active-text="$t('sys.company.labels.isDirect')" :inactive-text="$t('sys.company.labels.general')" />
         </el-form-item>
       </el-col>
     </el-row>
 
-    <el-divider content-position="left">주소 정보</el-divider>
-    <el-form-item label="우편번호">
+    <el-divider content-position="left">{{ $t('sys.company.labels.addressInfo') }}</el-divider>
+    <el-form-item :label="$t('sys.company.labels.zipCode')">
       <el-input v-model="localForm.zipCode" style="width: 250px;" readonly>
         <template #append>
-          <el-button @click="openPostcode">주소 검색</el-button>
+          <el-button @click="openPostcode">{{ $t('sys.company.labels.addressSearch') }}</el-button>
         </template>
       </el-input>
     </el-form-item>
-    <el-form-item label="기본 주소">
+    <el-form-item :label="$t('sys.company.labels.addressBase')">
       <el-input v-model="localForm.addressBase" readonly />
     </el-form-item>
-    <el-form-item label="상세 주소">
-      <el-input v-model="localForm.addressDetail" placeholder="나머지 주소를 입력하세요" />
+    <el-form-item :label="$t('sys.company.labels.addressDetail')">
+      <el-input v-model="localForm.addressDetail" :placeholder="$t('sys.company.labels.addressDetailPlaceholder')" />
     </el-form-item>
 
-    <el-divider content-position="left">계좌 정보</el-divider>
+    <el-divider content-position="left">{{ $t('sys.company.labels.accountInfo') }}</el-divider>
     <el-row :gutter="20">
       <el-col :xs="24" :sm="24" :md="8" class="mb-4 md:mb-0">
-        <el-form-item label="은행명">
-          <el-input v-model="localForm.bankName" placeholder="은행명을 입력하세요" />
+        <el-form-item :label="$t('sys.company.labels.bankName')">
+          <el-input v-model="localForm.bankName" :placeholder="$t('sys.company.labels.bankNamePlaceholder')" />
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="24" :md="8" class="mb-4 md:mb-0">
-        <el-form-item label="계좌번호">
-          <el-input v-model="localForm.bankAccount" placeholder="계좌번호를 입력하세요" />
+        <el-form-item :label="$t('sys.company.labels.bankAccount')">
+          <el-input v-model="localForm.bankAccount" :placeholder="$t('sys.company.labels.bankAccountPlaceholder')" />
         </el-form-item>
       </el-col>
       <el-col :xs="24" :sm="24" :md="8" class="mb-4 md:mb-0">
-        <el-form-item label="예금주명">
-          <el-input v-model="localForm.accountHolder" placeholder="예금주명을 입력하세요" />
+        <el-form-item :label="$t('sys.company.labels.accountHolder')">
+          <el-input v-model="localForm.accountHolder" :placeholder="$t('sys.company.labels.accountHolderPlaceholder')" />
         </el-form-item>
       </el-col>
     </el-row>
 
-    <el-divider content-position="left">첨부 파일</el-divider>
-    <el-form-item label="사업자 등록증">
+    <el-divider content-position="left">{{ $t('sys.company.labels.attachments') }}</el-divider>
+    <el-form-item :label="$t('sys.company.labels.businessLicense')">
       <el-upload
         class="upload-demo"
         action="#"
@@ -144,13 +144,13 @@
         </template>
         <template #tip>
           <div class="el-upload__tip">
-            PDF, JPG, PNG 파일 (최대 10MB)
+            {{ $t('sys.company.labels.fileHint') }}
           </div>
         </template>
       </el-upload>
       <div v-if="localForm.businessLicenseFileUrl" style="margin-top: 0.625rem;">
         <el-link type="primary" :href="getApiBaseUrl() + localForm.businessLicenseFileUrl" target="_blank">
-          <el-icon><Document /></el-icon> 등록증 보기 (새창)
+          <el-icon><Document /></el-icon> {{ $t('sys.company.labels.viewLicense') }}
         </el-link>
       </div>
     </el-form-item>
@@ -217,7 +217,7 @@ const openPostcode = () => {
       localForm.zipCode = data.zonecode;
       localForm.addressBase = fullAddress;
 
-      document.querySelector('input[placeholder="나머지 주소를 입력하세요"]')?.focus();
+      document.querySelector(`input[placeholder="${t('sys.company.labels.addressDetailPlaceholder')}"]`)?.focus();
     }
   }).open();
 };
@@ -230,9 +230,9 @@ const handleUploadChange = async (file) => {
 
     const res = await uploadFile(formData);
     localForm.businessLicenseFileUrl = res.data;
-    ElMessage.success('파일이 업로드되었습니다. 최종 저장을 눌러주세요.');
+    ElMessage.success(t('sys.company.uploadSuccess'));
   } catch {
-    ElMessage.error('업로드 실패');
+    ElMessage.error(t('sys.company.uploadFail'));
   }
 };
 

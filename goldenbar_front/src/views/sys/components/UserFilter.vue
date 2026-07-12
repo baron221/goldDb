@@ -29,10 +29,10 @@
         {{ $t('userManage.unassignedOnly') }}
       </el-checkbox>
       <el-checkbox v-model="localQuery.isLogisticsUnassigned" @change="onFilter">
-        물류 미지정 (소매)
+        {{ $t('userManage.logisticsUnassigned') }}
       </el-checkbox>
       <el-checkbox v-model="localQuery.isPendingApprovalOnly" @change="onFilter">
-        승인 대기만 보기
+        {{ $t('userManage.pendingApprovalOnly') }}
       </el-checkbox>
     </div>
   </div>

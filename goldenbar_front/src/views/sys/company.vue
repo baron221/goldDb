@@ -23,7 +23,7 @@
             <div class="card-header">
               <div class="section-header">
                 <h2 v-if="isNewMode" class="section-title">{{ $t('common.create') }}</h2>
-                <h2 v-else class="section-title">업체 상세: <el-tag size="small">{{ currentCompany.name }}</el-tag></h2>
+                <h2 v-else class="section-title">{{ $t('sys.company.detailPrefix') }} <el-tag size="small">{{ currentCompany.name }}</el-tag></h2>
               </div>
               <el-button type="success" size="small" @click="handleSave">{{ isNewMode ? $t('common.create') : $t('common.save') }}</el-button>
             </div>
@@ -31,7 +31,7 @@
 
           <el-tabs v-model="activeTab">
 
-            <el-tab-pane label="기본 정보" name="basic">
+            <el-tab-pane :label="$t('sys.company.tabs.basic')" name="basic">
               <company-form
                 ref="companyFormRef"
                 v-model="companyDetail"
@@ -39,14 +39,14 @@
               />
             </el-tab-pane>
 
-            <el-tab-pane v-if="!isNewMode" label="소속 사용자" name="users">
+            <el-tab-pane v-if="!isNewMode" :label="$t('sys.company.tabs.users')" name="users">
               <company-users
                 :company-id="currentCompany.id"
                 :is-mobile="false"
               />
             </el-tab-pane>
 
-            <el-tab-pane v-if="!isNewMode && companyDetail.category === 'DCC'" label="소속 소매업체" name="retailers">
+            <el-tab-pane v-if="!isNewMode && companyDetail.category === 'DCC'" :label="$t('sys.company.tabs.retailers')" name="retailers">
               <company-retailers
                 :company-id="currentCompany.id"
                 :region-codes="regionCodes"
@@ -82,7 +82,7 @@
 
       <div v-else class="mobile-detail-view">
         <div class="mobile-detail-header">
-          <el-button :icon="ArrowLeft" link @click="showMobileDetail = false">목록으로 돌아가기</el-button>
+          <el-button :icon="ArrowLeft" link @click="showMobileDetail = false">{{ $t('sys.company.backToList') }}</el-button>
           <el-button type="success" size="small" @click="handleSave">{{ isNewMode ? $t('common.create') : $t('common.save') }}</el-button>
         </div>
         <div class="mobile-detail-content">
@@ -95,7 +95,7 @@
             </template>
 
             <el-tabs v-model="activeTab">
-              <el-tab-pane label="기본 정보" name="basic">
+              <el-tab-pane :label="$t('sys.company.tabs.basic')" name="basic">
                 <company-form
                   ref="companyFormMobileRef"
                   v-model="companyDetail"
@@ -103,7 +103,7 @@
                 />
               </el-tab-pane>
 
-              <el-tab-pane v-if="!isNewMode" label="사용자" name="users">
+              <el-tab-pane v-if="!isNewMode" :label="$t('sys.company.tabs.users')" name="users">
                 <company-users
                   :company-id="currentCompany.id"
                   :is-mobile="true"
@@ -206,7 +206,7 @@ const fetchCompanies = async () => {
     companyList.value = res.data.items;
     total.value = res.data.total;
   } catch (error) {
-    ElMessage.error('목록 로드 실패');
+    ElMessage.error(t('sys.company.loadListFail'));
   }
 };
 
@@ -231,13 +231,13 @@ const handleRowClick = async (row) => {
       showMobileDetail.value = true;
     }
   } catch (error) {
-    ElMessage.error('상세 정보 로드 실패');
+    ElMessage.error(t('sys.company.loadDetailFail'));
   }
 };
 
 const handleCreate = () => {
   isNewMode.value = true;
-  currentCompany.value = { id: 0, name: '신규 업체' };
+  currentCompany.value = { id: 0, name: t('sys.company.newCompanyName') };
   Object.assign(companyDetail, {
     name: '',
     ceo: '',
@@ -276,7 +276,7 @@ const handleSave = async () => {
         try {
           if (isNewMode.value) {
             const res = await createCompany(companyDetail);
-            ElMessage.success('업체가 추가되었습니다');
+            ElMessage.success(t('sys.company.createSuccess'));
             isNewMode.value = false;
             fetchCompanies();
             if (res.data) {
@@ -284,11 +284,11 @@ const handleSave = async () => {
             }
           } else {
             await updateCompany(currentCompany.value.id, companyDetail);
-            ElMessage.success('저장되었습니다');
+            ElMessage.success(t('sys.company.saveSuccess'));
             fetchCompanies();
           }
         } catch (error) {
-          ElMessage.error('저장 실패: ' + (error.response?.data?.message || error.message));
+          ElMessage.error(t('sys.company.saveFail') + ': ' + (error.response?.data?.message || error.message));
         }
       }
     });
@@ -296,21 +296,21 @@ const handleSave = async () => {
 };
 
 const handleDelete = (row) => {
-  ElMessageBox.confirm('정말로 해당 업체를 삭제하시겠습니까?', '경고', {
-    confirmButtonText: '확인',
-    cancelButtonText: '취소',
+  ElMessageBox.confirm(t('sys.company.deleteConfirmMsg'), t('common.warning'), {
+    confirmButtonText: t('common.ok'),
+    cancelButtonText: t('common.cancel'),
     type: 'warning'
   }).then(async () => {
     try {
       await deleteCompany(row.id);
-      ElMessage.success('삭제되었습니다');
+      ElMessage.success(t('sys.company.deleteSuccess'));
       if (currentCompany.value?.id === row.id) {
         currentCompany.value = null;
         isNewMode.value = false;
       }
       fetchCompanies();
     } catch (error) {
-      ElMessage.error('삭제 실패');
+      ElMessage.error(t('sys.company.deleteFail'));
     }
   });
 };

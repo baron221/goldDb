@@ -1,4 +1,5 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import useUserStore from '@/store/modules/user';
 import useCodeStore from '@/store/modules/code';
@@ -7,6 +8,7 @@ import { getProduct, createProduct, updateProduct } from '@/api/product';
 export function useProductDialog(props: any, emit: any, dataForm: any) {
   const codeStore = useCodeStore();
   const userStore = useUserStore();
+  const { t } = useI18n();
 
   const visible = ref(false);
   const activeTab = ref('basic');
@@ -231,7 +233,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
       };
     } catch (error) {
       console.error(error);
-      ElMessage.error('제품 정보를 불러오는데 실패했습니다.');
+      ElMessage.error(t('productDialog.loadProductFail'));
     }
   };
 
@@ -304,11 +306,11 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
 
   const applyBulkWeightConversion = () => {
     if (!calcBasePurity.value) {
-      ElMessage.warning('기준 함량을 선택해 주세요.');
+      ElMessage.warning(t('productDialog.selectBasePurityWarning'));
       return;
     }
     if (!calcBaseWeight.value || calcBaseWeight.value <= 0) {
-      ElMessage.warning('0보다 큰 기준 중량을 입력해 주세요.');
+      ElMessage.warning(t('productDialog.baseWeightPositiveWarning'));
       return;
     }
 
@@ -317,7 +319,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     const baseDensity = getDensity(basePurity);
 
     if (combinationGridData.value.length === 0) {
-      ElMessage.warning('환산할 함량 및 컬러 조합이 존재하지 않습니다.');
+      ElMessage.warning(t('productDialog.noCombinationWarning'));
       return;
     }
 
@@ -328,7 +330,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     });
 
     temp.value.optionWeights = [...combinationGridData.value];
-    ElMessage.success(`기준 함량(${getCodeName(basePurity)}) ${baseWeight}g 대비 비중 환산 중량이 모든 조합에 일괄 적용되었습니다.`);
+    ElMessage.success(t('productDialog.bulkConversionSuccess', { purity: getCodeName(basePurity), weight: baseWeight }));
   };
 
   const createData = async (stayOpen = false) => {
@@ -359,7 +361,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
             });
           }
 
-          ElMessage.success('제품이 성공적으로 등록되었습니다.');
+          ElMessage.success(t('productDialog.createProductSuccess'));
           emit('saved');
         } catch (error) {
           console.error(error);
@@ -386,7 +388,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
           };
           await updateProduct(temp.value.id, payload);
           visible.value = false;
-          ElMessage.success('제품 정보가 수정되었습니다.');
+          ElMessage.success(t('productDialog.updateProductSuccess'));
           emit('saved');
         } catch (error) {
           console.error(error);

@@ -44,7 +44,7 @@
         </el-row>
         <el-row :gutter="10" style="margin-top: 0.625rem;">
           <el-col :xs="24" :sm="12">
-            <el-checkbox v-model="localQuery.isDirectManagement" label="직영점만 보기" @change="handleFilter" />
+            <el-checkbox v-model="localQuery.isDirectManagement" :label="$t('sys.company.directOnlyFilter')" @change="handleFilter" />
           </el-col>
         </el-row>
       </template>

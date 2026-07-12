@@ -12,11 +12,11 @@
           />
           <div v-else class="main-photo-placeholder">
             <el-icon :size="32"><Picture /></el-icon>
-            <span style="font-size: 0.95rem;">사진 추가</span>
+            <span style="font-size: 0.95rem;">{{ $t('productDialog.addPhoto') }}</span>
           </div>
           <div class="main-photo-overlay">
             <el-icon :size="20"><Edit /></el-icon>
-            <span style="margin-top: 0.3125rem; font-size: 0.95rem;">사진 관리</span>
+            <span style="margin-top: 0.3125rem; font-size: 0.95rem;">{{ $t('productDialog.managePhoto') }}</span>
           </div>
         </div>
 
@@ -29,7 +29,7 @@
             @click.stop="$emit('update:activePhotoUrl', photo.photoUrl)"
           >
             <el-image :src="photo.photoUrl" fit="cover" class="thumbnail-img" />
-            <span v-if="photo.isMain || index === 0" class="main-badge">대표</span>
+            <span v-if="photo.isMain || index === 0" class="main-badge">{{ $t('productDialog.main') }}</span>
           </div>
         </div>
       </el-form-item>
@@ -38,24 +38,24 @@
     <el-col :xs="24" :sm="18">
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="상품명" prop="name" required>
+          <el-form-item :label="$t('productDialog.name')" prop="name" required>
             <el-input v-model="localTemp.name" />
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="제품번호" prop="productNo">
+          <el-form-item :label="$t('productDialog.productNo')" prop="productNo">
             <el-input v-model="localTemp.productNo" />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="함량" prop="purity" required>
-            <common-select v-model="localTemp.purity" group-code="MATERIAL_GRADE" placeholder="함량 선택" multiple />
+          <el-form-item :label="$t('productDialog.purity')" prop="purity" required>
+            <common-select v-model="localTemp.purity" group-code="MATERIAL_GRADE" :placeholder="$t('productDialog.purityPlaceholder')" multiple />
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="중량(g)" prop="weight" required>
+          <el-form-item :label="$t('productDialog.weight')" prop="weight" required>
             <el-input-number v-model="localTemp.weight" :precision="2" :step="0.01" style="width: 100%;" />
           </el-form-item>
         </el-col>
@@ -63,11 +63,11 @@
 
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="제품 컬러" prop="colors" required>
+          <el-form-item :label="$t('productDialog.colors')" prop="colors" required>
             <el-select
               v-model="localTemp.colors"
               multiple
-              placeholder="컬러 선택"
+              :placeholder="$t('productDialog.colorsPlaceholder')"
               style="width: 100%"
             >
               <el-option
@@ -81,7 +81,7 @@
         </el-col>
 
         <el-col :span="12">
-          <el-form-item label="제조사" prop="companyId">
+          <el-form-item :label="$t('productDialog.manufacturer')" prop="companyId">
             <company-select v-model="localTemp.companyId" category="MFG" :disabled="isCompanyUser" style="width: 100%;" />
           </el-form-item>
         </el-col>
@@ -89,33 +89,33 @@
 
       <el-row :gutter="20">
         <el-col :xs="24" :sm="8">
-          <el-form-item label="대분류" prop="categoryLarge" required label-width="60px">
+          <el-form-item :label="$t('productDialog.categoryLarge')" prop="categoryLarge" required label-width="60px">
             <common-select
               v-model="localTemp.categoryLarge"
               group-code="PRODUCT_CATEGORY"
-              placeholder="대분류 선택"
+              :placeholder="$t('productDialog.categoryLargePlaceholder')"
               @change="$emit('change-large-category', $event)"
               @options-loaded="$emit('loaded-large-options', $event)"
             />
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="8">
-          <el-form-item label="중분류" prop="categoryMedium" label-width="60px">
+          <el-form-item :label="$t('productDialog.categoryMedium')" prop="categoryMedium" label-width="60px">
             <common-select
               v-model="localTemp.categoryMedium"
               :options="mediumCategoryOptions"
-              placeholder="중분류 선택"
+              :placeholder="$t('productDialog.categoryMediumPlaceholder')"
               @change="$emit('change-medium-category', $event)"
               @options-loaded="$emit('loaded-medium-options', $event)"
             />
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="8">
-          <el-form-item label="소분류" prop="categorySmall" label-width="60px">
+          <el-form-item :label="$t('productDialog.categorySmall')" prop="categorySmall" label-width="60px">
             <common-select
               v-model="localTemp.categorySmall"
               :options="smallCategoryOptions"
-              placeholder="소분류 선택"
+              :placeholder="$t('productDialog.categorySmallPlaceholder')"
             />
           </el-form-item>
         </el-col>
@@ -123,33 +123,33 @@
 
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="공장도가격" prop="factoryPrice">
+          <el-form-item :label="$t('productDialog.factoryPrice')" prop="factoryPrice">
             <amount-input
               v-model="localTemp.factoryPrice"
-              placeholder="공장도가격을 입력하세요"
+              :placeholder="$t('productDialog.factoryPricePlaceholder')"
             />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="공개 여부" prop="isPublic">
-            <el-switch v-model="localTemp.isPublic" active-text="공개" inactive-text="비공개" />
+          <el-form-item :label="$t('productDialog.isPublic')" prop="isPublic">
+            <el-switch v-model="localTemp.isPublic" :active-text="$t('productDialog.public')" :inactive-text="$t('productDialog.private')" />
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="수공비" prop="laborCost" required>
+          <el-form-item :label="$t('productDialog.laborCost')" prop="laborCost" required>
             <amount-input
               v-model="localTemp.laborCost"
-              placeholder="수공비를 입력하세요"
+              :placeholder="$t('productDialog.laborCostPlaceholder')"
             />
           </el-form-item>
         </el-col>
       </el-row>
       <el-row :gutter="20">
         <el-col :span="24">
-          <el-form-item label="디자인고시" prop="designNotice">
-            <el-input v-model="localTemp.designNotice" type="textarea" :rows="2" placeholder="디자인 관련 고시 사항을 입력하세요" />
+          <el-form-item :label="$t('productDialog.designNotice')" prop="designNotice">
+            <el-input v-model="localTemp.designNotice" type="textarea" :rows="2" :placeholder="$t('productDialog.designNoticePlaceholder')" />
           </el-form-item>
         </el-col>
       </el-row>
