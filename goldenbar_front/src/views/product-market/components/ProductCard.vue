@@ -3,16 +3,32 @@
     <div class="product-image-box">
       <el-image
         v-if="item.photoUrl || (item.photos && item.photos.photoUrl)"
-        :src="getThumbnailUrl(item.photoUrl || item.photos.photoUrl, 'medium') || (item.photoUrl || item.photos.photoUrl)"
+        :src="getThumbnailUrl(item.photoUrl || item.photos.photoUrl, 'medium')"
         fit="cover"
         class="product-img"
-      />
+      >
+        <template #error>
+          <el-image
+            :src="item.photoUrl || item.photos.photoUrl"
+            fit="cover"
+            class="product-img"
+          />
+        </template>
+      </el-image>
       <el-image
         v-else-if="item.isSet && item.subProductPhotos && item.subProductPhotos.length > 0"
-        :src="getThumbnailUrl(item.subProductPhotos[0], 'medium') || item.subProductPhotos[0]"
+        :src="getThumbnailUrl(item.subProductPhotos[0], 'medium')"
         fit="cover"
         class="product-img"
-      />
+      >
+        <template #error>
+          <el-image
+            :src="item.subProductPhotos[0]"
+            fit="cover"
+            class="product-img"
+          />
+        </template>
+      </el-image>
       <div v-else class="no-image-box">
         <span>{{ $t('productMarket.labels.noImage') }}</span>
       </div>
@@ -40,7 +56,11 @@
 
       <div v-if="item.isSet && item.subProductPhotos && item.subProductPhotos.length > 0" class="set-compositions-tray">
         <div v-for="(subPhoto, idx) in item.subProductPhotos.slice(0, 3)" :key="idx" class="tray-photo">
-          <el-image :src="getThumbnailUrl(subPhoto) || subPhoto" fit="cover" />
+          <el-image :src="getThumbnailUrl(subPhoto)" fit="cover">
+            <template #error>
+              <el-image :src="subPhoto" fit="cover" />
+            </template>
+          </el-image>
         </div>
         <div v-if="item.subProductPhotos.length > 3" class="tray-more-count">
           +{{ item.subProductPhotos.length - 3 }}
