@@ -59,7 +59,7 @@ export function useMarket() {
   const fetchFavorites = async () => {
     try {
       const res = await getMyFavorites();
-      favorites.value = res.data.items || [];
+      favorites.value = res.data || [];
     } catch (error) {
       console.error('관심상품 로드 실패:', error);
     }
@@ -142,6 +142,7 @@ export function useMarket() {
     fetchData,
     fetchCart,
     fetchFavorites,
+    favorites,
     handleTabChange,
     handleFilter,
     resetFilters,

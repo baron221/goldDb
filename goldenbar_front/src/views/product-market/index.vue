@@ -3,6 +3,30 @@
     <div class="shop-layout-container">
 
       <div class="shop-main-content">
+        <!-- My Favorites Section -->
+        <div v-if="favoriteItems && favoriteItems.length > 0" class="favorites-section" style="margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid #eae6df;">
+          <div class="section-header" style="margin-bottom: 1.5rem;">
+            <h2 class="market-main-title" style="font-size: 1.4rem; color: #222; font-weight: 700;">나의 즐겨찾기</h2>
+          </div>
+          <el-row :gutter="24" class="products-grid">
+            <el-col
+              v-for="item in favoriteItems"
+              :key="item.id + (item.isSet ? '-set' : '-prod')"
+              :xs="24" :sm="12" :md="8" :lg="6" :xl="4"
+              class="product-grid-item"
+            >
+              <product-card
+                :item="item"
+                :is-favorite="true"
+                :is-in-cart="isInCart(item)"
+                @click="goToDetail"
+                @favorite="toggleFavorite(item)"
+                @add-to-cart="handleAddToCart(item)"
+              />
+            </el-col>
+          </el-row>
+        </div>
+
         <div class="shop-header-toolbar">
           <div class="shop-title-area">
             <h1 class="market-main-title">{{ $t('productMarket.title') }}</h1>
@@ -78,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMarket } from './composables/useMarket';
 import ProductCard from './components/ProductCard.vue';
@@ -94,6 +118,7 @@ const {
   fetchData,
   fetchCart,
   fetchFavorites,
+  favorites,
   handleTabChange,
   handleFilter,
   resetFilters,
@@ -102,6 +127,31 @@ const {
   isFavorite,
   isInCart
 } = useMarket();
+
+const favoriteItems = computed(() => {
+  return (favorites.value || []).map((fav: any) => {
+    if (fav.product) {
+      return {
+        ...fav.product,
+        id: fav.product.id,
+        isSet: false,
+        photoUrl: fav.product.photos?.find((p: any) => p.isMain)?.photoUrl || fav.product.photos?.[0]?.photoUrl
+      };
+    } else if (fav.productSet) {
+      const subProductPhotos = (fav.productSet.products || [])
+        .map((p: any) => p.photos?.find((ph: any) => ph.isMain)?.photoUrl || p.photos?.[0]?.photoUrl)
+        .filter(Boolean);
+      return {
+        ...fav.productSet,
+        id: fav.productSet.id,
+        isSet: true,
+        photoUrl: fav.productSet.photos?.find((p: any) => p.isMain)?.photoUrl || fav.productSet.photos?.[0]?.photoUrl,
+        subProductPhotos
+      };
+    }
+    return null;
+  }).filter(Boolean);
+});
 
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);
