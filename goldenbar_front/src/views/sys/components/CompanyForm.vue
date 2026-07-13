@@ -158,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Connection, Document } from '@element-plus/icons-vue';
 import { uploadFile } from '@/api/file';
@@ -176,19 +176,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue']);
 const { t } = useI18n();
 const formRef = ref(null);
 
-const localForm = reactive({ ...props.modelValue });
-
-watch(() => props.modelValue, (newVal) => {
-  Object.assign(localForm, newVal);
-}, { deep: true });
-
-watch(localForm, (newVal) => {
-  emit('update:modelValue', { ...newVal });
-}, { deep: true });
+// Bind directly to the parent's reactive object instead of keeping a
+// separate local copy synced through a watch/emit loop. That loop could
+// leave the form showing a previously-selected company's data; sharing
+// the same reactive object keeps the form in lockstep with the parent.
+const localForm = props.modelValue;
 
 const rules = {
   name: [{ required: true, message: t('register.rules.name'), trigger: 'blur' }],

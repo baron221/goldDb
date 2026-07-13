@@ -74,9 +74,9 @@ export function getRetailersByCenter(centerId: number) {
   });
 }
 
-export function getUnassignedRetailers() {
+export function getUnassignedRetailers(centerId: number) {
   return request({
-    url: '/company/retailers/unassigned',
+    url: `/company/logistics/${centerId}/retailers/unassigned`,
     method: 'get'
   });
 }

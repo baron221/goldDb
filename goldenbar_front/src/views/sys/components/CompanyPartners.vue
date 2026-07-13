@@ -105,7 +105,7 @@ const fetchDccData = async () => {
 
     const [rtlAssignedRes, rtlUnassignedRes] = await Promise.all([
       getRetailersByCenter(props.companyId),
-      getUnassignedRetailers()
+      getUnassignedRetailers(props.companyId)
     ]);
     assignedRetailers.value = rtlAssignedRes.data;
     unassignedRetailers.value = rtlUnassignedRes.data;

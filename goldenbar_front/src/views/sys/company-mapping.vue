@@ -237,7 +237,7 @@ const fetchMappingData = async (centerId) => {
   try {
     const [assignedRes, unassignedRes] = await Promise.all([
       getRetailersByCenter(centerId),
-      getUnassignedRetailers()
+      getUnassignedRetailers(centerId)
     ]);
 
     assignedRetailers.value = assignedRes.data;

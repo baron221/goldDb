@@ -72,9 +72,9 @@ public static class CompanyEndpoints
             return Results.Ok(result);
         });
 
-        group.MapGet("/retailers/unassigned", async (ICompanyService companyService) =>
+        group.MapGet("/logistics/{centerId:int}/retailers/unassigned", async (int centerId, ICompanyService companyService) =>
         {
-            var result = await companyService.GetUnassignedRetailersAsync();
+            var result = await companyService.GetUnassignedRetailersAsync(centerId);
             return Results.Ok(result);
         });
 

@@ -30,7 +30,7 @@ public interface ICompanyService
 
     Task<ApiResponse<List<CompanyDto>>> GetRetailersByCenterAsync(int centerId);
 
-    Task<ApiResponse<List<CompanyDto>>> GetUnassignedRetailersAsync();
+    Task<ApiResponse<List<CompanyDto>>> GetUnassignedRetailersAsync(int centerId);
 
     Task<ApiResponse<string>> AssignRetailersToCenterAsync(int centerId, List<int> retailerIds);
 
@@ -216,10 +216,14 @@ public class CompanyService : ICompanyService
         return ApiResponse<List<CompanyDto>>.Success(retailers);
     }
 
-    public async Task<ApiResponse<List<CompanyDto>>> GetUnassignedRetailersAsync()
+    public async Task<ApiResponse<List<CompanyDto>>> GetUnassignedRetailersAsync(int centerId)
     {
+        // Retailers not currently attached to THIS center — includes both
+        // unattached retailers and those attached to a different center, so
+        // the admin can reassign one to this center (a retailer belongs to a
+        // single center, so assigning here moves it off its previous one).
         var retailers = await _companyRepository.GetQueryable()
-            .Where(c => c.Category == "RTL" && c.LogisticsCompanyId == null)
+            .Where(c => c.Category == "RTL" && (c.LogisticsCompanyId == null || c.LogisticsCompanyId != centerId))
             .ProjectToType<CompanyDto>()
             .ToListAsync();
 
