@@ -72,15 +72,6 @@ const availableUsers = ref([]);
 const selectedUserId = ref(null);
 const userCreateDialogVisible = ref(false);
 
-watch(() => props.companyId, (newId) => {
-  if (newId) {
-    fetchCompanyUsers(newId);
-    fetchAvailableUsers();
-  } else {
-    companyUsers.value = [];
-  }
-}, { immediate: true });
-
 const fetchAvailableUsers = async () => {
   const res = await getAvailableUsers();
   availableUsers.value = res.data;
@@ -94,6 +85,15 @@ const fetchCompanyUsers = async (companyId) => {
     ElMessage.error(t('sys.company.loadUsersFail'));
   }
 };
+
+watch(() => props.companyId, (newId) => {
+  if (newId) {
+    fetchCompanyUsers(newId);
+    fetchAvailableUsers();
+  } else {
+    companyUsers.value = [];
+  }
+}, { immediate: true });
 
 const isUserInCompany = (userId) => {
   return companyUsers.value.some(u => u.id === userId);

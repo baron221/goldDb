@@ -1107,6 +1107,8 @@ export default {
       basic: 'Basic Info',
       contacts: 'Contacts',
       gallery: 'Gallery',
+      employees: 'Employees',
+      partners: 'Partners',
       roles: 'Roles'
     },
     address: 'Address',
@@ -1271,7 +1273,17 @@ export default {
       saveFail: 'Save failed',
       deleteConfirmMsg: 'Delete this company?',
       deleteSuccess: 'Deleted successfully',
-      deleteFail: 'Delete failed'
+      deleteFail: 'Delete failed',
+      linkedManufacturers: 'Linked Manufacturers',
+      linkedRetailers: 'Linked Retailers',
+      linkedLogisticsCenters: 'Linked Logistics Centers',
+      linkedLogisticsCenter: 'Linked Logistics Center',
+      noLogisticsAssigned: 'No logistics center linked.',
+      retailerMappingHint: 'The logistics center link can be changed from Partners > Logistics Center Retailer Mgmt.',
+      loadPartnersFail: 'Failed to load partner information.',
+      mappingUpdated: 'Link updated.',
+      assigned: 'Assigned',
+      unassigned: 'Unassigned'
     }
   },
   common: {

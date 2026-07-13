@@ -110,3 +110,25 @@ export function assignManufacturersToCenter(centerId: number, manufacturerIds: n
     data: manufacturerIds
   });
 }
+
+export function getLogisticsCentersByManufacturer(manufacturerId: number) {
+  return request({
+    url: `/company/manufacturers/${manufacturerId}/logistics`,
+    method: 'get'
+  });
+}
+
+export function getUnassignedLogisticsCentersForManufacturer(manufacturerId: number) {
+  return request({
+    url: `/company/manufacturers/${manufacturerId}/logistics/unassigned`,
+    method: 'get'
+  });
+}
+
+export function assignLogisticsCentersToManufacturer(manufacturerId: number, logisticsIds: number[]) {
+  return request({
+    url: `/company/manufacturers/${manufacturerId}/assign-logistics`,
+    method: 'post',
+    data: logisticsIds
+  });
+}

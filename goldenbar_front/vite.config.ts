@@ -123,7 +123,7 @@ export default defineConfig(({ command, mode }) => {
       port: 5252,
       proxy: {
         '/api': {
-          target: 'http://localhost:5077', 
+          target: 'http://localhost:5290', 
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
           headers: {
@@ -131,7 +131,7 @@ export default defineConfig(({ command, mode }) => {
           }
         },
         '/uploads': {
-          target: 'http://localhost:5077', 
+          target: 'http://localhost:5290', 
           changeOrigin: true
         }
       }

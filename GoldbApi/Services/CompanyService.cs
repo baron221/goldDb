@@ -39,6 +39,12 @@ public interface ICompanyService
     Task<ApiResponse<List<CompanyDto>>> GetUnassignedManufacturersAsync(int centerId);
 
     Task<ApiResponse<string>> AssignManufacturersToCenterAsync(int centerId, List<int> manufacturerIds);
+
+    Task<ApiResponse<List<CompanyDto>>> GetLogisticsCentersByManufacturerAsync(int manufacturerId);
+
+    Task<ApiResponse<List<CompanyDto>>> GetUnassignedLogisticsCentersForManufacturerAsync(int manufacturerId);
+
+    Task<ApiResponse<string>> AssignLogisticsCentersToManufacturerAsync(int manufacturerId, List<int> logisticsIds);
 }
 
 public class CompanyService : ICompanyService
@@ -297,6 +303,70 @@ public class CompanyService : ICompanyService
         {
             var removeEntities = await _manufacturerLogisticsRepository.GetQueryable()
                 .Where(ml => ml.LogisticsId == centerId && toRemove.Contains(ml.ManufacturerId))
+                .ToListAsync();
+
+            foreach (var entity in removeEntities)
+            {
+                _manufacturerLogisticsRepository.Delete(entity);
+            }
+        }
+
+        await _manufacturerLogisticsRepository.SaveChangesAsync();
+        return ApiResponse<string>.Success("success");
+    }
+
+    public async Task<ApiResponse<List<CompanyDto>>> GetLogisticsCentersByManufacturerAsync(int manufacturerId)
+    {
+        var logisticsIds = await _manufacturerLogisticsRepository.GetQueryable()
+            .Where(ml => ml.ManufacturerId == manufacturerId)
+            .Select(ml => ml.LogisticsId)
+            .ToListAsync();
+
+        var logisticsCenters = await _companyRepository.GetQueryable()
+            .Where(c => c.Category == "DCC" && logisticsIds.Contains(c.Id))
+            .ProjectToType<CompanyDto>()
+            .ToListAsync();
+
+        return ApiResponse<List<CompanyDto>>.Success(logisticsCenters);
+    }
+
+    public async Task<ApiResponse<List<CompanyDto>>> GetUnassignedLogisticsCentersForManufacturerAsync(int manufacturerId)
+    {
+        var logisticsIds = await _manufacturerLogisticsRepository.GetQueryable()
+            .Where(ml => ml.ManufacturerId == manufacturerId)
+            .Select(ml => ml.LogisticsId)
+            .ToListAsync();
+
+        var unassignedCenters = await _companyRepository.GetQueryable()
+            .Where(c => c.Category == "DCC" && !logisticsIds.Contains(c.Id))
+            .ProjectToType<CompanyDto>()
+            .ToListAsync();
+
+        return ApiResponse<List<CompanyDto>>.Success(unassignedCenters);
+    }
+
+    public async Task<ApiResponse<string>> AssignLogisticsCentersToManufacturerAsync(int manufacturerId, List<int> logisticsIds)
+    {
+        var existingAssignedIds = await _manufacturerLogisticsRepository.GetQueryable()
+            .Where(ml => ml.ManufacturerId == manufacturerId)
+            .Select(ml => ml.LogisticsId)
+            .ToListAsync();
+
+        var toAdd = logisticsIds.Except(existingAssignedIds).ToList();
+        foreach (var logisticsId in toAdd)
+        {
+            await _manufacturerLogisticsRepository.AddAsync(new ManufacturerLogistics
+            {
+                ManufacturerId = manufacturerId,
+                LogisticsId = logisticsId
+            });
+        }
+
+        var toRemove = existingAssignedIds.Except(logisticsIds).ToList();
+        if (toRemove.Any())
+        {
+            var removeEntities = await _manufacturerLogisticsRepository.GetQueryable()
+                .Where(ml => ml.ManufacturerId == manufacturerId && toRemove.Contains(ml.LogisticsId))
                 .ToListAsync();
 
             foreach (var entity in removeEntities)

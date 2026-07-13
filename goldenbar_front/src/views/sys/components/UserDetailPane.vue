@@ -177,6 +177,18 @@
           </div>
         </el-tab-pane>
 
+        <el-tab-pane v-if="localUser.companyId" :label="$t('userManage.tabs.employees')" name="employees">
+          <div class="tab-section">
+            <company-users :company-id="localUser.companyId" />
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane v-if="localUser.companyId" :label="$t('userManage.tabs.partners')" name="partners">
+          <div class="tab-section">
+            <company-partners :company-id="localUser.companyId" :category="localUser.companyCategory" />
+          </div>
+        </el-tab-pane>
+
         <el-tab-pane :label="$t('userManage.tabs.roles')" name="roles">
           <div class="tab-section">
             <div class="section-title">{{ $t('userManage.assignedRoles') }}</div>
@@ -210,6 +222,8 @@ import { ref, reactive, watch } from 'vue';
 import { Check, Delete, Plus, InfoFilled, Camera, ArrowUpBold, ArrowDownBold } from '@element-plus/icons-vue';
 import ImageUpload from '@/components/ImageUpload/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
+import CompanyUsers from './CompanyUsers.vue';
+import CompanyPartners from './CompanyPartners.vue';
 
 const props = defineProps<{
   user: any;

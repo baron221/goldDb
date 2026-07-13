@@ -1102,6 +1102,8 @@ export default {
       basic: '기본 정보',
       contacts: '연락처 정보',
       gallery: '갤러리',
+      employees: '직원 관리',
+      partners: '파트너 관리',
       roles: '권한 설정'
     },
     address: '주소',
@@ -1271,7 +1273,17 @@ export default {
       saveFail: '저장 실패',
       deleteConfirmMsg: '정말로 해당 업체를 삭제하시겠습니까?',
       deleteSuccess: '삭제되었습니다',
-      deleteFail: '삭제 실패'
+      deleteFail: '삭제 실패',
+      linkedManufacturers: '연결된 제조사',
+      linkedRetailers: '연결된 소매업체',
+      linkedLogisticsCenters: '연결된 물류센터',
+      linkedLogisticsCenter: '연결된 물류센터',
+      noLogisticsAssigned: '연결된 물류센터가 없습니다.',
+      retailerMappingHint: '물류센터 연결은 거래처관리 > 물류센터 관리소매업 페이지에서 변경할 수 있습니다.',
+      loadPartnersFail: '파트너 정보를 불러오는 데 실패했습니다.',
+      mappingUpdated: '연결 정보가 업데이트되었습니다.',
+      assigned: '소속 업체',
+      unassigned: '미소속 업체'
     }
   },
   common: {

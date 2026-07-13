@@ -101,5 +101,23 @@ public static class CompanyEndpoints
             var result = await companyService.AssignManufacturersToCenterAsync(centerId, manufacturerIds);
             return Results.Ok(result);
         });
+
+        group.MapGet("/manufacturers/{manufacturerId:int}/logistics", async (int manufacturerId, ICompanyService companyService) =>
+        {
+            var result = await companyService.GetLogisticsCentersByManufacturerAsync(manufacturerId);
+            return Results.Ok(result);
+        });
+
+        group.MapGet("/manufacturers/{manufacturerId:int}/logistics/unassigned", async (int manufacturerId, ICompanyService companyService) =>
+        {
+            var result = await companyService.GetUnassignedLogisticsCentersForManufacturerAsync(manufacturerId);
+            return Results.Ok(result);
+        });
+
+        group.MapPost("/manufacturers/{manufacturerId:int}/assign-logistics", async (int manufacturerId, List<int> logisticsIds, ICompanyService companyService) =>
+        {
+            var result = await companyService.AssignLogisticsCentersToManufacturerAsync(manufacturerId, logisticsIds);
+            return Results.Ok(result);
+        });
     }
 }
