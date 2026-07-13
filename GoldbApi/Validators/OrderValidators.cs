@@ -7,7 +7,10 @@ public class CreateOrderDtoValidator : AbstractValidator<CreateOrderDto>
 {
     public CreateOrderDtoValidator()
     {
-        RuleFor(x => x.CartItemIds).NotEmpty().WithMessage("주문할 상품을 선택해주세요.");
+        RuleFor(x => x.CartItemIds)
+            .NotEmpty()
+            .When(x => !x.DirectProductId.HasValue && !x.DirectProductSetId.HasValue)
+            .WithMessage("주문할 상품을 선택해주세요.");
     }
 }
 
