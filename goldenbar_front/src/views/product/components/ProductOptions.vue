@@ -86,16 +86,20 @@
 
     <div v-if="isLogisticsUser" class="logistics-retailer-select-row" style="margin-top: 1.5rem; margin-bottom: 0.5rem; padding: 1.25rem; background: #faf9f6; border: 1px solid #f2efeb; display: flex; flex-direction: column; gap: 0.75rem;">
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span class="option-label" style="font-weight: 600; font-size: 0.85rem; color: #444; margin: 0;">대리 주문 소매점 선택 (물류 전용)</span>
-        <el-tag size="small" type="warning" effect="dark" style="border-radius: 2px;">물류 대리주문</el-tag>
+        <span class="option-label" style="font-weight: 600; font-size: 0.85rem; color: #444; margin: 0;">대리 주문 소매점 선택 (물류/자체)</span>
+        <el-tag size="small" type="warning" effect="dark" style="border-radius: 2px;">물류 대리/자체</el-tag>
       </div>
       <el-select
         :model-value="selectedRetailerId"
         @update:model-value="$emit('update:selectedRetailerId', $event)"
-        placeholder="소매점(RTL)을 선택하세요"
+        placeholder="소매점(RTL)을 선택하거나 자체 재고 주문 선택"
         style="width: 100%;"
         filterable
       >
+        <el-option
+          label="물류사 자체 재고용 주문 (본인 구매)"
+          :value="null"
+        />
         <el-option
           v-for="retailer in retailersList"
           :key="retailer.id"
@@ -105,7 +109,7 @@
       </el-select>
     </div>
 
-    <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !(isLogisticsUser && selectedRetailerId) }">
+    <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !isLogisticsUser }">
       <div class="quantity-input-row">
         <span class="qty-label">{{ $t('productDetail.labels.qty') }}</span>
         <el-input-number
@@ -129,8 +133,8 @@
           <el-icon v-if="isFavorite"><StarFilled /></el-icon>
           <el-icon v-else><Star /></el-icon>
         </el-button>
-        <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser && !(isLogisticsUser && selectedRetailerId)" @click="handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
-        <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser && !(isLogisticsUser && selectedRetailerId)" @click="handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
+        <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
+        <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
       </div>
     </div>
 
