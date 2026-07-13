@@ -37,7 +37,7 @@
           :model-value="selectedPurity"
           @update:model-value="$emit('update:selectedPurity', $event)"
           class="jovenca-pills"
-          :disabled="!isRetailUser"
+          :disabled="!isRetailUser && !isLogisticsUser"
         >
           <el-radio-button
             v-for="code in purityOptions"
@@ -54,7 +54,7 @@
           :model-value="selectedColor"
           @update:model-value="$emit('update:selectedColor', $event)"
           class="jovenca-pills"
-          :disabled="!isRetailUser"
+          :disabled="!isRetailUser && !isLogisticsUser"
         >
           <el-radio-button
             v-for="code in colorOptions"
@@ -84,7 +84,28 @@
       </div>
     </div>
 
-    <div class="action-section" :class="{ 'is-disabled': !isRetailUser }">
+    <div v-if="isLogisticsUser" class="logistics-retailer-select-row" style="margin-top: 1.5rem; margin-bottom: 0.5rem; padding: 1.25rem; background: #faf9f6; border: 1px solid #f2efeb; display: flex; flex-direction: column; gap: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="option-label" style="font-weight: 600; font-size: 0.85rem; color: #444; margin: 0;">대리 주문 소매점 선택 (물류 전용)</span>
+        <el-tag size="small" type="warning" effect="dark" style="border-radius: 2px;">물류 대리주문</el-tag>
+      </div>
+      <el-select
+        :model-value="selectedRetailerId"
+        @update:model-value="$emit('update:selectedRetailerId', $event)"
+        placeholder="소매점(RTL)을 선택하세요"
+        style="width: 100%;"
+        filterable
+      >
+        <el-option
+          v-for="retailer in retailersList"
+          :key="retailer.id"
+          :label="retailer.name"
+          :value="retailer.id"
+        />
+      </el-select>
+    </div>
+
+    <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !(isLogisticsUser && selectedRetailerId) }">
       <div class="quantity-input-row">
         <span class="qty-label">{{ $t('productDetail.labels.qty') }}</span>
         <el-input-number
@@ -92,7 +113,7 @@
           @update:model-value="$emit('update:quantity', $event)"
           :min="1"
           class="jovenca-qty"
-          :disabled="!isRetailUser"
+          :disabled="!isRetailUser && !isLogisticsUser"
         />
       </div>
       <div class="button-group">
@@ -108,8 +129,8 @@
           <el-icon v-if="isFavorite"><StarFilled /></el-icon>
           <el-icon v-else><Star /></el-icon>
         </el-button>
-        <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser" @click="isRetailUser && handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
-        <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser" @click="isRetailUser && handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
+        <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser && !(isLogisticsUser && selectedRetailerId)" @click="handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
+        <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser && !(isLogisticsUser && selectedRetailerId)" @click="handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
       </div>
     </div>
 
@@ -117,7 +138,7 @@
       <el-icon class="alert-icon"><InfoFilled /></el-icon>
       <span class="alert-desc">관리 물류업체가 지정되지 않았습니다. 주문 및 장바구니 이용을 위해 관리자에게 물류업체 지정을 요청해 주세요.</span>
     </div>
-    <div v-else-if="!isRetailUser" class="non-retail-alert">
+    <div v-else-if="!isRetailUser && !isLogisticsUser" class="non-retail-alert">
       <el-icon class="alert-icon"><InfoFilled /></el-icon>
       <span class="alert-desc">{{ $t('productDetail.messages.retailOnly') }}</span>
     </div>
@@ -173,6 +194,18 @@ defineProps({
     type: Boolean,
     required: true
   },
+  isLogisticsUser: {
+    type: Boolean,
+    default: false
+  },
+  retailersList: {
+    type: Array as () => any[],
+    default: () => []
+  },
+  selectedRetailerId: {
+    type: Number as () => number | null,
+    default: null
+  },
   purityOptions: {
     type: Array as () => string[],
     required: true
@@ -195,6 +228,7 @@ const emit = defineEmits([
   'update:selectedPurity',
   'update:selectedColor',
   'update:quantity',
+  'update:selectedRetailerId',
   'edit',
   'favorite',
   'cart',

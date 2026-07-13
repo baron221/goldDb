@@ -184,6 +184,18 @@ public class CreateOrderDto
     public string? LogisticsRemarks { get; set; }
 
     public int? CustomerId { get; set; }
+
+    public int? TargetCompanyId { get; set; }
+
+    public int? DirectProductId { get; set; }
+
+    public int? DirectProductSetId { get; set; }
+
+    public int? DirectQuantity { get; set; }
+
+    public string? DirectPurity { get; set; }
+
+    public string? DirectColor { get; set; }
 }
 
 public class SettlementHistorySummaryDto

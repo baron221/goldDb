@@ -2,6 +2,7 @@ using GoldbApi.Data;
 using GoldbApi.DTOs;
 using GoldbApi.Models;
 using GoldbApi.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace GoldbApi.Services;
 
@@ -35,13 +36,15 @@ public class OrderService : IOrderService
     private readonly ICurrentUserService _currentUserService;
     private readonly IStockService _stockService;
     private readonly IReceivableService _receivableService;
+    private readonly AppDbContext _dbContext;
 
-    public OrderService(IOrderRepository orderRepository, ICurrentUserService currentUserService, IStockService stockService, IReceivableService receivableService)
+    public OrderService(IOrderRepository orderRepository, ICurrentUserService currentUserService, IStockService stockService, IReceivableService receivableService, AppDbContext dbContext)
     {
         _orderRepository = orderRepository;
         _currentUserService = currentUserService;
         _stockService = stockService;
         _receivableService = receivableService;
+        _dbContext = dbContext;
     }
 
     private int GetCurrentUserId()
@@ -91,7 +94,56 @@ public class OrderService : IOrderService
         var userCompany = await _orderRepository.GetUserCompanyInfoAsync(userId);
         int? assignedLogisticsId = userCompany?.Company?.LogisticsCompanyId;
 
-        var cartItems = await _orderRepository.GetCartItemsForUserAsync(userId, request.CartItemIds);
+        if (request.TargetCompanyId.HasValue)
+        {
+            var targetCompany = await _dbContext.Companies.FirstOrDefaultAsync(c => c.Id == request.TargetCompanyId.Value);
+            if (targetCompany == null)
+            {
+                return ApiResponse<OrderDto>.Failure("Target company not found.", 404);
+            }
+            if (userCompany?.Company?.Category == "LOG" && targetCompany.LogisticsCompanyId != userCompany.CompanyId)
+            {
+                return ApiResponse<OrderDto>.Failure("You do not have permission to place orders for this company.", 403);
+            }
+
+            var targetUserCompany = await _dbContext.UserCompanies.FirstOrDefaultAsync(uc => uc.CompanyId == request.TargetCompanyId.Value && !uc.IsDeleted);
+            if (targetUserCompany == null)
+            {
+                return ApiResponse<OrderDto>.Failure("No active user found for the target company.", 400);
+            }
+
+            userId = targetUserCompany.UserId;
+            assignedLogisticsId = targetCompany.LogisticsCompanyId;
+        }
+
+        List<CartItem> cartItems;
+        if (request.DirectProductId.HasValue || request.DirectProductSetId.HasValue)
+        {
+            var item = new CartItem
+            {
+                UserId = userId,
+                ProductId = request.DirectProductId,
+                ProductSetId = request.DirectProductSetId,
+                Quantity = request.DirectQuantity ?? 1,
+                Purity = request.DirectPurity,
+                Color = request.DirectColor
+            };
+            if (item.ProductId.HasValue)
+            {
+                item.Product = await _dbContext.Products
+                    .Include(p => p.OptionWeights)
+                    .FirstOrDefaultAsync(p => p.Id == item.ProductId.Value);
+            }
+            if (item.ProductSetId.HasValue)
+            {
+                item.ProductSet = await _dbContext.ProductSets.FindAsync(item.ProductSetId.Value);
+            }
+            cartItems = new List<CartItem> { item };
+        }
+        else
+        {
+            cartItems = await _orderRepository.GetCartItemsForUserAsync(userId, request.CartItemIds);
+        }
 
         if (!cartItems.Any())
         {
@@ -187,13 +239,17 @@ public class OrderService : IOrderService
             {
                 Order = order,
                 Status = order.Status,
-                UserId = userId,
+                UserId = GetCurrentUserId(),
                 Remarks = "주문 접수"
             };
             await _orderRepository.AddStatusHistoryAsync(history);
         }
 
-        _orderRepository.RemoveCartItems(cartItems);
+        var dbCartItems = cartItems.Where(c => c.Id > 0).ToList();
+        if (dbCartItems.Any())
+        {
+            _orderRepository.RemoveCartItems(dbCartItems);
+        }
         await _orderRepository.SaveChangesAsync();
 
         var firstOrder = createdOrders.First();

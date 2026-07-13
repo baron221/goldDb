@@ -33,11 +33,13 @@ public class CartService : ICartService
 {
     private readonly IRepository<CartItem> _cartItemRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly AppDbContext _dbContext;
 
-    public CartService(IRepository<CartItem> cartItemRepository, ICurrentUserService currentUserService)
+    public CartService(IRepository<CartItem> cartItemRepository, ICurrentUserService currentUserService, AppDbContext dbContext)
     {
         _cartItemRepository = cartItemRepository;
         _currentUserService = currentUserService;
+        _dbContext = dbContext;
     }
 
     private int GetCurrentUserId()
@@ -73,6 +75,16 @@ public class CartService : ICartService
     public async Task<ApiResponse<string>> AddToCartAsync(AddToCartDto request)
     {
         var userId = GetCurrentUserId();
+
+        if (request.TargetCompanyId.HasValue)
+        {
+            var targetUserCompany = await _dbContext.UserCompanies.FirstOrDefaultAsync(uc => uc.CompanyId == request.TargetCompanyId.Value && !uc.IsDeleted);
+            if (targetUserCompany == null)
+            {
+                return ApiResponse<string>.Failure("No active user found for the target company.", 400);
+            }
+            userId = targetUserCompany.UserId;
+        }
 
         var existingItem = await _cartItemRepository.GetQueryable()
             .FirstOrDefaultAsync(c => c.UserId == userId && 

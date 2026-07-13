@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="product-detail-container app-container">
     <el-card v-loading="loading" shadow="never" class="premium-detail-card">
       <div v-if="product.id">
@@ -16,6 +16,7 @@
               v-model:selected-purity="selectedPurity"
               v-model:selected-color="selectedColor"
               v-model:quantity="quantity"
+              v-model:selected-retailer-id="selectedRetailerId"
               :product="product"
               :active-weight="activeWeight"
               :has-option-weight="hasOptionWeight"
@@ -24,6 +25,8 @@
               :is-retail-user="isRetailUser"
               :is-retail-but-no-logistics="isRetailButNoLogistics"
               :is-mfg-user="isMfgUser"
+              :is-logistics-user="isLogisticsUser"
+              :retailers-list="retailersList"
               :purity-options="purityOptions"
               :color-options="colorOptions"
               :category-names="categoryNames"
@@ -62,6 +65,8 @@ import useUserStore from '@/store/modules/user';
 import { getProduct } from '@/api/product';
 import { addToCart } from '@/api/cart';
 import { addFavorite, removeFavoriteByProduct, getMyFavorites } from '@/api/favorite';
+import { getRetailersByCenter } from '@/api/company';
+import { createOrder } from '@/api/order';
 import { ElMessage, ElNotification } from 'element-plus';
 import useCodeStore from '@/store/modules/code';
 import ProductDialog from '@/components/ProductDialog/index.vue';
@@ -93,6 +98,27 @@ const isRetailButNoLogistics = computed(() => {
 const isMfgUser = computed(() => {
   return userStore.companyType === 'MFG';
 });
+
+const isLogisticsUser = computed(() => {
+  return userStore.companyType === 'LOG';
+});
+
+const retailersList = ref<any[]>([]);
+const selectedRetailerId = ref<number | null>(null);
+
+const fetchRetailers = async () => {
+  if (isLogisticsUser.value && userStore.companyId) {
+    try {
+      const res = await getRetailersByCenter(userStore.companyId);
+      retailersList.value = res.data || [];
+      if (retailersList.value.length > 0) {
+        selectedRetailerId.value = retailersList.value[0].id;
+      }
+    } catch (error) {
+      console.error('Failed to fetch retailers:', error);
+    }
+  }
+};
 
 const dialogFormVisible = ref(false);
 const currentProductId = ref<number | null>(null);
@@ -241,16 +267,28 @@ const handleCart = async () => {
     return;
   }
 
+  if (isLogisticsUser.value && !selectedRetailerId.value) {
+    ElMessage.warning('대리 주문할 소매점을 선택해주세요.');
+    return;
+  }
+
   try {
     await addToCart({
       productId: product.value.id,
       quantity: quantity.value,
       purity: selectedPurity.value,
-      color: selectedColor.value
+      color: selectedColor.value,
+      targetCompanyId: isLogisticsUser.value ? selectedRetailerId.value : undefined
     });
 
     if (store.cart && typeof store.cart === 'function') {
       store.cart().fetchCart();
+    }
+
+    if (isLogisticsUser.value) {
+      const selectedRet = retailersList.value.find(r => r.id === selectedRetailerId.value);
+      ElMessage.success(`${selectedRet?.name || '소매점'}의 장바구니에 상품을 담았습니다.`);
+      return;
     }
 
     let seconds = 3;
@@ -302,7 +340,26 @@ const handleBuy = async () => {
     return;
   }
 
+  if (isLogisticsUser.value && !selectedRetailerId.value) {
+    ElMessage.warning('대리 주문할 소매점을 선택해주세요.');
+    return;
+  }
+
   try {
+    if (isLogisticsUser.value) {
+      await createOrder({
+        directProductId: product.value.id,
+        directQuantity: quantity.value,
+        directPurity: selectedPurity.value,
+        directColor: selectedColor.value,
+        targetCompanyId: selectedRetailerId.value,
+        orderMemo: '물류사 대리 전화주문'
+      });
+      ElMessage.success('대리 주문이 성공적으로 등록되었습니다.');
+      router.push('/order/order-tracking');
+      return;
+    }
+
     await addToCart({
       productId: product.value.id,
       quantity: quantity.value,
@@ -318,6 +375,7 @@ const handleBuy = async () => {
 
 onMounted(() => {
   getDetail();
+  fetchRetailers();
 });
 </script>
 

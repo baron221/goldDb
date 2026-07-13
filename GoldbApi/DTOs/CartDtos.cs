@@ -56,6 +56,8 @@ public class AddToCartDto
     public string? Purity { get; set; }
 
     public string? Color { get; set; }
+
+    public int? TargetCompanyId { get; set; }
 }
 
 public class UpdateCartQuantityDto
