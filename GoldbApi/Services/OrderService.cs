@@ -101,7 +101,7 @@ public class OrderService : IOrderService
             {
                 return ApiResponse<OrderDto>.Failure("Target company not found.", 404);
             }
-            if (userCompany?.Company?.Category == "LOG" && targetCompany.LogisticsCompanyId != userCompany.CompanyId)
+            if ((userCompany?.Company?.Category == "LOG" || userCompany?.Company?.Category == "DCC") && targetCompany.LogisticsCompanyId != userCompany.CompanyId)
             {
                 return ApiResponse<OrderDto>.Failure("You do not have permission to place orders for this company.", 403);
             }

@@ -100,7 +100,7 @@ const isMfgUser = computed(() => {
 });
 
 const isLogisticsUser = computed(() => {
-  return userStore.companyType === 'LOG';
+  return userStore.companyType === 'LOG' || userStore.companyType === 'DCC';
 });
 
 const retailersList = ref<any[]>([]);
@@ -111,9 +111,7 @@ const fetchRetailers = async () => {
     try {
       const res = await getRetailersByCenter(userStore.companyId);
       retailersList.value = res.data || [];
-      if (retailersList.value.length > 0) {
-        selectedRetailerId.value = retailersList.value[0].id;
-      }
+      selectedRetailerId.value = null;
     } catch (error) {
       console.error('Failed to fetch retailers:', error);
     }
