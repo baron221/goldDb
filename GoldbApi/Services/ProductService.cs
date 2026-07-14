@@ -49,6 +49,19 @@ public class ProductService : IProductService
         _companyRepository = companyRepository;
     }
 
+    private async Task<List<int>> GetCurrentUserCompanyIdsAsync()
+    {
+        if (_currentUserService.IsAdmin) return new List<int>();
+
+        var userId = _currentUserService.UserId;
+        if (userId == null) throw new UnauthorizedAccessException();
+
+        return await _userCompanyRepository.GetQueryable()
+            .Where(uc => uc.UserId == userId.Value && !uc.IsDeleted)
+            .Select(uc => uc.CompanyId)
+            .ToListAsync();
+    }
+
     public async Task<ApiResponse<PagedResult<ProductDto>>> GetProductsAsync(ProductQueryDto query)
     {
         var dbQuery = _productRepository.GetQueryable();
@@ -174,6 +187,17 @@ public class ProductService : IProductService
 
     public async Task<ApiResponse<ProductDto>> CreateProductAsync(CreateProductDto request)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (request.CompanyId.HasValue && !myCompanyIds.Contains(request.CompanyId.Value))
+                return ApiResponse<ProductDto>.Failure("Forbidden", 403);
+            if (!request.CompanyId.HasValue)
+            {
+                if (myCompanyIds.Count > 0) request.CompanyId = myCompanyIds[0];
+                else return ApiResponse<ProductDto>.Failure("No company assigned", 403);
+            }
+        }
         var product = new Product
         {
             Name = request.Name,
@@ -243,6 +267,15 @@ public class ProductService : IProductService
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (product == null) return ApiResponse<string>.Failure("Product not found", 404);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (product.CompanyId.HasValue && !myCompanyIds.Contains(product.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+            if (request.CompanyId.HasValue && !myCompanyIds.Contains(request.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
 
         product.Name = request.Name;
         product.NormalizedName = request.Name.Replace(" ", "").ToLower();
@@ -367,6 +400,13 @@ public class ProductService : IProductService
     {
         var product = await _productRepository.GetByIdAsync(id);
         if (product == null) return ApiResponse<string>.Failure("Product not found", 404);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (product.CompanyId.HasValue && !myCompanyIds.Contains(product.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
 
         _productRepository.Delete(product);
         await _productRepository.SaveChangesAsync();
