@@ -162,7 +162,8 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
       laborCost: 0,
       colors: [],
       sizes: [],
-      optionWeights: []
+      optionWeights: [],
+      purityWeightsMap: {} as Record<string, number>
     };
   };
 
@@ -223,13 +224,22 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
         smallCategoryOptions.value = [];
       }
 
+      const optionWeights = data.optionWeights || [];
+      const purityWeightsMap: Record<string, number> = {};
+      optionWeights.forEach((ow: any) => {
+        if (purityWeightsMap[ow.purity] === undefined) {
+          purityWeightsMap[ow.purity] = ow.weight;
+        }
+      });
+
       temp.value = {
         ...data,
         photos: data.photos || [],
         colors: data.colors ? data.colors.split(',') : [],
         sizes: data.sizes ? data.sizes.split(',') : [],
         purity: data.purity ? data.purity.split(',') : [],
-        optionWeights: data.optionWeights || []
+        optionWeights: optionWeights,
+        purityWeightsMap
       };
     } catch (error) {
       console.error(error);
@@ -434,21 +444,57 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     activePhotoUrl.value = '';
   }, { deep: true });
 
-  watch(() => temp.value.purity, (newPurities) => {
+  watch(() => temp.value.purity, (newPurities, oldPurities) => {
+    if (!temp.value.purityWeightsMap) temp.value.purityWeightsMap = {};
+    
     if (newPurities && newPurities.length > 0) {
       if (!calcBasePurity.value || !newPurities.includes(calcBasePurity.value)) {
         calcBasePurity.value = newPurities[0];
       }
+      
+      const oldSet = new Set(oldPurities || []);
+      const added = newPurities.filter(p => !oldSet.has(p));
+      
+      if (added.length > 0) {
+        if (newPurities.length === 1) {
+          temp.value.purityWeightsMap[newPurities[0]] = temp.value.weight || 0;
+        } else {
+          const basePurity = newPurities[0];
+          const baseWeight = temp.value.purityWeightsMap[basePurity] || temp.value.weight;
+          const baseDensity = getDensity(basePurity);
+          
+          added.forEach(pCode => {
+            const density = getDensity(pCode);
+            temp.value.purityWeightsMap[pCode] = Math.round(baseWeight * (density / baseDensity) * 100) / 100;
+          });
+        }
+      }
     } else {
       calcBasePurity.value = '';
     }
-  }, { immediate: true });
+  });
 
   watch(() => temp.value.weight, (newVal) => {
     if (newVal && (!calcBaseWeight.value || calcBaseWeight.value === 0)) {
       calcBaseWeight.value = newVal;
     }
+    // Also update the first purity's weight in purityWeightsMap if it's currently empty or matching old base weight
+    if (temp.value.purity && temp.value.purity.length > 0) {
+       const basePurity = temp.value.purity[0];
+       temp.value.purityWeightsMap[basePurity] = newVal;
+    }
   }, { immediate: true });
+
+  watch(() => temp.value.purityWeightsMap, (newMap) => {
+    if (!temp.value.purity || !temp.value.colors) return;
+    
+    combinationGridData.value.forEach((row: any) => {
+      if (newMap[row.purity] !== undefined) {
+        row.weight = newMap[row.purity];
+      }
+    });
+    temp.value.optionWeights = [...combinationGridData.value];
+  }, { deep: true });
 
   watch(() => [temp.value.purity, temp.value.colors], () => {
     if (!temp.value.purity || !temp.value.colors) {

@@ -55,8 +55,20 @@
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item :label="$t('productDialog.weight')" prop="weight" required>
-            <el-input-number v-model="localTemp.weight" :precision="2" :step="0.01" style="width: 100%;" />
+          <el-form-item :label="$t('productDialog.weight')" required>
+            <div style="display: flex; flex-direction: column; width: 100%; gap: 10px;">
+              <div v-for="(pCode, index) in localTemp.purity" :key="pCode" style="display: flex; align-items: center; gap: 10px;">
+                <span style="min-width: 50px; font-weight: bold; color: #606266;">{{ getCodeName(pCode) }}</span>
+                <el-input-number 
+                  v-model="localTemp.purityWeightsMap[pCode]" 
+                  @change="(val) => handlePurityWeightChange(pCode, val, index)"
+                  :precision="2" :step="0.01" :min="0" style="flex: 1;" 
+                />
+              </div>
+              <div v-if="!localTemp.purity || localTemp.purity.length === 0" style="display: flex; align-items: center; gap: 10px; width: 100%">
+                <el-input-number v-model="localTemp.weight" :precision="2" :step="0.01" style="flex: 1;" disabled :placeholder="$t('productDialog.purityPlaceholder')" />
+              </div>
+            </div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -163,6 +175,19 @@ import { Picture, Edit } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import AmountInput from '@/components/AmountInput/index.vue';
+import useCodeStore from '@/store/modules/code';
+
+const codeStore = useCodeStore();
+
+const getCodeName = (code: string) => {
+  return codeStore.getCodeName(code) || code;
+};
+
+const handlePurityWeightChange = (pCode: string, val: number, index: number) => {
+  if (index === 0) {
+    localTemp.value.weight = val;
+  }
+};
 
 const props = defineProps({
   temp: {
