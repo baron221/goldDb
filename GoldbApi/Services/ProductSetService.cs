@@ -69,7 +69,11 @@ public class ProductSetService : IProductSetService
             {
                 if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
                 {
-                    var logisticsId = userCompany.Company.LogisticsCompanyId;
+                    // A logistics center IS the center (use its own id); a retailer
+                    // reaches its center through LogisticsCompanyId.
+                    var logisticsId = userCompany.Company.Category == "DCC"
+                        ? (int?)userCompany.Company.Id
+                        : userCompany.Company.LogisticsCompanyId;
                     if (logisticsId.HasValue)
                     {
                         var allowedManufacturerIds = await _manufacturerLogisticsRepository.GetQueryable()
@@ -161,7 +165,9 @@ public class ProductSetService : IProductSetService
                     }
                     else if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
                     {
-                        var logisticsId = userCompany.Company.LogisticsCompanyId;
+                        var logisticsId = userCompany.Company.Category == "DCC"
+                            ? (int?)userCompany.Company.Id
+                            : userCompany.Company.LogisticsCompanyId;
                         if (logisticsId.HasValue)
                         {
                             var isAllowed = await _manufacturerLogisticsRepository.GetQueryable()

@@ -76,7 +76,13 @@ service.interceptors.response.use(
     const res = response.data;
 
     if (res.code !== 20000) {
-      const message = res.message || t('apiErrors.unknown');
+      let message = res.message || t('apiErrors.unknown');
+
+      // Replace the raw "Forbidden" sentinel with a friendly, localized
+      // message; keep any specific message the backend chose to send.
+      if (res.code === 403 && (!res.message || res.message === 'Forbidden')) {
+        message = t('apiErrors.forbidden');
+      }
 
       if (res.code === 50008 || res.code === 50012 || res.code === 50014) {
         showUnauthorizedBox(t('apiErrors.unauthorized'));

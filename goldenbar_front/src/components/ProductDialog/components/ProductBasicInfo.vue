@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed } from 'vue';
 import { Picture, Edit } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
@@ -230,15 +230,11 @@ const emit = defineEmits([
   'manage-photo'
 ]);
 
-const localTemp = ref({ ...props.temp });
-
-watch(() => props.temp, (val) => {
-  localTemp.value = { ...val };
-}, { deep: true });
-
-watch(localTemp, (val) => {
-  emit('update:temp', val);
-}, { deep: true });
+// Bind directly to the shared reactive temp instead of keeping a local
+// copy synced through a watch/emit loop. The loop dropped auto-computed
+// purity weights on new products, where the values are produced by nested
+// mutations the non-immediate copy never picked up in the right order.
+const localTemp = computed(() => props.temp as any);
 </script>
 
 <style scoped>

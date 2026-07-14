@@ -191,6 +191,9 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<string>> AddUserToCompanyAsync(int companyId, int userId)
     {
+        if (!await IsCallerAllowedForCompanyAsync(companyId))
+            return ApiResponse<string>.Failure("본인 회사의 직원만 관리할 수 있습니다.", 403);
+
         if (await _userCompanyRepository.GetQueryable().AnyAsync(uc => uc.UserId == userId && uc.CompanyId == companyId))
         {
             return ApiResponse<string>.Failure("Already associated");
@@ -205,11 +208,27 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<string>> RemoveUserFromCompanyAsync(int companyId, int userId)
     {
+        if (!await IsCallerAllowedForCompanyAsync(companyId))
+            return ApiResponse<string>.Failure("본인 회사의 직원만 관리할 수 있습니다.", 403);
+
         await _userCompanyRepository.GetQueryable()
             .Where(uc => uc.UserId == userId && uc.CompanyId == companyId)
             .ExecuteDeleteAsync();
 
         return ApiResponse<string>.Success("success");
+    }
+
+    // An admin may manage any company's staff; anyone else may only manage
+    // the staff of a company they themselves belong to.
+    private async Task<bool> IsCallerAllowedForCompanyAsync(int companyId)
+    {
+        if (_currentUserService.IsAdmin) return true;
+
+        var currentUserId = _currentUserService.UserId;
+        if (currentUserId == null) return false;
+
+        return await _userCompanyRepository.GetQueryable()
+            .AnyAsync(uc => uc.UserId == currentUserId.Value && uc.CompanyId == companyId && !uc.IsDeleted);
     }
 
     public async Task<ApiResponse<List<UserListItemResponse>>> GetAvailableUsersAsync()

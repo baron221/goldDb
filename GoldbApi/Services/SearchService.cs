@@ -21,19 +21,69 @@ public class SearchService : ISearchService
     private readonly IRepository<Stock> _stockRepository;
     private readonly IRepository<Order> _orderRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IRepository<UserCompany> _userCompanyRepository;
+    private readonly IRepository<ManufacturerLogistics> _manufacturerLogisticsRepository;
 
     public SearchService(
         IRepository<Product> productRepository,
         IRepository<ProductSet> productSetRepository,
         IRepository<Stock> stockRepository,
         IRepository<Order> orderRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IRepository<UserCompany> userCompanyRepository,
+        IRepository<ManufacturerLogistics> manufacturerLogisticsRepository)
     {
         _productRepository = productRepository;
         _productSetRepository = productSetRepository;
         _stockRepository = stockRepository;
         _orderRepository = orderRepository;
         _currentUserService = currentUserService;
+        _userCompanyRepository = userCompanyRepository;
+        _manufacturerLogisticsRepository = manufacturerLogisticsRepository;
+    }
+
+    // Returns the manufacturer company ids whose products the current user is
+    // allowed to see. null means "no restriction" (admin). An empty list means
+    // the user may see nothing.
+    private async Task<List<int>?> GetVisibleManufacturerCompanyIdsAsync()
+    {
+        if (_currentUserService.IsAdmin) return null;
+
+        var userId = _currentUserService.UserId;
+        if (userId == null) return new List<int>();
+
+        var userCompany = await _userCompanyRepository.GetQueryable()
+            .Include(uc => uc.Company)
+            .FirstOrDefaultAsync(uc => uc.UserId == userId.Value && !uc.IsDeleted);
+
+        if (userCompany?.Company == null) return new List<int>();
+
+        var company = userCompany.Company;
+
+        if (company.Category == "MFG")
+        {
+            // A manufacturer only sees its own products.
+            return await _userCompanyRepository.GetQueryable()
+                .Where(uc => uc.UserId == userId.Value && !uc.IsDeleted)
+                .Select(uc => uc.CompanyId)
+                .ToListAsync();
+        }
+
+        if (company.Category == "DCC" || company.Category == "RTL")
+        {
+            // A logistics center IS the center (its own id); a retailer reaches
+            // its center through LogisticsCompanyId. Either way, only products
+            // from manufacturers mapped to that center are visible.
+            var logisticsId = company.Category == "DCC" ? (int?)company.Id : company.LogisticsCompanyId;
+            if (logisticsId == null) return new List<int>();
+
+            return await _manufacturerLogisticsRepository.GetQueryable()
+                .Where(ml => ml.LogisticsId == logisticsId.Value)
+                .Select(ml => ml.ManufacturerId)
+                .ToListAsync();
+        }
+
+        return new List<int>();
     }
 
     public async Task<ApiResponse<IntegratedSearchResultDto>> IntegratedSearchAsync(SearchQueryDto queryDto)
@@ -42,20 +92,30 @@ public class SearchService : ISearchService
         var normalizedQuery = searchTerm?.Replace(" ", "").ToLower();
         var result = new IntegratedSearchResultDto();
 
+        // null = admin (no restriction); otherwise only products from these
+        // manufacturer companies are visible to the current user.
+        var visibleCompanyIds = await GetVisibleManufacturerCompanyIdsAsync();
+
         if (!string.IsNullOrEmpty(normalizedQuery) && string.IsNullOrEmpty(queryDto.Type))
         {
 
-            result.Products = await _productRepository.GetQueryable()
-                .Where(p => p.Name.Replace(" ", "").ToLower().Contains(normalizedQuery) || 
-                            (p.ProductNo != null && p.ProductNo.Replace(" ", "").ToLower().Contains(normalizedQuery)))
+            var productPreview = _productRepository.GetQueryable()
+                .Where(p => p.Name.Replace(" ", "").ToLower().Contains(normalizedQuery) ||
+                            (p.ProductNo != null && p.ProductNo.Replace(" ", "").ToLower().Contains(normalizedQuery)));
+            if (visibleCompanyIds != null)
+                productPreview = productPreview.Where(p => p.CompanyId.HasValue && visibleCompanyIds.Contains(p.CompanyId.Value));
+            result.Products = await productPreview
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(20)
                 .ProjectToType<ProductSearchResultDto>()
                 .ToListAsync();
 
-            result.ProductSets = await _productSetRepository.GetQueryable()
-                .Where(ps => ps.Title.Replace(" ", "").ToLower().Contains(normalizedQuery) || 
-                             (ps.SetNo != null && ps.SetNo.Replace(" ", "").ToLower().Contains(normalizedQuery)))
+            var setPreview = _productSetRepository.GetQueryable()
+                .Where(ps => ps.Title.Replace(" ", "").ToLower().Contains(normalizedQuery) ||
+                             (ps.SetNo != null && ps.SetNo.Replace(" ", "").ToLower().Contains(normalizedQuery)));
+            if (visibleCompanyIds != null)
+                setPreview = setPreview.Where(ps => ps.CompanyId.HasValue && visibleCompanyIds.Contains(ps.CompanyId.Value));
+            result.ProductSets = await setPreview
                 .OrderByDescending(ps => ps.CreatedAt)
                 .Take(20)
                 .ProjectToType<ProductSetSearchResultDto>()
@@ -80,6 +140,12 @@ public class SearchService : ISearchService
 
         var productQuery = _productRepository.GetQueryable();
         var setQuery = _productSetRepository.GetQueryable();
+
+        if (visibleCompanyIds != null)
+        {
+            productQuery = productQuery.Where(p => p.CompanyId.HasValue && visibleCompanyIds.Contains(p.CompanyId.Value));
+            setQuery = setQuery.Where(ps => ps.CompanyId.HasValue && visibleCompanyIds.Contains(ps.CompanyId.Value));
+        }
 
         if (!string.IsNullOrEmpty(normalizedQuery))
         {
