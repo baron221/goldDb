@@ -48,6 +48,12 @@ public static class UserEndpoints
             return Results.Ok(result);
         });
 
+        group.MapPost("/{id:int}/unapprove", async (int id, IUserService userService) =>
+        {
+            var result = await userService.UnapproveUserAsync(id);
+            return Results.Ok(result);
+        });
+
         group.MapGet("/personal-settings", async (IUserPersonalSettingService personalSettingService) =>
         {
             var result = await personalSettingService.GetUserPersonalSettingAsync();

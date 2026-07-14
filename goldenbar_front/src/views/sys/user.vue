@@ -16,7 +16,7 @@
             <user-filter :query="listQuery" @update:query="(val) => Object.assign(listQuery, val)" @filter="handleFilter" style="margin-top: 15px;" />
           </template>
 
-          <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
+          <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" @unapprove="handleUnapproveRow" v-loading="loading" />
         </el-card>
       </div>
 
@@ -29,6 +29,7 @@
           @update:user="(val) => Object.assign(userDetail, val)"
           @save="handleSave"
           @approve="handleApprove"
+          @unapprove="handleUnapprove"
           @delete="() => removeUser(userDetail.id)"
           @create-company="companyCreateVisible = true"
           @open-postcode="openPostcode"
@@ -56,7 +57,7 @@
           </div>
           <user-filter :query="listQuery" @update:query="(val) => Object.assign(listQuery, val)" @filter="handleFilter" style="margin-top: 15px;" />
         </template>
-        <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" v-loading="loading" />
+        <user-table :data="userList" @row-click="handleRowClick" @approve="handleApproveRow" @unapprove="handleUnapproveRow" v-loading="loading" />
       </el-card>
 
       <div v-else class="mobile-detail-wrapper">
@@ -70,6 +71,7 @@
           @update:user="(val) => Object.assign(userDetail, val)"
           @save="handleSave"
           @approve="handleApprove"
+          @unapprove="handleUnapprove"
           @delete="() => removeUser(userDetail.id)"
           @create-company="companyCreateVisible = true"
           @open-postcode="openPostcode"
@@ -99,7 +101,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Refresh, ArrowLeft } from '@element-plus/icons-vue';
-import { createUser, updateUser, approveUser } from '@/api/user';
+import { createUser, updateUser, approveUser, unapproveUser } from '@/api/user';
 
 import UserCreateDialog from './components/UserCreateDialog.vue';
 import CompanyCreateDialog from '@/components/CompanyCreateDialog/index.vue';
@@ -239,6 +241,41 @@ const handleApproveRow = async (row: any) => {
   const success = await approveUserRow(row.id);
   if (success && userDetail.id === row.id) {
     userDetail.isApproved = true;
+  }
+};
+
+const handleUnapprove = async () => {
+  if (!userDetail.id) return;
+  try {
+    await unapproveUser(userDetail.id);
+    ElMessage.success('승인이 취소되었습니다.');
+    userDetail.isApproved = false;
+    fetchUsers();
+  } catch (error: any) {
+    ElMessage.error('승인 취소 실패: ' + (error.response?.data?.message || error.message));
+  }
+};
+
+const handleUnapproveRow = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`'${row.name}' (${row.username}) 사용자의 승인을 취소하시겠습니까?`, '승인 취소 확인', {
+      confirmButtonText: '승인 취소',
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    });
+  } catch {
+    return;
+  }
+
+  try {
+    await unapproveUser(row.id);
+    ElMessage.success('승인이 취소되었습니다.');
+    if (userDetail.id === row.id) {
+      userDetail.isApproved = false;
+    }
+    fetchUsers();
+  } catch (error: any) {
+    ElMessage.error('승인 취소 실패: ' + (error.response?.data?.message || error.message));
   }
 };
 

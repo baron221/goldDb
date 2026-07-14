@@ -22,6 +22,7 @@ public interface IUserService
     Task<ApiResponse<string>> DeleteUserAsync(int id);
 
     Task<ApiResponse<string>> ApproveUserAsync(int id);
+    Task<ApiResponse<string>> UnapproveUserAsync(int id);
 }
 
 public class UserService : IUserService
@@ -339,6 +340,38 @@ public class UserService : IUserService
         }
 
         user.IsApproved = true;
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+        return ApiResponse<string>.Success("success");
+    }
+
+    public async Task<ApiResponse<string>> UnapproveUserAsync(int id)
+    {
+        var isAdmin = _currentUserService.IsAdmin;
+        var currentUserId = _currentUserService.UserId;
+        int? currentUserCompanyId = null;
+
+        if (!isAdmin)
+        {
+            if (currentUserId == null) return ApiResponse<string>.Failure("Unauthorized", 401);
+            var currentUserCompany = await _userCompanyRepository.GetQueryable().FirstOrDefaultAsync(uc => uc.UserId == currentUserId.Value && !uc.IsDeleted);
+            if (currentUserCompany == null) return ApiResponse<string>.Failure("User has no company assigned", 403);
+            currentUserCompanyId = currentUserCompany.CompanyId;
+        }
+
+        var user = await _userRepository.GetQueryable()
+            .Include(u => u.UserCompanies)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user == null) return ApiResponse<string>.Failure("User not found", 404);
+
+        if (!isAdmin)
+        {
+            if (!user.UserCompanies.Any(uc => uc.CompanyId == currentUserCompanyId))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
+
+        user.IsApproved = false;
         _userRepository.Update(user);
         await _userRepository.SaveChangesAsync();
         return ApiResponse<string>.Success("success");

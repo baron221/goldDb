@@ -76,7 +76,17 @@
       align="center"
     >
       <template #default="scope">
-        <el-tag v-if="scope.row.isApproved" type="success" size="small" class="tiny-tag">{{ $t('userManage.approved') }}</el-tag>
+        <div v-if="scope.row.isApproved" style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+          <el-tag type="success" size="small" class="tiny-tag">{{ $t('userManage.approved') }}</el-tag>
+          <el-button
+            type="danger"
+            size="small"
+            plain
+            @click.stop="onUnapproveClick(scope.row)"
+          >
+            승인 취소
+          </el-button>
+        </div>
         <el-button
           v-else
           type="success"
@@ -98,7 +108,7 @@ const props = defineProps<{
   data: any[];
 }>();
 
-const emit = defineEmits(['row-click', 'approve']);
+const emit = defineEmits(['row-click', 'approve', 'unapprove']);
 
 const { t } = useI18n();
 
@@ -108,6 +118,10 @@ const onRowClick = (row: any) => {
 
 const onApproveClick = (row: any) => {
   emit('approve', row);
+};
+
+const onUnapproveClick = (row: any) => {
+  emit('unapprove', row);
 };
 
 const getTagType = (row: any) => {

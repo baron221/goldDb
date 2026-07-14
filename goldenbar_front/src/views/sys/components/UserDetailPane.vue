@@ -4,6 +4,9 @@
       <div class="card-header">
         <span>{{ $t('userManage.detailTitle') }} <el-tag v-if="localUser && !localUser.isApproved" type="warning" size="small" style="margin-left: 10px;">Pending Approval</el-tag></span>
         <div class="header-actions">
+          <el-button v-if="localUser && localUser.isApproved" v-permission="'save'" type="danger" size="small" plain @click="emit('unapprove')">
+            승인 취소
+          </el-button>
           <el-button v-if="localUser && !localUser.isApproved" v-permission="'save'" type="success" size="small" @click="emit('approve')">
             {{ $t('userManage.approve') }}
           </el-button>
@@ -231,11 +234,18 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits([
-  'save', 'delete', 'create-company', 'open-postcode',
+  'update:user', 
+  'save', 
+  'delete', 
+  'create-company', 
+  'open-postcode', 
+  'close',
+  'approve',
+  'unapprove',
   'add-email', 'remove-email', 'set-primary-email',
   'add-phone', 'remove-phone', 'set-primary-phone',
   'remove-photo', 'move-photo', 'set-main-photo',
-  'avatar-change', 'new-photo', 'update:user', 'approve'
+  'avatar-change', 'new-photo'
 ]);
 
 const activeTab = ref('basic');
