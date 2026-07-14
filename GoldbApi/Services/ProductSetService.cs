@@ -21,20 +21,76 @@ public class ProductSetService : IProductSetService
     private readonly IRepository<ProductSet> _productSetRepository;
     private readonly IRepository<ProductSetPhoto> _productSetPhotoRepository;
     private readonly IRepository<ProductSetItem> _productSetItemRepository;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IRepository<UserCompany> _userCompanyRepository;
+    private readonly IRepository<ManufacturerLogistics> _manufacturerLogisticsRepository;
 
     public ProductSetService(
         IRepository<ProductSet> productSetRepository,
         IRepository<ProductSetPhoto> productSetPhotoRepository,
-        IRepository<ProductSetItem> productSetItemRepository)
+        IRepository<ProductSetItem> productSetItemRepository,
+        ICurrentUserService currentUserService,
+        IRepository<UserCompany> userCompanyRepository,
+        IRepository<ManufacturerLogistics> manufacturerLogisticsRepository)
     {
         _productSetRepository = productSetRepository;
         _productSetPhotoRepository = productSetPhotoRepository;
         _productSetItemRepository = productSetItemRepository;
+        _currentUserService = currentUserService;
+        _userCompanyRepository = userCompanyRepository;
+        _manufacturerLogisticsRepository = manufacturerLogisticsRepository;
+    }
+
+    private async Task<List<int>> GetCurrentUserCompanyIdsAsync()
+    {
+        if (_currentUserService.IsAdmin) return new List<int>();
+
+        var userId = _currentUserService.UserId;
+        if (userId == null) throw new UnauthorizedAccessException();
+
+        return await _userCompanyRepository.GetQueryable()
+            .Where(uc => uc.UserId == userId.Value && !uc.IsDeleted)
+            .Select(uc => uc.CompanyId)
+            .ToListAsync();
     }
 
     public async Task<ApiResponse<PagedResult<ProductSetDto>>> GetProductSetsAsync(ProductSetQueryDto query)
     {
         var dbQuery = _productSetRepository.GetQueryable();
+
+        var userId = _currentUserService.UserId;
+        if (!_currentUserService.IsAdmin && userId.HasValue)
+        {
+            var userCompany = await _userCompanyRepository.GetQueryable()
+                .Include(uc => uc.Company)
+                .FirstOrDefaultAsync(uc => uc.UserId == userId.Value);
+
+            if (userCompany?.Company != null)
+            {
+                if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
+                {
+                    var logisticsId = userCompany.Company.LogisticsCompanyId;
+                    if (logisticsId.HasValue)
+                    {
+                        var allowedManufacturerIds = await _manufacturerLogisticsRepository.GetQueryable()
+                            .Where(ml => ml.LogisticsId == logisticsId.Value)
+                            .Select(ml => ml.ManufacturerId)
+                            .ToListAsync();
+
+                        dbQuery = dbQuery.Where(p => p.CompanyId.HasValue && allowedManufacturerIds.Contains(p.CompanyId.Value));
+                    }
+                    else
+                    {
+                        dbQuery = dbQuery.Where(p => false);
+                    }
+                }
+                else if (userCompany.Company.Category == "MFG")
+                {
+                    var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+                    dbQuery = dbQuery.Where(p => p.CompanyId.HasValue && myCompanyIds.Contains(p.CompanyId.Value));
+                }
+            }
+        }
 
         if (query.IsPublic.HasValue)
             dbQuery = dbQuery.Where(s => s.IsPublic == query.IsPublic.Value);
@@ -86,11 +142,59 @@ public class ProductSetService : IProductSetService
 
         if (set == null) return ApiResponse<ProductSetDto>.Failure("Product set not found", 404);
 
+        if (!_currentUserService.IsAdmin && set.CompanyId.HasValue)
+        {
+            var userId = _currentUserService.UserId;
+            if (userId.HasValue)
+            {
+                var userCompany = await _userCompanyRepository.GetQueryable()
+                    .Include(uc => uc.Company)
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId.Value);
+
+                if (userCompany?.Company != null)
+                {
+                    if (userCompany.Company.Category == "MFG")
+                    {
+                        var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+                        if (!myCompanyIds.Contains(set.CompanyId.Value))
+                            return ApiResponse<ProductSetDto>.Failure("Forbidden", 403);
+                    }
+                    else if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
+                    {
+                        var logisticsId = userCompany.Company.LogisticsCompanyId;
+                        if (logisticsId.HasValue)
+                        {
+                            var isAllowed = await _manufacturerLogisticsRepository.GetQueryable()
+                                .AnyAsync(ml => ml.LogisticsId == logisticsId.Value && ml.ManufacturerId == set.CompanyId.Value);
+                            if (!isAllowed)
+                                return ApiResponse<ProductSetDto>.Failure("Forbidden", 403);
+                        }
+                        else
+                        {
+                            return ApiResponse<ProductSetDto>.Failure("Forbidden", 403);
+                        }
+                    }
+                }
+            }
+        }
+
         return ApiResponse<ProductSetDto>.Success(set.Adapt<ProductSetDto>());
     }
 
     public async Task<ApiResponse<ProductSetDto>> CreateProductSetAsync(CreateProductSetDto request)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (request.CompanyId.HasValue && !myCompanyIds.Contains(request.CompanyId.Value))
+                return ApiResponse<ProductSetDto>.Failure("Forbidden", 403);
+            if (!request.CompanyId.HasValue)
+            {
+                if (myCompanyIds.Count > 0) request.CompanyId = myCompanyIds[0];
+                else return ApiResponse<ProductSetDto>.Failure("No company assigned", 403);
+            }
+        }
+
         var set = new ProductSet
         {
             Title = request.Title,
@@ -136,6 +240,15 @@ public class ProductSetService : IProductSetService
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (set == null) return ApiResponse<string>.Failure("Product set not found", 404);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (set.CompanyId.HasValue && !myCompanyIds.Contains(set.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+            if (request.CompanyId.HasValue && !myCompanyIds.Contains(request.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
 
         set.Title = request.Title;
         set.SetNo = request.SetNo;
@@ -189,6 +302,13 @@ public class ProductSetService : IProductSetService
     {
         var set = await _productSetRepository.GetByIdAsync(id);
         if (set == null) return ApiResponse<string>.Failure("Product set not found", 404);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (set.CompanyId.HasValue && !myCompanyIds.Contains(set.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
 
         _productSetRepository.Delete(set);
         await _productSetRepository.SaveChangesAsync();

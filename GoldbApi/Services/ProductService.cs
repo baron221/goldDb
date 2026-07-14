@@ -67,27 +67,35 @@ public class ProductService : IProductService
         var dbQuery = _productRepository.GetQueryable();
 
         var userId = _currentUserService.UserId;
-        if (userId.HasValue)
+        if (!_currentUserService.IsAdmin && userId.HasValue)
         {
             var userCompany = await _userCompanyRepository.GetQueryable()
                 .Include(uc => uc.Company)
                 .FirstOrDefaultAsync(uc => uc.UserId == userId.Value);
 
-            if (userCompany?.Company != null && (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL"))
+            if (userCompany?.Company != null)
             {
-                var logisticsId = userCompany.Company.LogisticsCompanyId;
-                if (logisticsId.HasValue)
+                if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
                 {
-                    var allowedManufacturerIds = await _manufacturerLogisticsRepository.GetQueryable()
-                        .Where(ml => ml.LogisticsId == logisticsId.Value)
-                        .Select(ml => ml.ManufacturerId)
-                        .ToListAsync();
+                    var logisticsId = userCompany.Company.LogisticsCompanyId;
+                    if (logisticsId.HasValue)
+                    {
+                        var allowedManufacturerIds = await _manufacturerLogisticsRepository.GetQueryable()
+                            .Where(ml => ml.LogisticsId == logisticsId.Value)
+                            .Select(ml => ml.ManufacturerId)
+                            .ToListAsync();
 
-                    dbQuery = dbQuery.Where(p => p.CompanyId.HasValue && allowedManufacturerIds.Contains(p.CompanyId.Value));
+                        dbQuery = dbQuery.Where(p => p.CompanyId.HasValue && allowedManufacturerIds.Contains(p.CompanyId.Value));
+                    }
+                    else
+                    {
+                        dbQuery = dbQuery.Where(p => false);
+                    }
                 }
-                else
+                else if (userCompany.Company.Category == "MFG")
                 {
-                    dbQuery = dbQuery.Where(p => false);
+                    var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+                    dbQuery = dbQuery.Where(p => p.CompanyId.HasValue && myCompanyIds.Contains(p.CompanyId.Value));
                 }
             }
         }
@@ -181,6 +189,42 @@ public class ProductService : IProductService
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (p == null) return ApiResponse<ProductDto>.Failure("Product not found", 404);
+
+        if (!_currentUserService.IsAdmin && p.CompanyId.HasValue)
+        {
+            var userId = _currentUserService.UserId;
+            if (userId.HasValue)
+            {
+                var userCompany = await _userCompanyRepository.GetQueryable()
+                    .Include(uc => uc.Company)
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId.Value);
+
+                if (userCompany?.Company != null)
+                {
+                    if (userCompany.Company.Category == "MFG")
+                    {
+                        var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+                        if (!myCompanyIds.Contains(p.CompanyId.Value))
+                            return ApiResponse<ProductDto>.Failure("Forbidden", 403);
+                    }
+                    else if (userCompany.Company.Category == "DCC" || userCompany.Company.Category == "RTL")
+                    {
+                        var logisticsId = userCompany.Company.LogisticsCompanyId;
+                        if (logisticsId.HasValue)
+                        {
+                            var isAllowed = await _manufacturerLogisticsRepository.GetQueryable()
+                                .AnyAsync(ml => ml.LogisticsId == logisticsId.Value && ml.ManufacturerId == p.CompanyId.Value);
+                            if (!isAllowed)
+                                return ApiResponse<ProductDto>.Failure("Forbidden", 403);
+                        }
+                        else
+                        {
+                            return ApiResponse<ProductDto>.Failure("Forbidden", 403);
+                        }
+                    }
+                }
+            }
+        }
 
         return ApiResponse<ProductDto>.Success(p.Adapt<ProductDto>());
     }
