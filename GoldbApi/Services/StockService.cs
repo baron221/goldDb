@@ -45,14 +45,55 @@ public interface IStockService
 public class StockService : IStockService
 {
     private readonly IStockRepository _stockRepository;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IRepository<UserCompany> _userCompanyRepository;
 
-    public StockService(IStockRepository stockRepository)
+    public StockService(
+        IStockRepository stockRepository,
+        ICurrentUserService currentUserService,
+        IRepository<UserCompany> userCompanyRepository)
     {
         _stockRepository = stockRepository;
+        _currentUserService = currentUserService;
+        _userCompanyRepository = userCompanyRepository;
+    }
+
+    private async Task<List<int>> GetCurrentUserCompanyIdsAsync()
+    {
+        if (_currentUserService.IsAdmin) return new List<int>();
+
+        var userId = _currentUserService.UserId;
+        if (userId == null) throw new UnauthorizedAccessException();
+
+        return await _userCompanyRepository.GetQueryable()
+            .Where(uc => uc.UserId == userId.Value && !uc.IsDeleted)
+            .Select(uc => uc.CompanyId)
+            .ToListAsync();
     }
 
     public async Task<ApiResponse<PagedResult<StockDto>>> GetStocksAsync(StockQueryDto query)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (myCompanyIds.Count == 0) return ApiResponse<PagedResult<StockDto>>.Failure("No companies assigned", 403);
+            
+            if (query.CompanyId.HasValue)
+            {
+                if (!myCompanyIds.Contains(query.CompanyId.Value)) return ApiResponse<PagedResult<StockDto>>.Failure("Forbidden", 403);
+            }
+            else if (myCompanyIds.Count == 1)
+            {
+                query.CompanyId = myCompanyIds[0];
+            }
+            else
+            {
+                // In a multi-company setup, we'd need StockRepository to support List<int> CompanyIds.
+                // For now, we enforce picking one or fall back to the first.
+                query.CompanyId = myCompanyIds[0];
+            }
+        }
+
         var (items, totalCount) = await _stockRepository.GetStocksAsync(query);
         var page = query.Page ?? 1;
         var pageSize = query.PageSize ?? 50;
@@ -68,6 +109,21 @@ public class StockService : IStockService
 
     public async Task<ApiResponse<StockSummaryDto>> GetStockSummaryAsync(StockQueryDto query)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (myCompanyIds.Count == 0) return ApiResponse<StockSummaryDto>.Failure("No companies assigned", 403);
+            
+            if (query.CompanyId.HasValue)
+            {
+                if (!myCompanyIds.Contains(query.CompanyId.Value)) return ApiResponse<StockSummaryDto>.Failure("Forbidden", 403);
+            }
+            else
+            {
+                query.CompanyId = myCompanyIds[0];
+            }
+        }
+
         var list = await _stockRepository.GetStocksForSummaryAsync(query);
 
         var summary = new StockSummaryDto();
@@ -91,6 +147,13 @@ public class StockService : IStockService
 
         if (stock == null) return ApiResponse<StockDetailDto>.Failure("Stock not found", 404);
 
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (stock.CompanyId.HasValue && !myCompanyIds.Contains(stock.CompanyId.Value))
+                return ApiResponse<StockDetailDto>.Failure("Forbidden", 403);
+        }
+
         var dto = stock.Adapt<StockDetailDto>();
 
         if (stock.SourceOrderId.HasValue)
@@ -104,6 +167,17 @@ public class StockService : IStockService
 
     public async Task<ApiResponse<StockDto>> CreateStockAsync(CreateStockDto request)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (request.CompanyId.HasValue && !myCompanyIds.Contains(request.CompanyId.Value))
+                return ApiResponse<StockDto>.Failure("Forbidden", 403);
+            if (!request.CompanyId.HasValue)
+            {
+                if (myCompanyIds.Count > 0) request.CompanyId = myCompanyIds[0];
+                else return ApiResponse<StockDto>.Failure("No company assigned", 403);
+            }
+        }
         var stock = new Stock
         {
             ProductId = request.ProductId,
@@ -127,6 +201,13 @@ public class StockService : IStockService
         var stock = await _stockRepository.GetByIdAsync(id);
         if (stock == null) return ApiResponse<string>.Failure("Stock not found", 404);
 
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (stock.CompanyId.HasValue && !myCompanyIds.Contains(stock.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
+
         stock.Status = request.Status ?? stock.Status;
         stock.ActualWeight = request.ActualWeight ?? stock.ActualWeight;
         stock.RenterName = request.RenterName;
@@ -145,6 +226,13 @@ public class StockService : IStockService
         var stock = await _stockRepository.GetByIdAsync(id);
         if (stock == null) return ApiResponse<string>.Failure("Stock not found", 404);
 
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (stock.CompanyId.HasValue && !myCompanyIds.Contains(stock.CompanyId.Value))
+                return ApiResponse<string>.Failure("Forbidden", 403);
+        }
+
         _stockRepository.Delete(stock);
         await _stockRepository.SaveChangesAsync();
         return ApiResponse<string>.Success("success");
@@ -153,6 +241,13 @@ public class StockService : IStockService
     public async Task<ApiResponse<string>> DeleteStocksAsync(StockDeleteDto request)
     {
         var stocks = await _stockRepository.GetStocksByIdsAsync(request.Ids);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = await GetCurrentUserCompanyIdsAsync();
+            if (stocks.Any(s => s.CompanyId.HasValue && !myCompanyIds.Contains(s.CompanyId.Value)))
+                return ApiResponse<string>.Failure("Forbidden: Some stocks do not belong to you.", 403);
+        }
 
         Order? exhaustionOrder = null;
         if (request.ExhaustionOrderId.HasValue && request.Reason == "SOLD")

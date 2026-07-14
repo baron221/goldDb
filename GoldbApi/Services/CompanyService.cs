@@ -71,6 +71,11 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<CompanyListResponse>> GetCompaniesAsync(CompanyListRequest request)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            return ApiResponse<CompanyListResponse>.Failure("Forbidden", 403);
+        }
+
         var query = _companyRepository.GetQueryable()
             .Include(c => c.LogisticsCompany)
             .AsQueryable();
@@ -113,6 +118,15 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<CompanyDto>> GetCompanyByIdAsync(int id)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            var currentUserId = _currentUserService.UserId;
+            if (currentUserId == null) return ApiResponse<CompanyDto>.Failure("Unauthorized", 401);
+            
+            var isOwnCompany = await _userCompanyRepository.GetQueryable().AnyAsync(uc => uc.UserId == currentUserId.Value && uc.CompanyId == id && !uc.IsDeleted);
+            if (!isOwnCompany) return ApiResponse<CompanyDto>.Failure("Forbidden", 403);
+        }
+
         var c = await _companyRepository.GetQueryable()
             .Include(c => c.LogisticsCompany)
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -124,6 +138,11 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<CompanyDto>> CreateCompanyAsync(CompanyCreateRequest request)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            return ApiResponse<CompanyDto>.Failure("Forbidden", 403);
+        }
+
         var company = request.Adapt<Company>();
 
         await _companyRepository.AddAsync(company);
@@ -137,14 +156,18 @@ public class CompanyService : ICompanyService
         var c = await _companyRepository.GetByIdAsync(id);
         if (c == null) return ApiResponse<string>.Failure("Company not found", 404);
 
-        bool isAdmin = true;
-
-        request.Adapt(c);
+        var isAdmin = _currentUserService.IsAdmin;
 
         if (!isAdmin)
         {
+            var currentUserId = _currentUserService.UserId;
+            if (currentUserId == null) return ApiResponse<string>.Failure("Unauthorized", 401);
 
+            var isOwnCompany = await _userCompanyRepository.GetQueryable().AnyAsync(uc => uc.UserId == currentUserId.Value && uc.CompanyId == id && !uc.IsDeleted);
+            if (!isOwnCompany) return ApiResponse<string>.Failure("Forbidden", 403);
         }
+
+        request.Adapt(c);
 
         await _companyRepository.SaveChangesAsync();
         return ApiResponse<string>.Success("success");
@@ -207,6 +230,11 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<string>> DeleteCompanyAsync(int id)
     {
+        if (!_currentUserService.IsAdmin)
+        {
+            return ApiResponse<string>.Failure("Forbidden", 403);
+        }
+
         var c = await _companyRepository.GetByIdAsync(id);
         if (c == null) return ApiResponse<string>.Failure("Company not found", 404);
 
