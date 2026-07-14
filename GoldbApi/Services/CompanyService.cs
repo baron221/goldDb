@@ -71,11 +71,6 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<CompanyListResponse>> GetCompaniesAsync(CompanyListRequest request)
     {
-        if (!_currentUserService.IsAdmin)
-        {
-            return ApiResponse<CompanyListResponse>.Failure("Forbidden", 403);
-        }
-
         var query = _companyRepository.GetQueryable()
             .Include(c => c.LogisticsCompany)
             .AsQueryable();
