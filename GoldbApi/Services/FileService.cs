@@ -1,8 +1,7 @@
+using SkiaSharp;
 using GoldbApi.Data;
 using GoldbApi.Models;
 using GoldbApi.Repositories;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoldbApi.Services;
@@ -96,7 +95,9 @@ public class FileService : IFileService
             { "avatar", 80 }
         };
 
-        using var image = await Image.LoadAsync(sourcePath);
+        // SkiaSharp decode logic needs to run synchronously or wrapped in Task.Run if needed, but it's fast enough
+        using var originalBitmap = SKBitmap.Decode(sourcePath);
+        if (originalBitmap == null) return;
 
         foreach (var size in sizes)
         {
@@ -106,15 +107,35 @@ public class FileService : IFileService
                 Directory.CreateDirectory(subFolder);
             }
 
-            using var clone = image.Clone(x => x.Resize(new ResizeOptions
-            {
-                Size = new Size(size.Value, 0),
-                Mode = ResizeMode.Max
-            }));
+            int targetWidth = size.Value;
+            int targetHeight = (int)((float)targetWidth / originalBitmap.Width * originalBitmap.Height);
 
+            if (originalBitmap.Width <= targetWidth)
+            {
+                targetWidth = originalBitmap.Width;
+                targetHeight = originalBitmap.Height;
+            }
+
+            using var resizedBitmap = originalBitmap.Resize(new SKImageInfo(targetWidth, targetHeight), new SKSamplingOptions(SKFilterMode.Linear));
+            using var image = SKImage.FromBitmap(resizedBitmap);
+            using var data = image.Encode(GetEncodedImageFormat(extension), 90);
+            
             var outputPath = Path.Combine(subFolder, $"{fileName}{extension}");
-            await clone.SaveAsync(outputPath);
+            using var stream = new FileStream(outputPath, FileMode.Create);
+            data.SaveTo(stream);
         }
+        await Task.CompletedTask; // Keep signature async as it was before, or you can just remove async if not needed by interface
+    }
+
+    private SKEncodedImageFormat GetEncodedImageFormat(string extension)
+    {
+        return extension.ToLower() switch
+        {
+            ".png" => SKEncodedImageFormat.Png,
+            ".webp" => SKEncodedImageFormat.Webp,
+            ".gif" => SKEncodedImageFormat.Gif,
+            _ => SKEncodedImageFormat.Jpeg
+        };
     }
 
     public async Task<string> SaveFileAsync(IFormFile file, string subDirectory)

@@ -47,7 +47,7 @@
       <el-form-item>
         <el-button type="primary" @click="handleFilter">{{ $t('common.search') }}</el-button>
         <el-button @click="resetQuery">{{ $t('common.reset') }}</el-button>
-        <el-button size="small" type="primary" :icon="Plus" @click="handleCreate">{{ $t('common.create') }}</el-button>
+        <el-button v-if="!isCompanyUser || userStore.companyType === 'MFG'" size="small" type="primary" :icon="Plus" @click="handleCreate">{{ $t('common.create') }}</el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -58,6 +58,9 @@ import { ref, reactive, watch } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
+import useUserStore from '@/store/modules/user';
+
+const userStore = useUserStore();
 
 const props = defineProps<{
   query: any;

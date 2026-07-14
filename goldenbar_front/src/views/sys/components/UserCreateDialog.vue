@@ -2,14 +2,14 @@
 <base-popup v-model="visible" :title="$t('userManage.createDialogTitle')" width="420px" @close="handleClose">
     <el-form ref="userForm" :model="tempUser" :rules="rules" label-width="110px" style="padding-right: 0.9375rem; margin-top: 0.625rem;">
 
-      <el-form-item :label="$t('userManage.userTypeLabel')" prop="userType">
+      <el-form-item :label="$t('userManage.userTypeLabel')" prop="userType" v-if="isAdmin">
         <el-radio-group v-model="tempUser.userType">
           <el-radio value="ADMIN">{{ $t('userManage.userTypeAdmin') }}</el-radio>
           <el-radio value="COMPANY">{{ $t('userManage.userTypeCompany') }}</el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item :label="$t('userManage.companyLabel')" v-if="tempUser.userType === 'COMPANY'" prop="companyId">
+      <el-form-item :label="$t('userManage.companyLabel')" v-if="tempUser.userType === 'COMPANY' && isAdmin" prop="companyId">
         <company-select v-model="tempUser.companyId" />
       </el-form-item>
 
@@ -60,6 +60,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'created']);
+
+import useUserStore from '@/store/modules/user';
+import { computed } from 'vue';
+
+const userStore = useUserStore();
+const isAdmin = computed(() => userStore.roles.includes('admin'));
 
 const visible = ref(false);
 const userForm = ref(null);
@@ -133,8 +139,13 @@ const resetForm = () => {
   tempUser.password = '';
   tempUser.confirmPassword = '';
   tempUser.name = '';
-  tempUser.userType = props.defaultUserType;
-  tempUser.companyId = props.defaultCompanyId;
+  if (isAdmin.value) {
+    tempUser.userType = props.defaultUserType;
+    tempUser.companyId = props.defaultCompanyId;
+  } else {
+    tempUser.userType = 'COMPANY';
+    tempUser.companyId = userStore.companyId;
+  }
   if (userForm.value) {
     userForm.value.resetFields();
   }

@@ -11,7 +11,7 @@
                 <h2 class="section-title">{{ $t('userManage.tabs.employees') }}</h2>
               </div>
               <div class="header-actions">
-                <el-button type="info" size="small" :icon="Link" @click="handleOpenLinkDialog">
+                <el-button v-if="isAdmin" type="info" size="small" :icon="Link" @click="handleOpenLinkDialog">
                   {{ $t('sys.company.linkUser') }}
                 </el-button>
                 <el-button type="primary" size="small" :icon="Plus" @click="handleCreate">

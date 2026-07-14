@@ -152,6 +152,15 @@ public class CompanyService : ICompanyService
 
     public async Task<ApiResponse<List<UserListItemResponse>>> GetCompanyUsersAsync(int companyId)
     {
+        var isAdmin = _currentUserService.IsAdmin;
+        if (!isAdmin)
+        {
+            var currentUserId = _currentUserService.UserId;
+            if (currentUserId == null) return ApiResponse<List<UserListItemResponse>>.Failure("Unauthorized", 401);
+            var isOwnCompany = await _userCompanyRepository.GetQueryable().AnyAsync(uc => uc.UserId == currentUserId.Value && uc.CompanyId == companyId && !uc.IsDeleted);
+            if (!isOwnCompany) return ApiResponse<List<UserListItemResponse>>.Failure("Forbidden", 403);
+        }
+
         var users = await _userCompanyRepository.GetQueryable()
             .Where(uc => uc.CompanyId == companyId)
             .Include(uc => uc.User)

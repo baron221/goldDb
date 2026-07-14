@@ -127,6 +127,25 @@ export const constantRoutes:RouteRecordRaw[] = [
         meta: { title: '통합 검색' }
       }
     ]
+  },
+  {
+    path: '/prd',
+    component: Layout,
+    meta: { hidden: true },
+    children: [
+      {
+        path: 'product-detail/:id',
+        component: () => import('@/views/product/detail.vue'),
+        name: 'ProductDetailConstant',
+        meta: { title: '제품 상세', hidden: true }
+      },
+      {
+        path: 'product-set-detail/:id',
+        component: () => import('@/views/product-set/detail.vue'),
+        name: 'ProductSetDetailConstant',
+        meta: { title: '세트 상세', hidden: true }
+      }
+    ]
   }
 
 ];

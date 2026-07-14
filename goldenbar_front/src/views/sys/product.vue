@@ -153,15 +153,22 @@
           </el-table-column>
           <el-table-column :label="$t('common.action')" align="center" width="150" header-align="center" class-name="small-padding fixed-width" :fixed="!isMobile ? 'right' : false" :sortable="false">
             <template #default="{row}">
-              <el-tooltip :content="$t('stock.table.action')" placement="top" :enterable="false">
-                <el-button link class="view-icon-btn" :icon="View" @click="handleDetail(row)" />
-              </el-tooltip>
-              <el-tooltip :content="$t('common.edit')" placement="top" :enterable="false">
-                <el-button link class="edit-icon-btn" :icon="Edit" @click="handleUpdate(row)" />
-              </el-tooltip>
-              <el-tooltip :content="$t('common.delete')" placement="top" :enterable="false">
-                <el-button link class="delete-icon-btn" :icon="Delete" @click="handleDelete(row)" />
-              </el-tooltip>
+              <template v-if="!isCompanyUser || isMfgUser">
+                <el-tooltip :content="$t('stock.table.action')" placement="top" :enterable="false">
+                  <el-button link class="view-icon-btn" :icon="View" @click="handleDetail(row)" />
+                </el-tooltip>
+                <el-tooltip :content="$t('common.edit')" placement="top" :enterable="false">
+                  <el-button link class="edit-icon-btn" :icon="Edit" @click="handleUpdate(row)" />
+                </el-tooltip>
+                <el-tooltip :content="$t('common.delete')" placement="top" :enterable="false">
+                  <el-button link class="delete-icon-btn" :icon="Delete" @click="handleDelete(row)" />
+                </el-tooltip>
+              </template>
+              <template v-else>
+                <el-button type="primary" size="small" plain @click="handleDetail(row)">
+                  {{ $t('stock.table.action') }}
+                </el-button>
+              </template>
             </template>
           </el-table-column>
         </base-table>
@@ -204,6 +211,7 @@ const userStore = useUserStore();
 const codeStore = useCodeStore();
 
 const isCompanyUser = computed(() => !userStore.roles.includes('admin'));
+const isMfgUser = computed(() => userStore.companyType === 'MFG');
 const isUnassignedUser = computed(() => isCompanyUser.value && !userStore.companyId);
 
 const list = ref([]);
