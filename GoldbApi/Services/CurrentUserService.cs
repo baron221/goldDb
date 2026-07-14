@@ -59,8 +59,10 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var rolesClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Role)?.Value;
-            return rolesClaim?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
+            var roles = _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role).Select(c => c.Value) ?? Enumerable.Empty<string>();
+            var rolesFromSingleClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("roles")?.Value?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Enumerable.Empty<string>();
+            
+            return roles.Concat(rolesFromSingleClaim).Distinct();
         }
     }
 
