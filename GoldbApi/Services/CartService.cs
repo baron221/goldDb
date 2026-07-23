@@ -91,7 +91,9 @@ public class CartService : ICartService
                                      c.ProductId == request.ProductId && 
                                      c.ProductSetId == request.ProductSetId &&
                                      c.Purity == request.Purity &&
-                                     c.Color == request.Color);
+                                     c.Color == request.Color &&
+                                     c.Size == request.Size &&
+                                     c.Memo == request.Memo);
 
         if (existingItem != null)
         {

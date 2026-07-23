@@ -36,7 +36,9 @@ export function useOrderFormatters(codeMap: any) {
     const options = [];
     if (row.purity) options.push(codeMap.value[row.purity] || row.purity);
     if (row.color) options.push(codeMap.value[row.color] || row.color);
+    if (row.size && row.size !== 'EMPTY') options.push(codeMap.value[row.size] || row.size);
     if (options.length > 0) text += `\n옵션: ${options.join(', ')}`;
+    if (row.memo) text += `\n메모: ${row.memo}`;
     return text;
   };
 

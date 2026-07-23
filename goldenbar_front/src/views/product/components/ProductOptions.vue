@@ -33,37 +33,46 @@
     <div class="option-section" v-if="product.id">
       <div class="option-row" v-if="purityOptions.length > 1 || (purityOptions.length === 1 && purityOptions[0] !== 'EMPTY')">
         <span class="option-label">{{ $t('productDetail.labels.purity') }}</span>
-        <el-radio-group
+        <el-select
           :model-value="selectedPurity"
           @update:model-value="$emit('update:selectedPurity', $event)"
-          class="jovenca-pills"
+          class="jovenca-select"
           :disabled="!isRetailUser && !isLogisticsUser"
         >
-          <el-radio-button
+          <el-option
             v-for="code in purityOptions"
             :key="code"
+            :label="codeMap[code] || code"
             :value="code"
-          >
-            {{ codeMap[code] || code }}
-          </el-radio-button>
-        </el-radio-group>
+          />
+        </el-select>
       </div>
       <div class="option-row" v-if="colorOptions.length > 1 || (colorOptions.length === 1 && colorOptions[0] !== 'EMPTY')">
         <span class="option-label">{{ $t('productDetail.labels.color') }}</span>
-        <el-radio-group
+        <el-select
           :model-value="selectedColor"
           @update:model-value="$emit('update:selectedColor', $event)"
-          class="jovenca-pills"
+          class="jovenca-select"
           :disabled="!isRetailUser && !isLogisticsUser"
         >
-          <el-radio-button
+          <el-option
             v-for="code in colorOptions"
             :key="code"
+            :label="codeMap[code] || code"
             :value="code"
-          >
-            {{ codeMap[code] || code }}
-          </el-radio-button>
-        </el-radio-group>
+          />
+        </el-select>
+      </div>
+      <div class="option-row">
+        <span class="option-label">{{ $t('productDetail.labels.size') }}</span>
+        <span v-if="product.sizes" class="size-fixed-value">{{ product.sizes }}</span>
+        <el-input
+          :model-value="orderSize"
+          @update:model-value="$emit('update:orderSize', $event)"
+          :placeholder="$t('productDetail.labels.orderSizePlaceholder')"
+          :disabled="!isRetailUser && !isLogisticsUser"
+          class="order-size-input"
+        />
       </div>
     </div>
 
@@ -92,9 +101,10 @@
       <el-select
         :model-value="selectedRetailerId"
         @update:model-value="$emit('update:selectedRetailerId', $event)"
-        placeholder="소매점(RTL)을 선택하거나 자체 재고 주문 선택"
+        placeholder="소매점(RTL)을 선택하거나 자체 재고 주문 선택 (선택 사항)"
         style="width: 100%;"
         filterable
+        clearable
       >
         <el-option
           label="물류사 자체 재고용 주문 (본인 구매)"
@@ -107,9 +117,40 @@
           :value="retailer.id"
         />
       </el-select>
+
+      <div style="display: flex; align-items: center; gap: 6px; margin-top: 0.5rem;">
+        <span class="option-label" style="font-weight: 600; font-size: 0.85rem; color: #444; margin: 0;">담당자 선택</span>
+      </div>
+      <el-select
+        :model-value="selectedHandlerId"
+        @update:model-value="$emit('update:selectedHandlerId', $event)"
+        placeholder="주문을 처리하는 직원을 선택하세요 (선택 사항)"
+        style="width: 100%;"
+        filterable
+        clearable
+      >
+        <el-option
+          v-for="emp in employeeList"
+          :key="emp.id"
+          :label="`${emp.name} (${emp.username})`"
+          :value="emp.id"
+        />
+      </el-select>
     </div>
 
     <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !isLogisticsUser }">
+      <div class="memo-input-row">
+        <span class="option-label">{{ $t('productDetail.labels.memo') }}</span>
+        <el-input
+          :model-value="memo"
+          @update:model-value="$emit('update:memo', $event)"
+          type="textarea"
+          :rows="2"
+          :maxlength="500"
+          :placeholder="$t('productDetail.labels.memoPlaceholder')"
+          :disabled="!isRetailUser && !isLogisticsUser"
+        />
+      </div>
       <div class="quantity-input-row">
         <span class="qty-label">{{ $t('productDetail.labels.qty') }}</span>
         <el-input-number
@@ -133,6 +174,7 @@
           <el-icon v-if="isFavorite"><StarFilled /></el-icon>
           <el-icon v-else><Star /></el-icon>
         </el-button>
+        <el-button v-if="isLogisticsUser" type="warning" plain class="btn-secondary btn-jovenca" @click="$emit('register-stock')">{{ $t('productDetail.labels.registerStock') }}</el-button>
         <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
         <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
       </div>
@@ -210,6 +252,14 @@ defineProps({
     type: Number as () => number | null,
     default: null
   },
+  employeeList: {
+    type: Array as () => any[],
+    default: () => []
+  },
+  selectedHandlerId: {
+    type: Number as () => number | null,
+    default: null
+  },
   purityOptions: {
     type: Array as () => string[],
     required: true
@@ -225,6 +275,14 @@ defineProps({
   codeMap: {
     type: Object,
     required: true
+  },
+  memo: {
+    type: String,
+    default: ''
+  },
+  orderSize: {
+    type: String,
+    default: ''
   }
 });
 
@@ -233,10 +291,14 @@ const emit = defineEmits([
   'update:selectedColor',
   'update:quantity',
   'update:selectedRetailerId',
+  'update:selectedHandlerId',
+  'update:memo',
+  'update:orderSize',
   'edit',
   'favorite',
   'cart',
-  'buy'
+  'buy',
+  'register-stock'
 ]);
 
 const handleEdit = () => {

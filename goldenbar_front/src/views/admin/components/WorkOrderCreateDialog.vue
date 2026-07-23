@@ -124,6 +124,7 @@
     </el-form>
     <template #footer>
       <span class="dialog-footer">
+        <el-button :icon="Printer" @click="handlePrint">{{ $t('admin.inspectionRequest.print') }}</el-button>
         <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="submitting" @click="handleCompleteSubmit">
           {{ $t('common.ok') }}
@@ -138,11 +139,12 @@ import { ref, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { updateOrderStatus } from '@/api/order';
 import { ElMessage } from 'element-plus';
-import { BottomLeft, Check } from '@element-plus/icons-vue';
+import { BottomLeft, Check, Printer } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import BasePopup from '@/components/BasePopup/index.vue';
 import AmountInput from '@/components/AmountInput/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
+import { printWorkOrder } from '../utils/workOrderPrint';
 
 const { t } = useI18n();
 const props = defineProps({
@@ -255,6 +257,20 @@ const handleClose = () => {
   completeForm.items = [];
   completeForm.factoryRemarks = '';
   completeForm.inspectionRemarks = '';
+};
+
+const handlePrint = () => {
+  printWorkOrder(
+    {
+      orderNo: props.order?.orderNo,
+      logisticsCompanyName: props.order?.logisticsCompanyName,
+      manufacturerName: props.order?.manufacturerName,
+      factoryRemarks: completeForm.factoryRemarks,
+      workOrderRemarks: completeForm.inspectionRemarks
+    },
+    completeForm.items,
+    props.codeMap as Record<string, string>
+  );
 };
 
 const tableRowClassName = ({ row }: { row: any }) => {

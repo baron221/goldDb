@@ -29,12 +29,10 @@
         <order-list
           :orders="orders"
           :search-term="listQuery.orderNo"
-          :expanded-order-ids="expandedOrderIds"
           :is-mobile="isMobile"
           @settle="openSettleDialog"
           @statement="openStatementDialog"
           @cancel="handleCancelOrder"
-          @toggle-expand="toggleOrderExpand"
         />
 
         <div class="pagination-wrap-luxury">
@@ -87,7 +85,6 @@ const {
   totalCount,
   loading,
   listQuery,
-  expandedOrderIds,
   settleDialogVisible,
   currentSettleOrder,
   statementDialogVisible,
@@ -96,7 +93,6 @@ const {
   getList,
   handleFilter,
   handleStatusChange,
-  toggleOrderExpand,
   updateStatus,
   openSettleDialog,
   openStatementDialog

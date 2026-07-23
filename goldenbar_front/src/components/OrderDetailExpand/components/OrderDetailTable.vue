@@ -20,13 +20,16 @@
 
             <div class="product-text-luxury" style="flex: 1.2; min-width: 0;">
               <div class="product-meta-row">
-                <span v-if="item.row.manufacturerName" class="manufacturer-name-tag">{{ item.row.manufacturerName }}</span>
+                <span v-if="showManufacturerInfo && item.row.manufacturerName" class="manufacturer-name-tag">주문정보(생산): {{ item.row.manufacturerName }}</span>
                 <span class="product-category-luxury" v-if="item.row.categoryLarge" style="color: #999;">
                   <span style="margin: 0 0.25rem; color: #dcdfe6;">|</span>
                   {{ displayCodeMap[item.row.categoryLarge] || item.row.categoryLarge }}
                   <template v-if="item.row.categoryMedium"> &gt; {{ displayCodeMap[item.row.categoryMedium] || item.row.categoryMedium }}</template>
                   <template v-if="item.row.categorySmall"> &gt; {{ displayCodeMap[item.row.categorySmall] || item.row.categorySmall }}</template>
                 </span>
+              </div>
+              <div v-if="showMarketInfo && order.companyName" class="product-meta-row">
+                <span class="manufacturer-name-tag">주문정보(소매점): {{ order.companyName }}</span>
               </div>
 
               <div class="product-name-luxury clickable" @click="$emit('go-to-detail', item.row)">{{ item.row.productName || item.row.productSetTitle }}
@@ -220,6 +223,10 @@ const getPhotoUrl = (row: any) => {
 const isStatementVisible = computed(() => {
   return props.order ? isStatementVisibleStatus(props.order.status) : false;
 });
+
+const isAdmin = computed(() => (props.userStore.roles || []).includes('admin'));
+const showManufacturerInfo = computed(() => isAdmin.value || props.userStore.companyType === 'DCC');
+const showMarketInfo = computed(() => isAdmin.value || props.userStore.companyType === 'DCC');
 
 const getCodeName = (code: string) => {
   if (!code) return '';

@@ -4,34 +4,45 @@
       <div class="goods-visual-group">
         <div class="goods-thumb-strip">
           <div
-            v-for="(item, idx) in orderItems.slice(0, 7)"
+            v-for="(item, idx) in orderItems.slice(0, 3)"
             :key="item.id || idx"
-            class="goods-thumb-item"
+            class="goods-item-row"
           >
-            <el-tooltip placement="top">
-              <template #content>
-                <div style="line-height: 1.6;">
-                  <div style="font-weight: bold; margin-bottom: 0.25rem; border-bottom: 1px solid #666; padding-bottom: 0.125rem;">
-                    {{ item.productName || item.productSetTitle || '' }}
-                  </div>
-                  <div>함량: {{ item.purity || '-' }}</div>
-                  <div>컬러: {{ item.color || '-' }}</div>
-                  <div>수량: {{ item.quantity || 0 }}개</div>
+            <el-image
+              :src="item.photoUrl || '/thumb_no_img.png'"
+              fit="cover"
+              class="goods-thumb"
+              lazy
+            >
+              <template #error>
+                <div class="goods-thumb-fallback"><i class="fas fa-gem"></i></div>
+              </template>
+            </el-image>
+            <div class="goods-item-text">
+              <div class="goods-item-name">{{ item.productName || item.productSetTitle || '-' }}</div>
+              <div class="goods-item-spec">함량: {{ item.purity || '-' }} / 컬러: {{ item.color || '-' }} / 수량: {{ item.quantity || 0 }}개</div>
+            </div>
+            <div class="goods-item-memo-box" @click.stop>
+              <template v-if="editingId === item.id">
+                <el-input
+                  v-model="editingValue"
+                  type="textarea"
+                  :rows="2"
+                  size="small"
+                  placeholder="주문 메모"
+                />
+                <div class="memo-actions">
+                  <el-button size="small" type="primary" link @click="saveMemo(item)">저장</el-button>
+                  <el-button size="small" link @click="cancelEdit()">취소</el-button>
                 </div>
               </template>
-              <el-image
-                :src="item.photoUrl || '/thumb_no_img.png'"
-                fit="cover"
-                class="goods-thumb"
-                lazy
-              >
-                <template #error>
-                  <div class="goods-thumb-fallback"><i class="fas fa-gem"></i></div>
-                </template>
-              </el-image>
-            </el-tooltip>
+              <template v-else>
+                <span class="memo-text">{{ item.memo || '메모 없음' }}</span>
+                <el-icon class="memo-edit-icon" @click="startEdit(item)"><Edit /></el-icon>
+              </template>
+            </div>
           </div>
-          <span v-if="orderItems.length > 8" class="goods-thumb-more">+{{ orderItems.length - 8 }}</span>
+          <span v-if="orderItems.length > 3" class="goods-thumb-more">+{{ orderItems.length - 3 }}건</span>
         </div>
       </div>
       <div class="goods-summary-sub">
@@ -45,13 +56,49 @@
 
 <script setup lang="ts">
 
-defineProps<{
+import { ref } from 'vue';
+import { Edit } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import { updateOrderStatus } from '@/api/order';
+
+const props = defineProps<{
   orderItems: any[];
+  orderId?: number;
+  orderStatus?: string;
 }>();
 
 const getOrderTotalQuantity = (items: any[]) => {
   if (!items) return 0;
   return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+};
+
+const editingId = ref<number | null>(null);
+const editingValue = ref('');
+
+const startEdit = (item: any) => {
+  editingId.value = item.id;
+  editingValue.value = item.memo || '';
+};
+
+const cancelEdit = () => {
+  editingId.value = null;
+  editingValue.value = '';
+};
+
+const saveMemo = async (item: any) => {
+  if (!props.orderId) return;
+  try {
+    await updateOrderStatus(props.orderId, {
+      status: props.orderStatus,
+      itemWeights: [{ orderItemId: item.id, memo: editingValue.value }]
+    });
+    item.memo = editingValue.value;
+    editingId.value = null;
+    ElMessage.success('메모가 저장되었습니다.');
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('메모 저장에 실패했습니다.');
+  }
 };
 </script>
 

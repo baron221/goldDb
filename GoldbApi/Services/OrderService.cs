@@ -92,7 +92,23 @@ public class OrderService : IOrderService
         var userId = GetCurrentUserId();
 
         var userCompany = await _orderRepository.GetUserCompanyInfoAsync(userId);
-        int? assignedLogisticsId = userCompany?.Company?.LogisticsCompanyId;
+        int? assignedLogisticsId = userCompany?.Company?.Category == "DCC"
+            ? userCompany.CompanyId
+            : userCompany?.Company?.LogisticsCompanyId;
+
+        // A logistics center may optionally record which staff member handled
+        // a proxy / own order. If provided, that staff member must belong to
+        // the logistics company itself; if omitted, the order proceeds without one.
+        int? handledByUserId = null;
+        if (userCompany?.Company?.Category == "DCC" && request.HandledByUserId.HasValue)
+        {
+            var handlerBelongs = await _dbContext.UserCompanies.AnyAsync(uc =>
+                uc.UserId == request.HandledByUserId.Value && uc.CompanyId == userCompany.CompanyId && !uc.IsDeleted);
+            if (!handlerBelongs)
+                return ApiResponse<OrderDto>.Failure("선택한 담당자가 물류업체 소속이 아닙니다.", 400);
+
+            handledByUserId = request.HandledByUserId.Value;
+        }
 
         if (request.TargetCompanyId.HasValue)
         {
@@ -126,7 +142,9 @@ public class OrderService : IOrderService
                 ProductSetId = request.DirectProductSetId,
                 Quantity = request.DirectQuantity ?? 1,
                 Purity = request.DirectPurity,
-                Color = request.DirectColor
+                Color = request.DirectColor,
+                Size = request.DirectSize,
+                Memo = request.DirectMemo
             };
             if (item.ProductId.HasValue)
             {
@@ -159,10 +177,17 @@ public class OrderService : IOrderService
 
         var groupOrderNo = $"GRP-{DateTime.Now:yyyyMMddHHmmss}-{userId}";
 
-        var itemsByManufacturer = cartItems.GroupBy(ci => 
+        var itemsByManufacturer = cartItems.GroupBy(ci =>
             ci.Product?.CompanyId ?? ci.ProductSet?.CompanyId ?? 0);
 
         var createdOrders = new List<Order>();
+
+        // Orders placed after 16:00 KST skip the manual logistics-approval step:
+        // they are created already approved so factories can pick them up right away.
+        var kstNow = DateTime.UtcNow.AddHours(9);
+        var isAfterApprovalCutoff = kstNow.Hour >= 16;
+        var initialStatus = isAfterApprovalCutoff ? "LogisticsApproved" : "ORDERED";
+        var initialRemarks = isAfterApprovalCutoff ? "주문 접수 (오후 4시 이후 자동 물류승인)" : "주문 접수";
 
         foreach (var manufacturerGroup in itemsByManufacturer)
         {
@@ -172,9 +197,10 @@ public class OrderService : IOrderService
                 UserId = userId,
                 OrderNo = $"ORD-{DateTime.Now:yyMMddHHmm}-{userId}-{todayOrderCount}",
                 GroupOrderNo = groupOrderNo,
-                Status = "ORDERED",
+                Status = initialStatus,
                 TotalAmount = 0,
                 LogisticsCompanyId = assignedLogisticsId,
+                HandledByUserId = handledByUserId,
                 OrderMemo = request.OrderMemo,
                 FactoryRemarks = request.FactoryRemarks,
                 LogisticsRemarks = request.LogisticsRemarks,
@@ -206,6 +232,8 @@ public class OrderService : IOrderService
                     LaborCost = baseLaborCost,
                     Purity = cartItem.Purity,
                     Color = cartItem.Color,
+                    Size = cartItem.Size,
+                    Memo = cartItem.Memo,
                     OrderWeight = requestedWeight
                 };
 
@@ -240,7 +268,7 @@ public class OrderService : IOrderService
                 Order = order,
                 Status = order.Status,
                 UserId = GetCurrentUserId(),
-                Remarks = "주문 접수"
+                Remarks = initialRemarks
             };
             await _orderRepository.AddStatusHistoryAsync(history);
         }
@@ -263,10 +291,33 @@ public class OrderService : IOrderService
 
     public async Task<ApiResponse<PagedResult<OrderDto>>> GetAllOrdersAsync(OrderQueryDto query)
     {
-        var userCompany = await GetCurrentUserCompanyInfoAsync();
-        if (userCompany != null && userCompany.Company?.Category == "RTL")
+        // Scope the list to what the caller is entitled to see: a retailer sees
+        // its own orders, a logistics center the ones routed through it, and a
+        // manufacturer the ones containing its products. Admin sees everything.
+        if (!_currentUserService.IsAdmin)
         {
-            query.CompanyId = userCompany.CompanyId;
+            var userCompany = await GetCurrentUserCompanyInfoAsync();
+            switch (userCompany?.Company?.Category)
+            {
+                case "RTL":
+                    query.CompanyId = userCompany.CompanyId;
+                    break;
+                case "DCC":
+                    query.LogisticsCompanyId = userCompany.CompanyId;
+                    break;
+                case "MFG":
+                    query.FactoryCompanyId = userCompany.CompanyId;
+                    break;
+                default:
+                    // No company (or a type with no order scope) sees nothing.
+                    return ApiResponse<PagedResult<OrderDto>>.Success(new PagedResult<OrderDto>
+                    {
+                        Items = new List<OrderDto>(),
+                        TotalCount = 0,
+                        Page = query.Page,
+                        PageSize = query.PageSize
+                    });
+            }
         }
 
         var (items, totalCount) = await _orderRepository.GetAllOrdersAsync(query);
@@ -343,6 +394,7 @@ public class OrderService : IOrderService
                 if (orderItem != null)
                 {
                     if (itemWeight.ActualWeight.HasValue) orderItem.ActualWeight = itemWeight.ActualWeight;
+                    if (itemWeight.Memo != null) orderItem.Memo = itemWeight.Memo;
                     if (itemWeight.InspectionMemo != null) orderItem.InspectionMemo = itemWeight.InspectionMemo;
                     if (itemWeight.Purity != null) orderItem.Purity = itemWeight.Purity;
                     if (itemWeight.IsAsOrder.HasValue) orderItem.IsAsOrder = itemWeight.IsAsOrder.Value;

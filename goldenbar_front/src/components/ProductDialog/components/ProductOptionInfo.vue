@@ -3,19 +3,10 @@
     <el-row :gutter="20">
       <el-col :span="24">
         <el-form-item :label="$t('productDialog.sizes')" prop="sizes">
-          <el-select
+          <el-input
             v-model="localTemp.sizes"
-            multiple
             :placeholder="$t('productDialog.sizesPlaceholder')"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in productSizes"
-              :key="item.code"
-              :label="item.name"
-              :value="item.code"
-            />
-          </el-select>
+          />
         </el-form-item>
       </el-col>
     </el-row>
@@ -121,10 +112,6 @@ import BaseTable from '@/components/BaseTable/index.vue';
 const props = defineProps({
   temp: {
     type: Object,
-    required: true
-  },
-  productSizes: {
-    type: Array,
     required: true
   },
   combinationGridData: {

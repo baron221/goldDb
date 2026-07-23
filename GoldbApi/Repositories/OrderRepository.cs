@@ -98,6 +98,7 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Children).ThenInclude(c => c.Product).ThenInclude(p => p!.ProductPhotos)
             .Include(o => o.StatusHistories).ThenInclude(h => h.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
+            .Include(o => o.HandledByUser)
             .AsQueryable();
 
         dbQuery = ApplyFilters(dbQuery, query);
@@ -568,6 +569,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             DeliveryDate = o.DeliveryDate,
             LogisticsCompanyId = o.LogisticsCompanyId,
             LogisticsCompanyName = o.LogisticsCompany != null ? o.LogisticsCompany.Name : null,
+            HandledByUserId = o.HandledByUserId,
+            HandledByUserName = o.HandledByUser != null ? o.HandledByUser.Name : null,
             LogisticsCompanyBusinessNo = o.LogisticsCompany != null ? o.LogisticsCompany.BusinessNumber : null,
             LogisticsCompanyAddress = o.LogisticsCompany != null ? $"{o.LogisticsCompany.AddressBase} {o.LogisticsCompany.AddressDetail}".Trim() : null,
             LogisticsCompanyCEO = o.LogisticsCompany != null ? o.LogisticsCompany.CEO : null,
@@ -587,8 +590,9 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                 ProductId = oi.ProductId,
                 ProductName = oi.Product != null ? oi.Product.Name : null,
                 ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
-                Size = oi.Product != null ? oi.Product.ProductSize : null,
-                PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() 
+                Size = oi.Size ?? (oi.Product != null ? oi.Product.ProductSize : null),
+                Memo = oi.Memo,
+                PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any()
                            ? oi.Product.ProductPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl 
                            : (oi.ProductSet != null 
                                ? (oi.ProductSet.ProductSetPhotos.Any() 
@@ -635,8 +639,9 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                     ProductId = c.ProductId,
                     ProductName = c.Product != null ? c.Product.Name : null,
                     ProductNo = c.Product != null ? c.Product.ProductNo : null,
-                    Size = c.Product != null ? c.Product.ProductSize : null,
-                    PhotoUrl = c.Product != null && c.Product.ProductPhotos.Any() 
+                    Size = c.Size ?? (c.Product != null ? c.Product.ProductSize : null),
+                    Memo = c.Memo,
+                    PhotoUrl = c.Product != null && c.Product.ProductPhotos.Any()
                                ? c.Product.ProductPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl : null,
                     Quantity = c.Quantity,
                     Price = c.Price,

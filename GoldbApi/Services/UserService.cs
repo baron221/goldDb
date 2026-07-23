@@ -34,6 +34,7 @@ public class UserService : IUserService
     private readonly IRepository<UserEmail> _userEmailRepository;
     private readonly IRepository<UserPhone> _userPhoneRepository;
     private readonly IRepository<UserPhoto> _userPhotoRepository;
+    private readonly IRepository<Company> _companyRepository;
 
     private readonly ICurrentUserService _currentUserService;
 
@@ -45,6 +46,7 @@ public class UserService : IUserService
         IRepository<UserEmail> userEmailRepository,
         IRepository<UserPhone> userPhoneRepository,
         IRepository<UserPhoto> userPhotoRepository,
+        IRepository<Company> companyRepository,
         ICurrentUserService currentUserService)
     {
         _userRepository = userRepository;
@@ -53,6 +55,7 @@ public class UserService : IUserService
         _userCompanyRepository = userCompanyRepository;
         _userEmailRepository = userEmailRepository;
         _userPhoneRepository = userPhoneRepository;
+        _companyRepository = companyRepository;
         _userPhotoRepository = userPhotoRepository;
         _currentUserService = currentUserService;
     }
@@ -181,6 +184,24 @@ public class UserService : IUserService
         if (request.UserType == "COMPANY" && request.CompanyId.HasValue)
         {
             user.UserCompanies.Add(new UserCompany { CompanyId = request.CompanyId.Value });
+
+            // Give the new employee the role matching their company type so they
+            // get the same menu access as the rest of their company. Without a
+            // role the user has no menus and the app errors out on login.
+            var company = await _companyRepository.GetByIdAsync(request.CompanyId.Value);
+            var roleKey = company?.Category switch
+            {
+                "MFG" => "mfg",
+                "DCC" => "dc",
+                "RTL" => "editor",
+                "ADMIN" => "admin",
+                _ => null
+            };
+            if (roleKey != null)
+            {
+                var role = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == roleKey);
+                if (role != null) user.UserRoles.Add(new UserRole { RoleId = role.Id });
+            }
         }
 
         await _userRepository.AddAsync(user);

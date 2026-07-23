@@ -42,3 +42,95 @@
     height: 400px;
   }
 }
+.order-item-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  text-align: left;
+}
+
+.order-item-thumb,
+.order-item-thumb-fallback {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid #ebeef5;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.order-item-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f7f5;
+  color: #c0c4cc;
+}
+
+.order-item-text {
+  min-width: 0;
+}
+
+.order-item-name {
+  font-size: 0.9rem;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .more-tag {
+    margin-left: 0.25rem;
+  }
+}
+
+.order-item-no {
+  font-size: 0.8rem;
+  color: #909399;
+  margin-top: 0.125rem;
+}
+
+.order-item-size {
+  font-size: 0.8rem;
+  color: #b07d2b;
+  margin-top: 0.125rem;
+}
+
+.order-item-memo {
+  font-size: 0.8rem;
+  color: #909399;
+  margin-top: 0.125rem;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-item-party {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  color: #6a5acd;
+  margin-top: 0.125rem;
+}
+
+.handler-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.375rem 0.75rem;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 3px;
+
+  .handler-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #b88230;
+  }
+  .handler-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #7a5518;
+  }
+}

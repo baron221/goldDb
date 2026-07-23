@@ -40,6 +40,14 @@ public class CartItem : BaseModel
 
     public string? Color { get; set; }
 
+    [Description("사이즈")]
+    [MaxLength(50)]
+    public string? Size { get; set; }
+
+    [Description("주문 메모")]
+    [MaxLength(500)]
+    public string? Memo { get; set; }
+
     [Description("사용자 정의 공장도 가격")]
     public decimal? CustomFactoryPrice { get; set; }
 

@@ -87,32 +87,73 @@
 }
 .goods-thumb-strip {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: 0.5rem;
-  flex-wrap: wrap;
   flex-shrink: 0;
-  max-width: 85%;
+  max-width: 100%;
 }
-.goods-thumb-item {
+.goods-item-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+.goods-item-text {
+  min-width: 0;
+}
+.goods-item-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.goods-item-memo-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  background: #faf9f6;
+  border: 1px solid #f0eee9;
+  border-radius: 4px;
+  padding: 0.375rem 0.5rem;
+  min-width: 160px;
+  max-width: 260px;
+}
+.memo-text {
+  font-size: 0.8125rem;
+  color: #555;
+  flex: 1;
+  word-break: break-word;
+}
+.memo-edit-icon {
+  cursor: pointer;
+  color: #c0c4cc;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+
+  &:hover {
+    color: #c5a880;
+  }
+}
+.memo-actions {
+  display: flex;
   gap: 0.25rem;
-  min-width: unset;
+  margin-top: 0.25rem;
+}
+.goods-item-spec {
+  font-size: 0.8125rem;
+  color: #909399;
+  white-space: nowrap;
 }
 .goods-thumb {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border-radius: 2px;
   border: 1px solid #eae6df;
   flex-shrink: 0;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.goods-thumb:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  z-index: 1;
 }
 :deep(.goods-thumb .el-image__error),
 :deep(.goods-thumb .el-image__placeholder) {
@@ -135,23 +176,10 @@
   color: #c0c4cc;
   font-size: 0.9rem;
 }
-.goods-thumb-name {
-  font-size: 0.825rem;
-  color: #606266;
-  text-align: center;
-  line-height: 1.2;
-  white-space: nowrap;
-}
 .goods-thumb-more {
-  font-size: 0.825rem;
+  font-size: 0.8125rem;
   color: #909399;
-  background: #f5f7fa;
-  border-radius: 2px;
-  padding: 0.125rem 0.3125rem;
-  border: 1px solid #e4e7ed;
-  height: 80px;
-  display: inline-flex;
-  align-items: center;
+  padding-left: 0.125rem;
 }
 .extra-count-tag {
   flex-shrink: 0;

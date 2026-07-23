@@ -37,6 +37,10 @@ public class StockDto
 
     public string? Color { get; set; }
 
+    public string? Size { get; set; }
+
+    public int Quantity { get; set; } = 1;
+
     public decimal ActualWeight { get; set; }
 
     public DateTime? ProductionDate { get; set; }
@@ -158,6 +162,14 @@ public class CreateStockDto
     public string StockNo { get; set; } = string.Empty;
 
     public string Status { get; set; } = "IN_STOCK";
+
+    public string? Purity { get; set; }
+
+    public string? Color { get; set; }
+
+    public string? Size { get; set; }
+
+    public int Quantity { get; set; } = 1;
 
     public decimal ActualWeight { get; set; }
 

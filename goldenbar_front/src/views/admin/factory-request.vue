@@ -16,11 +16,10 @@
       :total="total"
       v-model:page="listQuery.page"
       v-model:page-size="listQuery.pageSize"
-      v-model:expanded-row-keys="expandedRowKeys"
+      :expandable="false"
       :code-map="codeMap"
       :order-status-codes="orderStatusCodes"
       :user-category="store.user().companyType"
-      @expand-change="handleExpandChange"
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
       @inspection-request="openCompleteDialog"
@@ -94,7 +93,6 @@ const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
 const dateRange = ref<string[]>([defaultStartDate, defaultEndDate]);
 const orderStatusCodes = ref<any[]>([]);
 const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
-const expandedRowKeys = ref<number[]>([]);
 const scrollPosition = ref(0);
 
 const isAdmin = computed(() => {
@@ -211,10 +209,6 @@ const getList = async () => {
   } finally {
     listLoading.value = false;
   }
-};
-
-const handleExpandChange = (row: any, expandedRows: any[]) => {
-  expandedRowKeys.value = expandedRows.map(r => r.id);
 };
 
 const handleFilter = () => {

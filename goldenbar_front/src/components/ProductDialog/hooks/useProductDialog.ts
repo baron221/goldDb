@@ -13,7 +13,6 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
   const visible = ref(false);
   const activeTab = ref('basic');
   const productColors = ref<any[]>([]);
-  const productSizes = ref<any[]>([]);
   const allCodesFullMap = ref<any>({});
   const productCategoryTree = ref<any>(null);
   const largeCategoryId = ref<number | null>(null);
@@ -47,7 +46,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     isPublic: false,
     laborCost: 0,
     colors: [],
-    sizes: [],
+    sizes: '',
     optionWeights: []
   });
 
@@ -161,7 +160,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
       isPublic: false,
       laborCost: 0,
       colors: [],
-      sizes: [],
+      sizes: '',
       optionWeights: [],
       purityWeightsMap: {} as Record<string, number>
     };
@@ -186,7 +185,6 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
       productCategoryTree.value = categoryGroup;
 
       productColors.value = codeStore.getCodesByGroupStore('PRODUCT_COLOR');
-      productSizes.value = codeStore.getCodesByGroupStore('PRODUCT_SIZE');
     } catch (error) {
       console.error('Failed to fetch codes:', error);
     }
@@ -236,7 +234,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
         ...data,
         photos: data.photos || [],
         colors: data.colors ? data.colors.split(',') : [],
-        sizes: data.sizes ? data.sizes.split(',') : [],
+        sizes: data.sizes || '',
         purity: data.purity ? data.purity.split(',') : [],
         optionWeights: optionWeights,
         purityWeightsMap
@@ -351,7 +349,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
           const payload = {
             ...temp.value,
             colors: temp.value.colors ? temp.value.colors.join(',') : '',
-            sizes: temp.value.sizes ? temp.value.sizes.join(',') : '',
+            sizes: temp.value.sizes || '',
             purity: temp.value.purity ? temp.value.purity.join(',') : '',
             photos: temp.value.photos.map((p: any, idx: number) => ({
               ...p,
@@ -388,7 +386,7 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
           const payload = {
             ...temp.value,
             colors: temp.value.colors ? temp.value.colors.join(',') : '',
-            sizes: temp.value.sizes ? temp.value.sizes.join(',') : '',
+            sizes: temp.value.sizes || '',
             purity: temp.value.purity ? temp.value.purity.join(',') : '',
             photos: temp.value.photos.map((p: any, idx: number) => ({
               ...p,
@@ -530,7 +528,6 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     visible,
     activeTab,
     productColors,
-    productSizes,
     temp,
     activePhotoUrl,
     currentViewPhotoUrl,

@@ -71,6 +71,11 @@ public class Order : BaseModel
 
     public Company? LogisticsCompany { get; set; }
 
+    [Description("담당자 ID (대리 주문을 처리한 직원)")]
+    public int? HandledByUserId { get; set; }
+
+    public User? HandledByUser { get; set; }
+
     [Description("취소 사유")]
     [MaxLength(500)]
 
@@ -189,6 +194,14 @@ public class OrderItem : BaseModel
     [MaxLength(50)]
 
     public string? Color { get; set; }
+
+    [Description("사이즈")]
+    [MaxLength(50)]
+    public string? Size { get; set; }
+
+    [Description("주문 메모")]
+    [MaxLength(500)]
+    public string? Memo { get; set; }
 
     [Description("AS 주문 여부")]
     public bool IsAsOrder { get; set; }

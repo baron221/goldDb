@@ -57,6 +57,10 @@ public class OrderDto
 
     public string? LogisticsCompanyBusinessNo { get; set; }
 
+    public int? HandledByUserId { get; set; }
+
+    public string? HandledByUserName { get; set; }
+
     public string? LogisticsCompanyAddress { get; set; }
 
     public string? LogisticsCompanyCEO { get; set; }
@@ -100,6 +104,8 @@ public class OrderItemDto
     public string? ProductNo { get; set; }
 
     public string? Size { get; set; }
+
+    public string? Memo { get; set; }
 
     public string? PhotoUrl { get; set; }
 
@@ -187,6 +193,8 @@ public class CreateOrderDto
 
     public int? TargetCompanyId { get; set; }
 
+    public int? HandledByUserId { get; set; }
+
     public int? DirectProductId { get; set; }
 
     public int? DirectProductSetId { get; set; }
@@ -196,6 +204,10 @@ public class CreateOrderDto
     public string? DirectPurity { get; set; }
 
     public string? DirectColor { get; set; }
+
+    public string? DirectSize { get; set; }
+
+    public string? DirectMemo { get; set; }
 }
 
 public class SettlementHistorySummaryDto
@@ -294,6 +306,8 @@ public class OrderItemWeightDto
     public int OrderItemId { get; set; }
 
     public decimal? ActualWeight { get; set; }
+
+    public string? Memo { get; set; }
 
     public string? InspectionMemo { get; set; }
 

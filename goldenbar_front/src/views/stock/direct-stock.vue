@@ -101,6 +101,19 @@
           </template>
         </el-table-column>
         <el-table-column
+          label="수량"
+          prop="quantity"
+          width="70"
+          align="center"
+          header-align="center"
+          sortable
+          :excel-formatter="(row) => `${row.quantity || 1}`"
+        >
+          <template #default="{row}">
+            <span>{{ row.quantity || 1 }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
           label="수령일자"
           prop="createdAt"
           width="140"

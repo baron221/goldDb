@@ -54,7 +54,15 @@ public class Stock : BaseModel
 
     public string? Color { get; set; }
 
-    [Description("실중량")]
+    [Description("사이즈")]
+    [MaxLength(50)]
+
+    public string? Size { get; set; }
+
+    [Description("수량")]
+    public int Quantity { get; set; } = 1;
+
+    [Description("실중량 (1개 기준)")]
     public decimal ActualWeight { get; set; }
 
     [Description("제작생산일")]

@@ -65,10 +65,12 @@
                         <div v-if="item.row.productSetId" class="set-tag">SET</div>
                         <div class="product-name">{{ item.row.productName || item.row.productSetTitle }}</div>
                         <div class="product-no">{{ item.row.productNo }}</div>
-                        <div class="product-options" v-if="item.row.purity || item.row.color">
+                        <div class="product-options" v-if="item.row.purity || item.row.color || item.row.size">
                           <el-tag size="small" type="info" effect="plain" v-if="item.row.purity">{{ codeMap[item.row.purity] || item.row.purity }}</el-tag>
                           <el-tag size="small" type="info" effect="plain" v-if="item.row.color" style="margin-left: 0.3125rem;">{{ codeMap[item.row.color] || item.row.color }}</el-tag>
+                          <el-tag size="small" type="info" effect="plain" v-if="item.row.size && item.row.size !== 'EMPTY'" style="margin-left: 0.3125rem;">{{ codeMap[item.row.size] || item.row.size }}</el-tag>
                         </div>
+                        <div v-if="item.row.memo" style="font-size: 0.8rem; color: #8a6d3b; margin-top: 0.125rem;">📝 {{ item.row.memo }}</div>
                       </div>
                     </div>
                   </template>
@@ -227,6 +229,8 @@ import { getAllOrders, updateOrderStatus, deleteOrder } from '@/api/order';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Clock, MoreFilled } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
+import { formatPrice } from '@/utils/format';
+import { getOrderTotalAmount } from '@/utils/order';
 import BaseTable from '@/components/BaseTable/index.vue';
 import OrderStatusHistoryDialog from '@/components/OrderStatusHistoryDialog/index.vue';
 import OrderApprovalDialog from './components/OrderApprovalDialog.vue';
@@ -295,6 +299,7 @@ const getList = async () => {
     const [res] = await Promise.all([getAllOrders(listQuery), codeStore.fetchCodes()]);
     list.value = res.data.items;
     total.value = res.data.totalCount;
+    expandedRowKeys.value = list.value.map((r: any) => r.id);
     await nextTick();
     if (container) (container as HTMLElement).scrollTop = scrollPosition.value;
   } catch (error) {

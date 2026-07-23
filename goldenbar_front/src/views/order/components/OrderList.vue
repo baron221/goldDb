@@ -24,8 +24,8 @@
           </div>
         </div>
 
-        <div v-for="order in group.orders" :key="order.id" class="order-luxury-card" :class="{ 'is-expanded': isExpanded(order.id) }">
-          <div class="card-top-header" @click="emit('toggle-expand', order.id)">
+        <div v-for="order in group.orders" :key="order.id" class="order-luxury-card">
+          <div class="card-top-header">
             <div class="left-meta">
               <el-tag :type="getStatusType(order.status)" effect="dark" class="status-indicator-tag">
                 {{ getStatusLabel(order.status) }}
@@ -65,23 +65,17 @@
               >
                 명세서 확인
               </el-button>
-
-              <div class="expand-toggle-icon">
-                <el-icon :class="{ 'is-rotated': isExpanded(order.id) }"><ArrowRight /></el-icon>
-              </div>
             </div>
           </div>
 
-          <el-collapse-transition>
-            <div v-if="isExpanded(order.id)" class="card-expanded-body">
-              <order-detail-expand :order="order" />
+          <div class="card-expanded-body">
+            <order-detail-expand :order="order" />
 
-              <div class="order-timeline-section">
-                <div class="section-title">공정 및 처리 이력</div>
-                <order-status-timeline :order-id="order.id" />
-              </div>
+            <div class="order-timeline-section">
+              <div class="section-title">공정 및 처리 이력</div>
+              <order-status-timeline :order-id="order.id" />
             </div>
-          </el-collapse-transition>
+          </div>
 
           <div class="card-bottom-footer">
             <div class="order-product-preview">
@@ -119,18 +113,17 @@ import { computed } from 'vue';
 import { parseTime, getThumbnailUrl } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import { isStatementVisibleStatus } from '@/utils/order';
-import { Shop, OfficeBuilding, ArrowRight } from '@element-plus/icons-vue';
+import { Shop, OfficeBuilding } from '@element-plus/icons-vue';
 import OrderDetailExpand from '@/components/OrderDetailExpand/index.vue';
 import OrderStatusTimeline from '@/components/OrderStatusTimeline/index.vue';
 
 const props = defineProps<{
   orders: any[];
-  expandedOrderIds: number[];
   isMobile: boolean;
   searchTerm?: string;
 }>();
 
-const emit = defineEmits(['settle', 'statement', 'cancel', 'toggle-expand']);
+const emit = defineEmits(['settle', 'statement', 'cancel']);
 
 const getSortedItems = (orderItems: any[]) => {
   if (!props.searchTerm || props.searchTerm.trim() === '') return orderItems;
@@ -172,8 +165,6 @@ const groupedOrders = computed(() => {
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 });
-
-const isExpanded = (id: number) => props.expandedOrderIds.includes(id);
 
 const getOrderTotal = (order: any) => {
   return order.orderItems.reduce((sum: number, item: any) => {
@@ -390,10 +381,6 @@ const isStatementVisible = (status: string) => isStatementVisibleStatus(status);
       }
     }
 
-    &.is-expanded {
-      border-color: #c5a880;
-    }
-
     .card-top-header {
       display: flex;
       justify-content: space-between;
@@ -402,30 +389,9 @@ const isStatementVisible = (status: string) => isStatementVisibleStatus(status);
       border-bottom: 1px solid #faf9f6;
       flex-wrap: wrap;
       gap: 1rem;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.2s ease;
 
       :global(html.dark) & {
         border-bottom-color: rgba(255, 255, 255, 0.04);
-      }
-
-      &:hover {
-        background-color: rgba(197, 168, 128, 0.02);
-
-        :global(html.dark) & {
-          background-color: rgba(255, 255, 255, 0.02);
-        }
-
-        .expand-toggle-icon {
-          color: #c5a880;
-          border-color: #c5a880;
-          background-color: rgba(197, 168, 128, 0.03);
-
-          :global(html.dark) & {
-            background-color: rgba(197, 168, 128, 0.1);
-          }
-        }
       }
 
       .left-meta {
@@ -491,37 +457,6 @@ const isStatementVisible = (status: string) => isStatementVisibleStatus(status);
           transition: all 0.2s ease;
         }
 
-        .expand-toggle-icon {
-          cursor: pointer;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          border: 1px solid #f2efeb;
-          color: #bbbbbb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-
-          :global(html.dark) & {
-            border-color: rgba(255, 255, 255, 0.08);
-          }
-
-          &:hover {
-            color: #c5a880;
-            border-color: #c5a880;
-            background-color: rgba(197, 168, 128, 0.03);
-          }
-
-          .el-icon {
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-
-            &.is-rotated {
-              transform: rotate(90deg);
-              color: #c5a880;
-            }
-          }
-        }
       }
     }
 

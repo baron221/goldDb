@@ -97,14 +97,48 @@
               </template>
             </el-table-column>
             <el-table-column label="주문번호" prop="orderNo" min-width="150" align="center" />
+            <el-table-column label="상품 정보" min-width="230" :excel-formatter="(row) => itemsSummaryText(row)">
+              <template #default="{row}">
+                <div v-if="row.orderItems && row.orderItems.length" class="order-item-cell">
+                  <el-image :src="row.orderItems[0].photoUrl" fit="cover" class="order-item-thumb">
+                    <template #error>
+                      <div class="order-item-thumb-fallback">
+                        <el-icon><Picture /></el-icon>
+                      </div>
+                    </template>
+                  </el-image>
+                  <div class="order-item-text">
+                    <div class="order-item-name">
+                      {{ firstItemName(row) }}
+                      <el-tag v-if="row.orderItems.length > 1" size="small" type="info" effect="plain" class="more-tag">
+                        +{{ row.orderItems.length - 1 }}
+                      </el-tag>
+                    </div>
+                    <div class="order-item-no">{{ row.orderItems[0].productNo || '-' }}</div>
+                    <div v-if="row.orderItems[0].size && row.orderItems[0].size !== 'EMPTY'" class="order-item-size">{{ $t('productDetail.labels.productSize') }}: {{ codeMap[row.orderItems[0].size] || row.orderItems[0].size }}</div>
+                    <el-tooltip v-if="row.orderItems[0].memo" :content="row.orderItems[0].memo" placement="top">
+                      <div class="order-item-memo">📝 {{ row.orderItems[0].memo }}</div>
+                    </el-tooltip>
+                    <div v-if="showManufacturerInfo && row.manufacturerName" class="order-item-party">주문정보(생산): {{ row.manufacturerName }}</div>
+                    <div v-if="showMarketInfo && row.companyName" class="order-item-party">주문정보(소매점): {{ row.companyName }}</div>
+                  </div>
+                </div>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column label="주문자" width="120" align="center" :excel-formatter="(row) => row.userDisplayName || row.userName">
               <template #default="{row}">
                 <span>{{ row.userDisplayName || row.userName }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="물류업체" width="120" align="center" :excel-formatter="(row) => row.logisticsCompanyName || '-'">
+            <el-table-column v-if="showLogisticsInfo" label="물류업체" width="120" align="center" :excel-formatter="(row) => row.logisticsCompanyName || '-'">
               <template #default="{row}">
                 <span>{{ row.logisticsCompanyName || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="담당자" width="100" align="center" :excel-formatter="(row) => row.handledByUserName || '-'">
+              <template #default="{row}">
+                <span>{{ row.handledByUserName || '-' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="현재 상태" width="120" align="center" :excel-formatter="(row) => statusLabel(row.status)">
@@ -136,6 +170,10 @@
             <el-empty description="왼쪽 목록에서 주문을 선택해주세요." />
           </div>
           <div v-else v-loading="historyLoading" class="timeline-wrapper">
+            <div v-if="selectedOrder.handledByUserName" class="handler-badge">
+              <span class="handler-label">담당자</span>
+              <span class="handler-name">{{ selectedOrder.handledByUserName }}</span>
+            </div>
             <el-timeline>
               <el-timeline-item
                 v-for="(activity, index) in orderHistory"
@@ -168,19 +206,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { getAllOrders, getOrderHistory } from '@/api/order';
 import { ElMessage } from 'element-plus';
-import { Search, Refresh, ArrowRight } from '@element-plus/icons-vue';
+import { Search, Refresh, ArrowRight, Picture } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 
 const listLoading = ref(false);
 const list = ref<any[]>([]);
 const total = ref(0);
 const codeStore = useCodeStore();
+const userStore = useUserStore();
+
+const isAdmin = computed(() => userStore.roles.includes('admin'));
+const showManufacturerInfo = computed(() => isAdmin.value || userStore.companyType === 'DCC');
+const showMarketInfo = computed(() => isAdmin.value || userStore.companyType === 'DCC');
+const showLogisticsInfo = computed(() => isAdmin.value || userStore.companyType === 'MFG' || userStore.companyType === 'RTL');
 
 const end = new Date();
 const start = new Date();
@@ -239,6 +284,8 @@ const selectedOrder = ref<any>(null);
 const historyLoading = ref(false);
 const orderHistory = ref<any[]>([]);
 
+const codeMap = computed(() => codeStore.codeMap);
+
 const statusLabel = (status: string) => codeStore.getCodeName(status);
 
 const getStatusType = (status: string) => {
@@ -250,6 +297,21 @@ const getStatusType = (status: string) => {
 };
 
 const formatDate = (date: string) => parseTime(date, '{y}-{m}-{d} {h}:{i}');
+
+const firstItemName = (row: any) => {
+  const item = row.orderItems?.[0];
+  if (!item) return '-';
+  return item.productName || item.productSetTitle || '-';
+};
+
+const itemsSummaryText = (row: any) => {
+  const items = row.orderItems || [];
+  if (!items.length) return '-';
+  const name = firstItemName(row);
+  const no = items[0].productNo ? ` (${items[0].productNo})` : '';
+  const more = items.length > 1 ? ` 외 ${items.length - 1}건` : '';
+  return `${name}${no}${more}`;
+};
 
 const fetchOrderStatuses = async () => {
   try {

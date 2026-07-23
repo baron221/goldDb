@@ -753,6 +753,7 @@ export default {
     },
     inspectionRequest: {
       title: 'Inspection Request',
+      print: 'Print Work Order',
       headers: {
         productInfo: 'Product Info',
         qty: 'Qty',
@@ -1164,9 +1165,14 @@ export default {
     labels: {
       purity: 'Select Purity',
       color: 'Select Color',
+      size: 'Select Size',
+      orderSizePlaceholder: 'Enter the size you want to order',
+      memo: 'Order Memo',
+      memoPlaceholder: 'Enter any request (optional)',
       qty: 'Qty',
       buyNow: 'BUY NOW',
       addToCart: 'ADD TO CART',
+      registerStock: 'REGISTER STOCK',
       description: 'Description',
       spec: 'Specifications',
       productSize: 'Size',
@@ -1338,8 +1344,8 @@ export default {
     laborCostPlaceholder: 'Enter labor cost',
     designNotice: 'Design Notice',
     designNoticePlaceholder: 'Enter design notice details',
-    sizes: 'Product Sizes',
-    sizesPlaceholder: 'Select sizes',
+    sizes: 'Product Size',
+    sizesPlaceholder: 'e.g. 1호 (free text)',
     productSize: 'Product Size',
     basicLoss: 'Basic Loss',
     combinationTitle: 'Weight by Option Combination (Purity + Color)',

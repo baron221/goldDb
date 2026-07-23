@@ -16,5 +16,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
                .WithMany()
                .HasForeignKey(e => e.CustomerId)
                .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(e => e.HandledByUser)
+               .WithMany()
+               .HasForeignKey(e => e.HandledByUserId)
+               .OnDelete(DeleteBehavior.SetNull);
     }
 }

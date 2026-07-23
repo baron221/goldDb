@@ -33,6 +33,14 @@
         <span class="spec-label">{{ $t('stockDetail.actualWeight') }}</span>
         <span class="spec-value weight-highlight">{{ stock.actualWeight }}<em>g</em></span>
       </div>
+      <div class="spec-item" v-if="stock.size">
+        <span class="spec-label">{{ $t('productDetail.labels.productSize') }}</span>
+        <span class="spec-value">{{ codeMap[stock.size] || stock.size }}</span>
+      </div>
+      <div class="spec-item" v-if="stock.quantity > 1">
+        <span class="spec-label">수량</span>
+        <span class="spec-value">{{ stock.quantity }}</span>
+      </div>
       <div class="spec-item">
         <span class="spec-label">{{ $t('notice.labels.date') }} (입고)</span>
         <span class="spec-value">{{ formatDate(stock.createdAt, '{y}-{m}-{d}') }}</span>

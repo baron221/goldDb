@@ -13,11 +13,11 @@
       style="width: 100%"
       :height="isMobile ? undefined : '100%'"
       row-key="id"
-      :expand-row-keys="expandedRowKeys"
+      :expand-row-keys="expandable ? expandedRowKeys : []"
       @expand-change="(row, expandedRows) => $emit('expand-change', row, expandedRows)"
       @change="() => $emit('refresh')"
     >
-      <el-table-column type="expand">
+      <el-table-column v-if="expandable" type="expand">
         <template #header>
           <el-popover ref="popoverRef" placement="bottom-start" trigger="click" width="120">
             <template #reference>
@@ -62,7 +62,7 @@
         }"
       >
         <template #default="{row}">
-          <order-goods-cell :order-items="row.orderItems" />
+          <order-goods-cell :order-items="row.orderItems" :order-id="row.id" :order-status="row.status" />
         </template>
       </el-table-column>
 
@@ -87,41 +87,22 @@
       </el-table-column>
 
       <el-table-column
-        prop="companyName"
-        label="소매점 / 주문자"
+        prop="manufacturerName"
+        label="제조사 / 소매점"
         width="180"
         align="center"
-        :excel-formatter="(row) => `${row.companyName || '-'}\n${row.userDisplayName || ''}`"
-      >
-        <template #default="{row}">
-          <div class="retailer-info">
-            <div class="company-name" style="font-weight: bold; color: #303133; font-size: 0.9rem; margin-bottom: 0.125rem;">
-              {{ row.companyName || '-' }}
-            </div>
-            <div class="user-display-name" style="font-size: 0.95rem; color: #909399;">
-              {{ row.userDisplayName }}
-            </div>
-          </div>
-        </template>
-      </el-table-column>
-
-      <el-table-column
-        prop="logisticsCompanyName"
-        label="물류업체 / 제조사"
-        width="160"
-        align="center"
-        :excel-formatter="(row) => `${row.logisticsCompanyName || '-'}\n${row.manufacturerName || '-'}`"
+        :excel-formatter="(row) => `${row.manufacturerName || '-'}\n${row.companyName || '-'}`"
       >
         <template #default="{row}">
           <div class="company-info">
-            <div class="logistics-name" style="font-size: 0.9rem; color: #606266; margin-bottom: 0.25rem;">
-              {{ row.logisticsCompanyName || '-' }}
-            </div>
             <div class="manufacturer-name">
               <el-tag v-if="row.manufacturerName" type="warning" size="small" effect="plain" style="font-size: 0.825rem;">
                 {{ row.manufacturerName }}
               </el-tag>
               <span v-else style="color: #c0c4cc; font-size: 0.825rem;">-</span>
+            </div>
+            <div class="company-name" style="font-weight: bold; color: #303133; font-size: 0.9rem; margin-top: 0.25rem;">
+              {{ row.companyName || '-' }}
             </div>
           </div>
         </template>
@@ -216,6 +197,7 @@ const props = defineProps({
   page: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
   expandedRowKeys: { type: Array, default: () => [] },
+  expandable: { type: Boolean, default: true },
   codeMap: { type: Object, default: () => ({}) },
   expandTitle: { type: String, default: '승인 상세 내역' },
   orderStatusCodes: { type: Array, default: () => [] },

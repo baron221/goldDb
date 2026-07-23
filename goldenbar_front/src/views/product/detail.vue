@@ -17,6 +17,10 @@
               v-model:selected-color="selectedColor"
               v-model:quantity="quantity"
               v-model:selected-retailer-id="selectedRetailerId"
+              v-model:selected-handler-id="selectedHandlerId"
+              v-model:memo="orderMemo"
+              v-model:order-size="orderSize"
+              :employee-list="employeeList"
               :product="product"
               :active-weight="activeWeight"
               :has-option-weight="hasOptionWeight"
@@ -35,6 +39,7 @@
               @favorite="handleFavorite"
               @cart="handleCart"
               @buy="handleBuy"
+              @register-stock="handleRegisterStock"
             />
 
             <product-specs
@@ -64,8 +69,9 @@ import store from '@/store';
 import useUserStore from '@/store/modules/user';
 import { getProduct } from '@/api/product';
 import { addToCart } from '@/api/cart';
+import { createStock } from '@/api/stock';
 import { addFavorite, removeFavoriteByProduct, getMyFavorites } from '@/api/favorite';
-import { getRetailersByCenter } from '@/api/company';
+import { getRetailersByCenter, getCompanyUsers } from '@/api/company';
 import { createOrder } from '@/api/order';
 import { ElMessage, ElNotification } from 'element-plus';
 import useCodeStore from '@/store/modules/code';
@@ -105,6 +111,8 @@ const isLogisticsUser = computed(() => {
 
 const retailersList = ref<any[]>([]);
 const selectedRetailerId = ref<number | null>(null);
+const employeeList = ref<any[]>([]);
+const selectedHandlerId = ref<number | null>(null);
 
 const fetchRetailers = async () => {
   if (isLogisticsUser.value && userStore.companyId) {
@@ -114,6 +122,12 @@ const fetchRetailers = async () => {
       selectedRetailerId.value = null;
     } catch (error) {
       console.error('Failed to fetch retailers:', error);
+    }
+    try {
+      const empRes = await getCompanyUsers(userStore.companyId);
+      employeeList.value = empRes.data || [];
+    } catch (error) {
+      console.error('Failed to fetch employees:', error);
     }
   }
 };
@@ -128,6 +142,8 @@ const handleEdit = () => {
 
 const selectedPurity = ref('');
 const selectedColor = ref('');
+const orderMemo = ref('');
+const orderSize = ref('');
 
 const activeWeight = computed(() => {
   if (!product.value || !selectedPurity.value || !selectedColor.value) {
@@ -265,17 +281,14 @@ const handleCart = async () => {
     return;
   }
 
-  if (isLogisticsUser.value && !selectedRetailerId.value) {
-    ElMessage.warning('대리 주문할 소매점을 선택해주세요.');
-    return;
-  }
-
   try {
     await addToCart({
       productId: product.value.id,
       quantity: quantity.value,
       purity: selectedPurity.value,
       color: selectedColor.value,
+      size: orderSize.value || product.value.sizes || undefined,
+      memo: orderMemo.value || undefined,
       targetCompanyId: isLogisticsUser.value ? selectedRetailerId.value : undefined
     });
 
@@ -338,11 +351,6 @@ const handleBuy = async () => {
     return;
   }
 
-  if (isLogisticsUser.value && !selectedRetailerId.value) {
-    ElMessage.warning('대리 주문할 소매점을 선택해주세요.');
-    return;
-  }
-
   try {
     if (isLogisticsUser.value) {
       await createOrder({
@@ -350,7 +358,10 @@ const handleBuy = async () => {
         directQuantity: quantity.value,
         directPurity: selectedPurity.value,
         directColor: selectedColor.value,
+        directSize: orderSize.value || product.value.sizes || undefined,
+        directMemo: orderMemo.value || undefined,
         targetCompanyId: selectedRetailerId.value,
+        handledByUserId: selectedHandlerId.value,
         orderMemo: '물류사 대리 전화주문'
       });
       ElMessage.success('대리 주문이 성공적으로 등록되었습니다.');
@@ -362,12 +373,37 @@ const handleBuy = async () => {
       productId: product.value.id,
       quantity: quantity.value,
       purity: selectedPurity.value,
-      color: selectedColor.value
+      color: selectedColor.value,
+      size: orderSize.value || product.value.sizes || undefined,
+      memo: orderMemo.value || undefined
     });
     router.push({ path: '/my/cart', query: { buyNowProductId: product.value.id }});
   } catch (error) {
     console.error(error);
     ElMessage.error(t('marketplace.messages.cartError'));
+  }
+};
+
+const handleRegisterStock = async () => {
+  if (!selectedPurity.value || !selectedColor.value) {
+    ElMessage.warning(t('productDetail.messages.selectOptions'));
+    return;
+  }
+
+  try {
+    await createStock({
+      productId: product.value.id,
+      purity: selectedPurity.value,
+      color: selectedColor.value,
+      size: orderSize.value || product.value.sizes || undefined,
+      quantity: quantity.value,
+      actualWeight: activeWeight.value,
+      note: orderMemo.value || undefined
+    });
+    ElMessage.success('재고에 등록되었습니다.');
+  } catch (error) {
+    console.error(error);
+    ElMessage.error('재고 등록에 실패했습니다.');
   }
 };
 

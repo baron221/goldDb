@@ -22,11 +22,12 @@
             .join(' > ');
           if (cat) text += `\n분류: ${cat}`;
           if (!row.productSetId) {
-            const specs = [codeMap[row.purity], codeMap[row.color]]
+            const specs = [codeMap[row.purity], codeMap[row.color], codeMap[row.size] || row.size]
               .filter(s => s && s !== 'EMPTY')
               .join(', ');
             if (specs) text += `\n스펙: ${specs}`;
             text += `\n중량: ${row.weight}g`;
+            if (row.memo) text += `\n메모: ${row.memo}`;
           }
           return text;
         }"
@@ -61,8 +62,10 @@
                 <div class="product-spec">
                   <span v-if="row.purity && row.purity !== 'EMPTY' && (codeMap[row.purity] || row.purity) !== 'EMPTY'" class="spec-tag">{{ codeMap[row.purity] || row.purity }}</span>
                   <span v-if="row.color && row.color !== 'EMPTY' && (codeMap[row.color] || row.color) !== 'EMPTY'" class="spec-tag">{{ codeMap[row.color] || row.color }}</span>
+                  <span v-if="row.size && row.size !== 'EMPTY'" class="spec-tag">{{ codeMap[row.size] || row.size }}</span>
                   <span class="spec-val">{{ row.weight }}g</span>
                 </div>
+                <div v-if="row.memo" class="cart-item-memo">📝 {{ row.memo }}</div>
               </template>
             </div>
           </div>
@@ -189,8 +192,10 @@
               <div class="product-spec">
                 <span v-if="row.purity && row.purity !== 'EMPTY' && (codeMap[row.purity] || row.purity) !== 'EMPTY'" class="spec-tag">{{ codeMap[row.purity] || row.purity }}</span>
                 <span v-if="row.color && row.color !== 'EMPTY' && (codeMap[row.color] || row.color) !== 'EMPTY'" class="spec-tag">{{ codeMap[row.color] || row.color }}</span>
+                <span v-if="row.size && row.size !== 'EMPTY'" class="spec-tag">{{ codeMap[row.size] || row.size }}</span>
                 <span class="spec-val">{{ row.weight }}g</span>
               </div>
+              <div v-if="row.memo" class="cart-item-memo">📝 {{ row.memo }}</div>
             </template>
           </div>
         </div>

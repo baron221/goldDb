@@ -173,6 +173,20 @@
         font-weight: 600;
       }
 
+      .size-fixed-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .order-size-input {
+        max-width: 220px;
+
+        :deep(.el-input__wrapper) {
+          border-radius: 0px;
+        }
+      }
+
       .jovenca-pills {
         display: flex;
         flex-wrap: wrap;
@@ -206,6 +220,17 @@
           color: #ffffff !important;
         }
       }
+
+      .jovenca-select {
+        width: 100%;
+        max-width: 220px;
+
+        :deep(.el-select__wrapper) {
+          border-radius: 0px;
+          font-weight: 600;
+          font-size: 0.95rem;
+        }
+      }
     }
   }
 
@@ -213,6 +238,20 @@
     border: 1px solid #f2efeb;
     padding: 1.25rem;
     margin-bottom: 1.5rem;
+
+    .memo-input-row {
+      margin-bottom: 1rem;
+
+      .option-label {
+        display: block;
+        font-size: 0.8875rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+    }
 
     .quantity-input-row {
       display: flex;

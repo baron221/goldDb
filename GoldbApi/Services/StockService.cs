@@ -130,10 +130,11 @@ public class StockService : IStockService
         foreach (var s in list)
         {
             var purity = s.Purity ?? (s.Product != null ? s.Product.Purity : "");
+            var weight = s.ActualWeight * s.Quantity;
 
-            if (purity == "14K") summary.Total14KWeight += s.ActualWeight;
-            else if (purity == "18K") summary.Total18KWeight += s.ActualWeight;
-            else if (purity == "24K") summary.TotalPureGoldWeight += s.ActualWeight;
+            if (purity == "14K") summary.Total14KWeight += weight;
+            else if (purity == "18K") summary.Total18KWeight += weight;
+            else if (purity == "24K") summary.TotalPureGoldWeight += weight;
         }
 
         summary.TotalCalculatedPureGoldWeight = (summary.Total14KWeight * 0.6435m) + (summary.Total18KWeight * 0.825m) + summary.TotalPureGoldWeight;
@@ -178,13 +179,21 @@ public class StockService : IStockService
                 else return ApiResponse<StockDto>.Failure("No company assigned", 403);
             }
         }
+        var stockNo = string.IsNullOrWhiteSpace(request.StockNo)
+            ? $"STK-DIRECT-{DateTime.UtcNow:yyMMddHHmmss}-{Random.Shared.Next(100, 999)}"
+            : request.StockNo;
+
         var stock = new Stock
         {
             ProductId = request.ProductId,
             ProductSetId = request.ProductSetId,
             CompanyId = request.CompanyId,
-            StockNo = request.StockNo,
+            StockNo = stockNo,
             Status = request.Status,
+            Purity = request.Purity,
+            Color = request.Color,
+            Size = request.Size,
+            Quantity = request.Quantity > 0 ? request.Quantity : 1,
             ActualWeight = request.ActualWeight,
             Note = request.Note,
             RetailerConfirmMaterialCost = request.RetailerConfirmMaterialCost,

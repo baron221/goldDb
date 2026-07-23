@@ -234,6 +234,7 @@ const getList = async () => {
     ]);
     list.value = res.data.items;
     total.value = res.data.totalCount;
+    expandedRowKeys.value = list.value.map((r: any) => r.id);
 
     await nextTick();
     if (container) {

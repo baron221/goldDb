@@ -753,6 +753,7 @@ export default {
     },
     inspectionRequest: {
       title: '검수 요청',
+      print: '작업지시서 인쇄',
       headers: {
         productInfo: '상품 정보',
         qty: '수량',
@@ -1164,9 +1165,14 @@ export default {
     labels: {
       purity: '함량 선택',
       color: '컬러 선택',
+      size: '사이즈 선택',
+      orderSizePlaceholder: '주문하실 사이즈를 입력하세요',
+      memo: '주문 메모',
+      memoPlaceholder: '요청 사항을 입력해 주세요 (선택)',
       qty: '수량',
       buyNow: '바로 구매',
       addToCart: '장바구니',
+      registerStock: '재고등록',
       description: '제품 설명',
       spec: '제품 명세',
       productSize: '제품 크기',
@@ -1339,7 +1345,7 @@ export default {
     designNotice: '디자인고시',
     designNoticePlaceholder: '디자인 관련 고시 사항을 입력하세요',
     sizes: '제품 사이즈',
-    sizesPlaceholder: '사이즈 선택',
+    sizesPlaceholder: '예: 1호 (직접 입력)',
     productSize: '제품크기',
     basicLoss: '기본감량',
     combinationTitle: '옵션 조합별 중량 설정 (함량 + 컬러)',

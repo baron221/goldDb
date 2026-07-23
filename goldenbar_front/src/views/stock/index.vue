@@ -209,8 +209,8 @@ const groupedList = computed(() => {
         items: []
       };
     }
-    groups[key].quantity += 1;
-    groups[key].totalWeight += item.actualWeight || 0;
+    groups[key].quantity += item.quantity || 1;
+    groups[key].totalWeight += (item.actualWeight || 0) * (item.quantity || 1);
     groups[key].items.push(item);
   });
   return Object.values(groups);

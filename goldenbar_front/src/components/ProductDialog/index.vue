@@ -30,7 +30,6 @@
         <el-tab-pane :label="$t('productDialog.tabOptions')" name="options">
           <product-option-info
             :temp="temp"
-            :product-sizes="productSizes"
             :combination-grid-data="combinationGridData"
             v-model:calc-base-purity="calcBasePurity"
             v-model:calc-base-weight="calcBaseWeight"
@@ -89,7 +88,6 @@ const {
   visible,
   activeTab,
   productColors,
-  productSizes,
   temp,
   activePhotoUrl,
   currentViewPhotoUrl,

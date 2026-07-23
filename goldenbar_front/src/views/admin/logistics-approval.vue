@@ -19,11 +19,10 @@
       :total="total"
       v-model:page="listQuery.page"
       v-model:page-size="listQuery.pageSize"
-      v-model:expanded-row-keys="expandedRowKeys"
+      :expandable="false"
       :code-map="codeMap"
       :order-status-codes="orderStatusCodes"
       :user-category="store.user().companyType"
-      @expand-change="handleExpandChange"
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
       @approve="openApprovalDialog"
@@ -166,7 +165,6 @@ const defaultStartDate = parseTime(start, '{y}-{m}-{d}');
 const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
 
 const orderStatusCodes = ref<any[]>([]);
-const expandedRowKeys = ref<number[]>([]);
 const scrollPosition = ref(0);
 
 const isAdmin = computed(() => {
@@ -246,10 +244,6 @@ const getList = async () => {
 };
 
 const { handleStatusUpdate, handleCancelOrder, handleRequestModification, handleCloseByAgreement } = useLogisticsApprovalActions(t, getList);
-
-const handleExpandChange = (row: any, expandedRows: any[]) => {
-  expandedRowKeys.value = expandedRows.map(r => r.id);
-};
 
 const handleFilter = () => {
   listQuery.page = 1;

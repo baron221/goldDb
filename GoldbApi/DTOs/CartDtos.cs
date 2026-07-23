@@ -35,6 +35,10 @@ public class CartItemDto
 
     public string? Color { get; set; }
 
+    public string? Size { get; set; }
+
+    public string? Memo { get; set; }
+
     public decimal Weight { get; set; }
 
     public string? CategoryLarge { get; set; }
@@ -56,6 +60,10 @@ public class AddToCartDto
     public string? Purity { get; set; }
 
     public string? Color { get; set; }
+
+    public string? Size { get; set; }
+
+    public string? Memo { get; set; }
 
     public int? TargetCompanyId { get; set; }
 }

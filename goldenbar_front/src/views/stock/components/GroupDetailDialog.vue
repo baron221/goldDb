@@ -119,7 +119,7 @@
           <template #default="{row}">
             <span style="font-size: 0.8875rem; color: #909399;">{{ codeMap[row.purity] || row.purity }}</span>
             <br />
-            <span>{{ row.actualWeight.toFixed(2) }}g</span>
+            <span>{{ row.actualWeight.toFixed(2) }}g<template v-if="row.quantity > 1"> x{{ row.quantity }}</template></span>
           </template>
         </el-table-column>
         <el-table-column

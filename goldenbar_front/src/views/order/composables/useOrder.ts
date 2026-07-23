@@ -7,7 +7,6 @@ export function useOrder() {
   const orders = ref<any[]>([]);
   const totalCount = ref(0);
   const loading = ref(false);
-  const expandedOrderIds = ref<number[]>([]);
 
   const settleDialogVisible = ref(false);
   const currentSettleOrder = ref<any>(null);
@@ -65,15 +64,6 @@ export function useOrder() {
     handleFilter();
   };
 
-  const toggleOrderExpand = (orderId: number) => {
-    const index = expandedOrderIds.value.indexOf(orderId);
-    if (index > -1) {
-      expandedOrderIds.value.splice(index, 1);
-    } else {
-      expandedOrderIds.value.push(orderId);
-    }
-  };
-
   const updateStatus = async (orderId: number, statusData: any) => {
     try {
       await updateOrderStatus(orderId, statusData);
@@ -115,7 +105,6 @@ export function useOrder() {
     totalCount,
     loading,
     listQuery,
-    expandedOrderIds,
     settleDialogVisible,
     currentSettleOrder,
     statementDialogVisible,
@@ -124,7 +113,6 @@ export function useOrder() {
     getList,
     handleFilter,
     handleStatusChange,
-    toggleOrderExpand,
     updateStatus,
     openSettleDialog,
     openStatementDialog
