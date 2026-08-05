@@ -13,11 +13,26 @@ public interface IReceivableService
 
     Task<ApiResponse<PagedResult<UserReceivableSummaryDto>>> GetUserSummariesAsync(int page, int pageSize, string? search);
 
+    Task<ApiResponse<UserReceivableSummaryDto?>> GetUserSummaryByIdAsync(int userId);
+
     Task<ApiResponse<PagedResult<ReceivableDto>>> GetReceivablesAsync(ReceivableQueryDto query);
 
     Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request);
 
+    Task<ApiResponse<bool>> UpdateDepositAsync(int id, UpdateDepositDto request);
+
+    Task<ApiResponse<bool>> CancelDepositAsync(int id);
+
     Task<ApiResponse<LogisticsReceivableSummaryDto>> GetLogisticsSummaryAsync();
+
+    Task<ApiResponse<PuritySummaryDto>> GetPuritySummaryAsync(int userId);
+
+    // Bills the retailer for a settled order and, split per manufacturer with no
+    // logistics margin, records what the logistics company now owes each of them.
+    // Shared by the normal production-flow PENDING transition (OrderService) and the
+    // "fulfil from existing stock" shortcut (StockService), which otherwise bypasses
+    // OrderService entirely and would never bill/pay anyone for the order.
+    Task CreateOrderSettlementChargesAsync(int orderId);
 }
 
 public class ReceivableService : IReceivableService
@@ -25,12 +40,123 @@ public class ReceivableService : IReceivableService
     private readonly IReceivableRepository _receivableRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<ReceivableService> _logger;
+    private readonly AppDbContext _dbContext;
 
-    public ReceivableService(IReceivableRepository receivableRepository, ICurrentUserService currentUserService, ILogger<ReceivableService> logger)
+    public ReceivableService(IReceivableRepository receivableRepository, ICurrentUserService currentUserService, ILogger<ReceivableService> logger, AppDbContext dbContext)
     {
         _receivableRepository = receivableRepository;
         _currentUserService = currentUserService;
         _logger = logger;
+        _dbContext = dbContext;
+    }
+
+    private static decimal GetPureGoldRatio(string? purity)
+    {
+        if (string.IsNullOrEmpty(purity)) return 0m;
+        var p = purity.ToUpperInvariant();
+        if (p.Contains("24K") || p.Contains("PURE")) return 1.0m;
+        if (p.Contains("18K")) return 0.825m;
+        if (p.Contains("14K")) return 0.6435m;
+        return 0m;
+    }
+
+    public async Task CreateOrderSettlementChargesAsync(int orderId)
+    {
+        var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null) return;
+
+        var topLevelItems = await _dbContext.OrderItems
+            .Include(oi => oi.Product)
+            .Include(oi => oi.ProductSet)
+            .Where(oi => oi.OrderId == orderId && oi.ParentId == null)
+            .ToListAsync();
+
+        var calculatedSettlementAmount = topLevelItems.Sum(oi =>
+            ((oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0) +
+             (oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0)) * oi.Quantity);
+
+        order.SettlementAmount = calculatedSettlementAmount > 0 ? calculatedSettlementAmount : order.TotalAmount;
+
+        var calculatedPureGoldWeight = topLevelItems.Sum(oi =>
+            (oi.ConfirmedWeight ?? oi.ActualWeight ?? oi.OrderWeight ?? 0m) * GetPureGoldRatio(oi.Purity) * oi.Quantity);
+
+        var existingReceivable = await _dbContext.Receivables.FirstOrDefaultAsync(r => r.OrderId == orderId && r.Type == "CHARGE");
+        if (existingReceivable != null)
+        {
+            var diffAmount = (order.SettlementAmount ?? 0m) - existingReceivable.Amount;
+            var diffWeight = calculatedPureGoldWeight - existingReceivable.Weight;
+
+            existingReceivable.Amount = order.SettlementAmount ?? 0m;
+            existingReceivable.RemainingAmount = Math.Max(0m, existingReceivable.RemainingAmount + diffAmount);
+            existingReceivable.Weight = calculatedPureGoldWeight;
+            existingReceivable.RemainingWeight = Math.Max(0m, existingReceivable.RemainingWeight + diffWeight);
+        }
+        else
+        {
+            var charge = new Receivable
+            {
+                UserId = order.UserId,
+                OrderId = order.Id,
+                Type = "CHARGE",
+                Amount = order.SettlementAmount ?? 0m,
+                RemainingAmount = order.SettlementAmount ?? 0m,
+                Weight = calculatedPureGoldWeight,
+                RemainingWeight = calculatedPureGoldWeight,
+                Memo = $"주문 정산 청구 (정산시작): {order.OrderNo}"
+            };
+            await _receivableRepository.AddAsync(charge);
+        }
+
+        if (order.LogisticsCompanyId.HasValue)
+        {
+            var byManufacturer = topLevelItems
+                .Select(oi => new
+                {
+                    Item = oi,
+                    ManufacturerId = oi.Product?.CompanyId ?? oi.ProductSet?.CompanyId
+                })
+                .Where(x => x.ManufacturerId.HasValue)
+                .GroupBy(x => x.ManufacturerId!.Value);
+
+            foreach (var group in byManufacturer)
+            {
+                var manufacturerAmount = group.Sum(x =>
+                    ((x.Item.FactoryInputMaterialCost ?? 0) +
+                     (x.Item.FactoryInputLaborCost ?? 0)) * x.Item.Quantity);
+
+                var manufacturerWeight = group.Sum(x =>
+                    (x.Item.ConfirmedWeight ?? x.Item.ActualWeight ?? x.Item.OrderWeight ?? 0m) * GetPureGoldRatio(x.Item.Purity) * x.Item.Quantity);
+
+                var existingPayable = await _dbContext.Payables.FirstOrDefaultAsync(p => p.OrderId == orderId && p.ManufacturerCompanyId == group.Key && p.Type == "CHARGE");
+                if (existingPayable != null)
+                {
+                    var diffAmount = manufacturerAmount - existingPayable.Amount;
+                    var diffWeight = manufacturerWeight - existingPayable.Weight;
+
+                    existingPayable.Amount = manufacturerAmount;
+                    existingPayable.RemainingAmount = Math.Max(0m, existingPayable.RemainingAmount + diffAmount);
+                    existingPayable.Weight = manufacturerWeight;
+                    existingPayable.RemainingWeight = Math.Max(0m, existingPayable.RemainingWeight + diffWeight);
+                }
+                else
+                {
+                    _dbContext.Payables.Add(new Payable
+                    {
+                        LogisticsCompanyId = order.LogisticsCompanyId.Value,
+                        ManufacturerCompanyId = group.Key,
+                        OrderId = order.Id,
+                        Type = "CHARGE",
+                        Amount = manufacturerAmount,
+                        RemainingAmount = manufacturerAmount,
+                        Weight = manufacturerWeight,
+                        RemainingWeight = manufacturerWeight,
+                        Memo = $"주문 정산 청구 (정산시작): {order.OrderNo}"
+                    });
+                }
+            }
+        }
+
+        await _receivableRepository.SaveChangesAsync();
     }
 
     private int GetCurrentUserId()
@@ -133,6 +259,7 @@ public class ReceivableService : IReceivableService
     public async Task<ApiResponse<PagedResult<UserReceivableSummaryDto>>> GetUserSummariesAsync(int page, int pageSize, string? search)
     {
         var userId = GetCurrentUserId();
+        string? companyCategoryFilter = null;
         if (userId != 0)
         {
             var user = await _receivableRepository.GetUserWithCompaniesAsync(userId);
@@ -146,12 +273,20 @@ public class ReceivableService : IReceivableService
                 {
                     search = user.Username;
                 }
+
+                var isManufacturer = user.UserCompanies
+                    .Any(uc => uc.Company != null && uc.Company.Category == "MFG");
+
+                if (isManufacturer)
+                {
+                    companyCategoryFilter = "DCC";
+                }
             }
         }
 
         var userIdsWithReceivables = await _receivableRepository.GetUserIdsWithReceivablesAsync();
-        var totalCount = await _receivableRepository.GetUsersWithReceivablesCountAsync(search, userIdsWithReceivables);
-        var users = await _receivableRepository.GetUsersWithReceivablesPagedAsync(page, pageSize, search, userIdsWithReceivables);
+        var totalCount = await _receivableRepository.GetUsersWithReceivablesCountAsync(search, userIdsWithReceivables, companyCategoryFilter);
+        var users = await _receivableRepository.GetUsersWithReceivablesPagedAsync(page, pageSize, search, userIdsWithReceivables, companyCategoryFilter);
 
         var summaries = new List<UserReceivableSummaryDto>();
         foreach (var user in users)
@@ -159,8 +294,17 @@ public class ReceivableService : IReceivableService
             var userReceivables = await _receivableRepository.GetReceivablesForUserAsync(user.Id);
 
             var totalCharge = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Amount);
-            var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT").Sum(r => r.Amount);
+            var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount);
             var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
+
+            var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
+            var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight);
+            var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
+
+            var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => (DateTime?)r.CreatedAt)
+                .FirstOrDefault();
 
             summaries.Add(new UserReceivableSummaryDto
             {
@@ -170,7 +314,11 @@ public class ReceivableService : IReceivableService
                 CompanyName = user.UserCompanies.FirstOrDefault()?.Company?.Name,
                 TotalCharge = totalCharge,
                 TotalDeposit = totalDeposit,
-                TotalReceivable = totalReceivable
+                TotalReceivable = totalReceivable,
+                TotalChargeWeight = totalChargeWeight,
+                TotalDepositWeight = totalDepositWeight,
+                TotalReceivableWeight = totalReceivableWeight,
+                LastPaymentDate = lastPaymentDate
             });
         }
 
@@ -180,6 +328,42 @@ public class ReceivableService : IReceivableService
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
+        });
+    }
+
+    public async Task<ApiResponse<UserReceivableSummaryDto?>> GetUserSummaryByIdAsync(int userId)
+    {
+        var user = await _receivableRepository.GetUserWithCompaniesAsync(userId);
+        if (user == null) return ApiResponse<UserReceivableSummaryDto?>.Success(null);
+
+        var userReceivables = await _receivableRepository.GetReceivablesForUserAsync(userId);
+
+        var totalCharge = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Amount);
+        var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount);
+        var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
+
+        var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
+        var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight);
+        var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
+
+        var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => (DateTime?)r.CreatedAt)
+            .FirstOrDefault();
+
+        return ApiResponse<UserReceivableSummaryDto?>.Success(new UserReceivableSummaryDto
+        {
+            UserId = user.Id,
+            UserName = user.Username,
+            UserDisplayName = user.Name,
+            CompanyName = user.UserCompanies.FirstOrDefault()?.Company?.Name,
+            TotalCharge = totalCharge,
+            TotalDeposit = totalDeposit,
+            TotalReceivable = totalReceivable,
+            TotalChargeWeight = totalChargeWeight,
+            TotalDepositWeight = totalDepositWeight,
+            TotalReceivableWeight = totalReceivableWeight,
+            LastPaymentDate = lastPaymentDate
         });
     }
 
@@ -213,11 +397,159 @@ public class ReceivableService : IReceivableService
         });
     }
 
+    public async Task<ApiResponse<PuritySummaryDto>> GetPuritySummaryAsync(int userId)
+    {
+        var outstandingCharges = await _receivableRepository.GetOutstandingChargesWithOrderItemsAsync(userId);
+
+        decimal p14 = 0, p18 = 0, pure = 0;
+
+        foreach (var charge in outstandingCharges)
+        {
+            if (charge.Order == null) continue;
+
+            foreach (var item in charge.Order.OrderItems.Where(oi => oi.ParentId == null))
+            {
+                var weight = (item.ConfirmedWeight ?? item.ActualWeight ?? item.OrderWeight ?? 0m) * item.Quantity;
+                var purity = (item.Purity ?? "").ToUpperInvariant();
+
+                if (purity.Contains("14K")) p14 += weight;
+                else if (purity.Contains("18K")) p18 += weight;
+                else if (purity.Contains("24K") || purity.Contains("PURE")) pure += weight;
+            }
+        }
+
+        return ApiResponse<PuritySummaryDto>.Success(new PuritySummaryDto
+        {
+            Purity14k = p14,
+            Purity18k = p18,
+            PureGold = pure
+        });
+    }
+
+    // Greedily reduces outstanding charges (oldest first) by the given amount/weight,
+    // used both when applying a new deposit and when re-applying one during an edit.
+    // Cash and gold weight are two views of the same underlying charge, not independent
+    // debts - once a payment fully covers either side of a charge, the whole charge is
+    // considered settled and the other side is cleared too.
+    private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight)
+    {
+        var applications = new List<ReceivableApplication>();
+
+        foreach (var charge in charges)
+        {
+            if (remainingAmount <= 0 && remainingWeight <= 0) break;
+
+            bool touchedAmount = false;
+            bool touchedWeight = false;
+            decimal appliedAmount = 0;
+            decimal appliedWeight = 0;
+
+            if (remainingAmount > 0 && charge.RemainingAmount > 0)
+            {
+                touchedAmount = true;
+                appliedAmount = Math.Min(charge.RemainingAmount, remainingAmount);
+                if (charge.RemainingAmount <= remainingAmount)
+                {
+                    remainingAmount -= charge.RemainingAmount;
+                    charge.RemainingAmount = 0;
+                }
+                else
+                {
+                    charge.RemainingAmount -= remainingAmount;
+                    remainingAmount = 0;
+                }
+            }
+
+            if (remainingWeight > 0 && charge.RemainingWeight > 0)
+            {
+                touchedWeight = true;
+                appliedWeight = Math.Min(charge.RemainingWeight, remainingWeight);
+                if (charge.RemainingWeight <= remainingWeight)
+                {
+                    remainingWeight -= charge.RemainingWeight;
+                    charge.RemainingWeight = 0;
+                }
+                else
+                {
+                    charge.RemainingWeight -= remainingWeight;
+                    remainingWeight = 0;
+                }
+            }
+
+            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
+            {
+                charge.RemainingAmount = 0;
+                charge.RemainingWeight = 0;
+            }
+
+            if (touchedAmount || touchedWeight)
+            {
+                applications.Add(new ReceivableApplication { ChargeId = charge.Id, AppliedAmount = appliedAmount, AppliedWeight = appliedWeight });
+            }
+        }
+
+        return applications;
+    }
+
+    // Restores previously-reduced charges (oldest first, mirroring the order they were
+    // originally reduced in), capped at each charge's original Amount/Weight. Used to
+    // undo a deposit's effect when it's edited or cancelled.
+    private static void ReverseFromChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight)
+    {
+        foreach (var charge in charges)
+        {
+            if (remainingAmount <= 0 && remainingWeight <= 0) break;
+
+            if (remainingAmount > 0)
+            {
+                var capacity = charge.Amount - charge.RemainingAmount;
+                if (capacity > 0)
+                {
+                    var restore = Math.Min(capacity, remainingAmount);
+                    charge.RemainingAmount += restore;
+                    remainingAmount -= restore;
+                }
+            }
+
+            if (remainingWeight > 0)
+            {
+                var capacityWeight = charge.Weight - charge.RemainingWeight;
+                if (capacityWeight > 0)
+                {
+                    var restoreWeight = Math.Min(capacityWeight, remainingWeight);
+                    charge.RemainingWeight += restoreWeight;
+                    remainingWeight -= restoreWeight;
+                }
+            }
+        }
+    }
+
+    private async Task<List<ReceivableApplication>> ApplyDepositToChargesAsync(int userId, int? orderId, decimal amountToApply, decimal weightToApply)
+    {
+        var applications = new List<ReceivableApplication>();
+
+        if (orderId.HasValue)
+        {
+            var targetCharges = await _receivableRepository.GetTargetChargesAsync(userId, orderId.Value);
+            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply));
+        }
+
+        if (amountToApply > 0 || weightToApply > 0)
+        {
+            var outstandingCharges = await _receivableRepository.GetOutstandingChargesAsync(userId);
+            applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply));
+        }
+
+        return applications;
+    }
+
     public async Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request)
     {
-        if (request.Amount <= 0)
+        var discount = request.Discount ?? 0m;
+
+        if (request.Amount <= 0 && discount <= 0 && (!request.Weight.HasValue || request.Weight.Value <= 0))
         {
-            return ApiResponse<bool>.Failure("입금액은 0보다 커야 합니다.", 400);
+            return ApiResponse<bool>.Failure("입금액, 할인액 또는 순금 중량 중 하나는 0보다 커야 합니다.", 400);
         }
 
         var deposit = new Receivable
@@ -227,57 +559,95 @@ public class ReceivableService : IReceivableService
             Type = "DEPOSIT",
             Amount = request.Amount,
             RemainingAmount = 0,
+            Weight = request.Weight ?? 0m,
+            RemainingWeight = 0,
             Memo = request.Memo,
-            SettlementMethod = request.SettlementMethod
+            SettlementMethod = request.SettlementMethod,
+            Discount = discount
         };
         await _receivableRepository.AddAsync(deposit);
 
-        decimal remainingDepositToApply = request.Amount;
+        // Discount reduces outstanding charges the same way cash does, it's just
+        // tracked separately on the deposit record so the ledger can show how much
+        // of the settlement was actual payment vs. a discount write-off.
+        var applications = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.Amount + discount, request.Weight ?? 0m);
 
-        if (request.OrderId.HasValue)
+        // Record which charge(s) this deposit actually paid off, so the history table
+        // can show where a payment went instead of just leaving charges mysteriously
+        // cleared with no visible link back to the deposit that paid them.
+        foreach (var application in applications)
         {
-            var targetCharges = await _receivableRepository.GetTargetChargesAsync(request.UserId, request.OrderId.Value);
-
-            foreach (var charge in targetCharges)
-            {
-                if (remainingDepositToApply <= 0) break;
-
-                if (charge.RemainingAmount <= remainingDepositToApply)
-                {
-                    remainingDepositToApply -= charge.RemainingAmount;
-                    charge.RemainingAmount = 0;
-                }
-                else
-                {
-                    charge.RemainingAmount -= remainingDepositToApply;
-                    remainingDepositToApply = 0;
-                }
-            }
-        }
-
-        if (remainingDepositToApply > 0)
-        {
-            var outstandingCharges = await _receivableRepository.GetOutstandingChargesAsync(request.UserId);
-
-            foreach (var charge in outstandingCharges)
-            {
-                if (remainingDepositToApply <= 0) break;
-
-                if (charge.RemainingAmount <= remainingDepositToApply)
-                {
-                    remainingDepositToApply -= charge.RemainingAmount;
-                    charge.RemainingAmount = 0;
-                }
-                else
-                {
-                    charge.RemainingAmount -= remainingDepositToApply;
-                    remainingDepositToApply = 0;
-                }
-            }
+            application.Deposit = deposit;
+            _dbContext.ReceivableApplications.Add(application);
         }
 
         await _receivableRepository.SaveChangesAsync();
 
+        return ApiResponse<bool>.Success(true);
+    }
+
+    public async Task<ApiResponse<bool>> UpdateDepositAsync(int id, UpdateDepositDto request)
+    {
+        var deposit = await _receivableRepository.GetByIdAsync(id);
+        if (deposit == null || deposit.Type != "DEPOSIT") return ApiResponse<bool>.Failure("입금 내역을 찾을 수 없습니다.", 404);
+        if (deposit.IsCancelled) return ApiResponse<bool>.Failure("취소된 거래는 수정할 수 없습니다.", 400);
+
+        // Undo this deposit's original effect before re-applying the new values, so
+        // editing behaves like cancel-then-reapply against the current outstanding charges.
+        var allCharges = (await _receivableRepository.GetReceivablesForUserAsync(deposit.UserId))
+            .Where(r => r.Type == "CHARGE")
+            .OrderBy(r => r.CreatedAt)
+            .ToList();
+
+        decimal oldAmount = deposit.Amount + deposit.Discount;
+        decimal oldWeight = deposit.Weight;
+        ReverseFromChargeList(allCharges, ref oldAmount, ref oldWeight);
+
+        var oldApplications = await _dbContext.ReceivableApplications.Where(a => a.DepositId == deposit.Id).ToListAsync();
+        _dbContext.ReceivableApplications.RemoveRange(oldApplications);
+
+        var newDiscount = request.Discount ?? 0m;
+        deposit.Amount = request.Amount;
+        deposit.Weight = request.Weight ?? 0m;
+        deposit.Discount = newDiscount;
+        deposit.Memo = request.Memo;
+        deposit.SettlementMethod = request.SettlementMethod;
+
+        decimal newAmountToApply = request.Amount + newDiscount;
+        decimal newWeightToApply = request.Weight ?? 0m;
+        var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
+        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply);
+        foreach (var application in newApplications)
+        {
+            application.Deposit = deposit;
+            _dbContext.ReceivableApplications.Add(application);
+        }
+
+        await _receivableRepository.SaveChangesAsync();
+        return ApiResponse<bool>.Success(true);
+    }
+
+    public async Task<ApiResponse<bool>> CancelDepositAsync(int id)
+    {
+        var deposit = await _receivableRepository.GetByIdAsync(id);
+        if (deposit == null || deposit.Type != "DEPOSIT") return ApiResponse<bool>.Failure("입금 내역을 찾을 수 없습니다.", 404);
+        if (deposit.IsCancelled) return ApiResponse<bool>.Failure("이미 취소된 거래입니다.", 400);
+
+        var allCharges = (await _receivableRepository.GetReceivablesForUserAsync(deposit.UserId))
+            .Where(r => r.Type == "CHARGE")
+            .OrderBy(r => r.CreatedAt)
+            .ToList();
+
+        decimal amountToRestore = deposit.Amount + deposit.Discount;
+        decimal weightToRestore = deposit.Weight;
+        ReverseFromChargeList(allCharges, ref amountToRestore, ref weightToRestore);
+
+        var oldApplications = await _dbContext.ReceivableApplications.Where(a => a.DepositId == deposit.Id).ToListAsync();
+        _dbContext.ReceivableApplications.RemoveRange(oldApplications);
+
+        deposit.IsCancelled = true;
+
+        await _receivableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);
     }
 }

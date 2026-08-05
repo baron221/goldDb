@@ -12,6 +12,9 @@
       <el-form-item label="현재 미납금">
         <span style="font-weight: bold; color: #f56c6c;">{{ formatPrice(user?.totalReceivable || 0) }} 원</span>
       </el-form-item>
+      <el-form-item label="현재 미납 순금(g)">
+        <span style="font-weight: bold; color: #f56c6c;">{{ (user?.totalReceivableWeight || 0).toFixed(2) }} g</span>
+      </el-form-item>
       <el-form-item label="대상 주문" prop="orderId">
         <el-select
           v-model="depositForm.orderId"
@@ -23,7 +26,7 @@
           <el-option
             v-for="item in unpaidOrders"
             :key="item.orderId"
-            :label="`${item.orderNo} (미납: ${formatPrice(item.remainingAmount)}원)`"
+            :label="`${item.orderNo} (미납: ${formatPrice(item.remainingAmount)}원 / ${item.remainingWeight.toFixed(2)}g)`"
             :value="item.orderId"
           />
         </el-select>
@@ -41,8 +44,21 @@
           placeholder="수납 금액 입력"
         />
       </el-form-item>
+      <el-form-item label="순금 중량(g)">
+        <el-input-number
+          v-model="depositForm.weight"
+          :precision="2"
+          :step="0.01"
+          :min="0"
+          placeholder="수납 순금 중량 입력"
+          style="width: 100%;"
+        />
+      </el-form-item>
       <el-form-item label="예상 미납금">
         <span style="font-weight: bold; color: #409eff;">{{ formatPrice(remainingBalance) }} 원</span>
+      </el-form-item>
+      <el-form-item label="예상 미납 순금(g)">
+        <span style="font-weight: bold; color: #409eff;">{{ remainingWeightBalance.toFixed(2) }} g</span>
       </el-form-item>
       <el-form-item label="메모">
         <el-input v-model="depositForm.memo" type="textarea" :rows="3" placeholder="수납 관련 메모 입력" />
@@ -82,16 +98,13 @@ const unpaidOrdersLoading = ref(false);
 
 const depositForm = reactive({
   amount: 0,
+  weight: 0,
   settlementMethod: 'CASH',
   memo: '',
   orderId: undefined as number | undefined
 });
 
 const depositRules = {
-  amount: [
-    { required: true, message: '수납 금액을 입력해주세요.', trigger: 'blur' },
-    { type: 'number', min: 1, message: '금액은 0보다 커야 합니다.', trigger: 'blur' }
-  ],
   settlementMethod: [
     { required: true, message: '수납 방법을 선택해주세요.', trigger: 'change' }
   ],
@@ -105,9 +118,15 @@ const remainingBalance = computed(() => {
   return Math.max(0, currentTotal - (depositForm.amount || 0));
 });
 
+const remainingWeightBalance = computed(() => {
+  const currentTotal = props.user?.totalReceivableWeight || 0;
+  return Math.max(0, currentTotal - (depositForm.weight || 0));
+});
+
 watch(() => props.modelValue, async (newVal) => {
   if (newVal && props.user) {
     depositForm.amount = 0;
+    depositForm.weight = 0;
     depositForm.settlementMethod = 'CASH';
     depositForm.memo = '';
     depositForm.orderId = undefined;
@@ -132,16 +151,18 @@ const fetchUnpaidOrders = async () => {
     if (res.data && res.data.items) {
       const ordersMap = new Map<number, any>();
       res.data.items.forEach((item: any) => {
-        if (item.orderId && item.remainingAmount > 0) {
+        if (item.orderId && (item.remainingAmount > 0 || item.remainingWeight > 0)) {
           if (!ordersMap.has(item.orderId)) {
             ordersMap.set(item.orderId, {
               orderId: item.orderId,
               orderNo: item.orderNo,
-              remainingAmount: item.remainingAmount
+              remainingAmount: item.remainingAmount,
+              remainingWeight: item.remainingWeight || 0
             });
           } else {
             const existing = ordersMap.get(item.orderId);
             existing.remainingAmount += item.remainingAmount;
+            existing.remainingWeight += item.remainingWeight || 0;
           }
         }
       });
@@ -158,30 +179,37 @@ const handleOrderChange = (orderId: number) => {
   const selected = unpaidOrders.value.find(o => o.orderId === orderId);
   if (selected) {
     depositForm.amount = selected.remainingAmount;
+    depositForm.weight = selected.remainingWeight;
   }
 };
 
 const submitDeposit = () => {
   depositFormRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      try {
-        depositSubmitting.value = true;
-        await processDeposit({
-          userId: props.user.userId,
-          orderId: depositForm.orderId,
-          amount: depositForm.amount,
-          memo: depositForm.memo,
-          settlementMethod: depositForm.settlementMethod
-        });
-        ElMessage.success('수납 처리가 완료되었습니다.');
-        emit('update:modelValue', false);
-        emit('success');
-      } catch (error) {
-        console.error(error);
-        ElMessage.error('수납 처리 중 오류가 발생했습니다.');
-      } finally {
-        depositSubmitting.value = false;
-      }
+    if (!valid) return;
+
+    if ((depositForm.amount || 0) <= 0 && (depositForm.weight || 0) <= 0) {
+      ElMessage.warning('수납 금액 또는 순금 중량 중 하나는 입력해야 합니다.');
+      return;
+    }
+
+    try {
+      depositSubmitting.value = true;
+      await processDeposit({
+        userId: props.user.userId,
+        orderId: depositForm.orderId,
+        amount: depositForm.amount,
+        weight: depositForm.weight,
+        memo: depositForm.memo,
+        settlementMethod: depositForm.settlementMethod
+      });
+      ElMessage.success('수납 처리가 완료되었습니다.');
+      emit('update:modelValue', false);
+      emit('success');
+    } catch (error) {
+      console.error(error);
+      ElMessage.error('수납 처리 중 오류가 발생했습니다.');
+    } finally {
+      depositSubmitting.value = false;
     }
   });
 };

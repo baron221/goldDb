@@ -21,9 +21,10 @@
             <div class="goods-item-text">
               <div class="goods-item-name">{{ item.productName || item.productSetTitle || '-' }}</div>
               <div class="goods-item-spec">함량: {{ item.purity || '-' }} / 컬러: {{ item.color || '-' }} / 수량: {{ item.quantity || 0 }}개</div>
+              <div v-if="item.size && item.size !== 'EMPTY'" class="goods-item-spec">사이즈: {{ item.size }}</div>
             </div>
-            <div class="goods-item-memo-box" @click.stop>
-              <template v-if="editingId === item.id">
+            <div class="goods-item-memo-box" :class="{ 'is-editing': editingId === item.id }" @click.stop>
+              <div v-if="editingId === item.id" class="memo-edit-wrapper">
                 <el-input
                   v-model="editingValue"
                   type="textarea"
@@ -35,7 +36,7 @@
                   <el-button size="small" type="primary" link @click="saveMemo(item)">저장</el-button>
                   <el-button size="small" link @click="cancelEdit()">취소</el-button>
                 </div>
-              </template>
+              </div>
               <template v-else>
                 <span class="memo-text">{{ item.memo || '메모 없음' }}</span>
                 <el-icon class="memo-edit-icon" @click="startEdit(item)"><Edit /></el-icon>

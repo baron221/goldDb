@@ -113,6 +113,7 @@ const { t } = useI18n();
 
 const formRules = {
   name: [{ required: true, message: t('productDialog.nameRequired'), trigger: 'blur' }],
+  productNo: [{ required: true, message: t('productDialog.productNoRequired'), trigger: 'blur' }],
   categoryLarge: [{ required: true, message: t('productDialog.categoryLargeRequired'), trigger: 'change' }],
   purity: [{ type: 'array', required: true, message: t('productDialog.purityRequired'), trigger: 'change' }],
   colors: [{ type: 'array', required: true, message: t('productDialog.colorsRequired'), trigger: 'change' }],

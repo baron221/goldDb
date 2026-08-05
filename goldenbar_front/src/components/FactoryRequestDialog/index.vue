@@ -1,7 +1,7 @@
 <template>
 <base-popup
     v-model="visible"
-    title="공장 의뢰"
+    title="물류 승인 / 공장 의뢰"
     width="90%"
     style="max-width: 1100px;"
     @close="handleClosed"
@@ -44,16 +44,63 @@
 
         <el-table-column label="AS여부" width="80" align="center" header-align="center" :excel-formatter="scope => scope.isAsOrder ? 'Y' : 'N'">
           <template #default="scope">
-            <el-icon v-if="scope.row.isAsOrder" :size="24" color="#F56C6C" style="font-weight: bold;">
-              <Check />
-            </el-icon>
-            <span v-else style="color: #E4E7ED;">-</span>
+            <el-checkbox v-model="scope.row.isAsOrder" />
           </template>
         </el-table-column>
 
-        <el-table-column label="승인 중량" width="90" align="center" header-align="center" :excel-formatter="scope => scope.approvedWeight ? scope.approvedWeight + 'g' : '-'">
+        <el-table-column label="재고 확인" width="150" align="center" header-align="center" :excel-formatter="scope => scope.stockId ? `재고 할당됨 (${scope.stockNo})` : '-'">
           <template #default="scope">
-            <span style="font-weight: bold; color: #409EFF;">{{ scope.row.approvedWeight ? scope.row.approvedWeight + 'g' : '-' }}</span>
+            <div v-if="scope.row.stockId" class="stock-allocated">
+              <el-tag type="success" size="small">재고 할당됨</el-tag>
+              <div class="stock-no-text">{{ scope.row.stockNo }}</div>
+              <el-button size="small" link type="danger" @click="clearStockAllocation(scope.row)">취소</el-button>
+            </div>
+            <div v-else-if="!scope.row.isSet && !scope.row.isChild && scope.row.productId">
+              <el-button
+                size="small"
+                :loading="scope.row.stockChecking"
+                @click="checkStock(scope.row)"
+              >
+                재고 확인
+              </el-button>
+              <div v-if="scope.row.stockChecked && scope.row.matchingStocks.length === 0" class="no-stock-text">
+                재고 없음
+              </div>
+              <el-select
+                v-else-if="scope.row.matchingStocks.length > 0"
+                placeholder="재고 선택"
+                size="small"
+                style="width: 100%; margin-top: 0.25rem;"
+                @change="(stockId) => allocateStock(scope.row, stockId)"
+              >
+                <el-option
+                  v-for="s in scope.row.matchingStocks"
+                  :key="s.id"
+                  :label="`${s.stockNo} (${s.actualWeight}g)`"
+                  :value="s.id"
+                />
+              </el-select>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          label="비용"
+          width="220"
+          align="center"
+          header-align="center"
+          :excel-formatter="(row) => `재료비: ${row.retailerConfirmMaterialCost || 0}\n수공비: ${row.retailerConfirmLaborCost || 0}`"
+        >
+          <template #default="scope">
+            <div class="request-item">
+              <label>재료비:</label>
+              <amount-input v-model="scope.row.retailerConfirmMaterialCost" placeholder="재료비" style="width: 120px;" />
+            </div>
+            <div class="request-item">
+              <label>수공비:</label>
+              <amount-input v-model="scope.row.retailerConfirmLaborCost" placeholder="수공비" style="width: 120px;" />
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="공장 의뢰"  align="center" header-align="center" width="200" :excel-formatter="scope => `중량: ${scope.requestedWeight || 0}g, 메모: ${scope.requestedMemo || '-'}`">
@@ -118,11 +165,16 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
-import { BottomLeft, Check } from '@element-plus/icons-vue';
+import { BottomLeft } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { updateOrderStatus } from '@/api/order';
+import { fetchStocks, exhaustStockItem } from '@/api/stock';
+import useUserStore from '@/store/modules/user';
 import BasePopup from '@/components/BasePopup/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
+import AmountInput from '@/components/AmountInput/index.vue';
+
+const userStore = useUserStore();
 
 const props = defineProps<{
   modelValue: boolean;
@@ -159,6 +211,7 @@ const initForm = () => {
 
     items.push({
       orderItemId: item.id,
+      productId: item.productId,
       productName: item.productName,
       productSetTitle: item.productSetTitle,
       productNo: item.productNo,
@@ -168,7 +221,7 @@ const initForm = () => {
       approvedWeight: item.approvedWeight || 0,
       approvedMemo: item.approvedMemo || '',
 
-      requestedWeight: item.requestedWeight || item.approvedWeight || 0,
+      requestedWeight: item.requestedWeight || item.approvedWeight || item.orderWeight || item.weight || 0,
       purity: item.purity || (item.productSetId ? '' : '14K'),
       color: item.color,
       isAsOrder: !!item.isAsOrder,
@@ -178,7 +231,14 @@ const initForm = () => {
       categoryLarge: item.categoryLarge,
       categoryMedium: item.categoryMedium,
       categorySmall: item.categorySmall,
-      depth: 0 
+      retailerConfirmMaterialCost: item.retailerConfirmMaterialCost || item.factoryPrice || 0,
+      retailerConfirmLaborCost: item.retailerConfirmLaborCost || item.laborCost || 0,
+      stockId: null as number | null,
+      stockNo: '',
+      stockChecking: false,
+      stockChecked: false,
+      matchingStocks: [] as any[],
+      depth: 0
     });
 
     if (item.children && item.children.length > 0) {
@@ -193,7 +253,7 @@ const initForm = () => {
           weight: child.weight,
           approvedWeight: child.approvedWeight || 0,
           approvedMemo: child.approvedMemo || '',
-          requestedWeight: child.requestedWeight || child.approvedWeight || 0,
+          requestedWeight: child.requestedWeight || child.approvedWeight || child.orderWeight || child.weight || 0,
           purity: child.purity || '14K',
           color: child.color,
           isAsOrder: !!child.isAsOrder,
@@ -202,8 +262,10 @@ const initForm = () => {
           categoryLarge: child.categoryLarge,
           categoryMedium: child.categoryMedium,
           categorySmall: child.categorySmall,
-          isChild: true, 
-          depth: 1 
+          retailerConfirmMaterialCost: child.retailerConfirmMaterialCost || child.factoryPrice || 0,
+          retailerConfirmLaborCost: child.retailerConfirmLaborCost || child.laborCost || 0,
+          isChild: true,
+          depth: 1
         });
       });
     }
@@ -224,6 +286,44 @@ const initForm = () => {
   }
 };
 
+const checkStock = async (row: any) => {
+  row.stockChecking = true;
+  try {
+    const res: any = await fetchStocks({
+      productId: row.productId,
+      purity: row.purity,
+      color: row.color,
+      companyId: userStore.companyId,
+      isExhausted: false,
+      status: 'ACTIVE',
+      pageSize: 50
+    });
+    row.matchingStocks = res.data.items || [];
+    row.stockChecked = true;
+    if (row.matchingStocks.length === 0) {
+      ElMessage.info('일치하는 재고가 없습니다. 공장 의뢰로 진행됩니다.');
+    }
+  } catch (error) {
+    console.error('Failed to check stock:', error);
+  } finally {
+    row.stockChecking = false;
+  }
+};
+
+const allocateStock = (row: any, stockId: number) => {
+  const stock = row.matchingStocks.find((s: any) => s.id === stockId);
+  if (!stock) return;
+  row.stockId = stock.id;
+  row.stockNo = stock.stockNo;
+};
+
+const clearStockAllocation = (row: any) => {
+  row.stockId = null;
+  row.stockNo = '';
+  row.stockChecked = false;
+  row.matchingStocks = [];
+};
+
 const handleClosed = () => {
   requestForm.items = [];
   requestForm.factoryRemarks = '';
@@ -235,23 +335,44 @@ const handleSubmit = async () => {
 
   submitLoading.value = true;
   try {
-    const data = {
-      status: 'FactoryRequested', 
-      factoryRemarks: requestForm.factoryRemarks,
-      deliveryDate: requestForm.deliveryDate,
+    const stockAllocatedItems = requestForm.items.filter(item => item.stockId);
+    const remainingItems = requestForm.items.filter(item => !item.stockId);
 
-      itemWeights: requestForm.items.map(item => ({
+    for (const item of stockAllocatedItems) {
+      await exhaustStockItem({
         orderItemId: item.orderItemId,
-        requestedWeight: item.requestedWeight,
-        purity: item.purity,
-        requestedMemo: item.requestedMemo
-      }))
-    };
+        stockId: item.stockId,
+        memo: `물류 승인 시 재고에서 자동 할당 (주문: ${props.order.orderNo})`
+      });
+    }
 
-    await updateOrderStatus(props.order.id, data);
-    ElMessage.success('공장 의뢰 처리가 완료되었습니다.');
+    if (remainingItems.length > 0) {
+      const data = {
+        status: 'FactoryRequested',
+        factoryRemarks: requestForm.factoryRemarks,
+        deliveryDate: requestForm.deliveryDate,
+
+        itemWeights: remainingItems.map(item => ({
+          orderItemId: item.orderItemId,
+          approvedWeight: item.requestedWeight,
+          requestedWeight: item.requestedWeight,
+          purity: item.purity,
+          requestedMemo: item.requestedMemo,
+          approvedMemo: item.requestedMemo,
+          isAsOrder: !!item.isAsOrder,
+          retailerConfirmMaterialCost: item.retailerConfirmMaterialCost,
+          retailerConfirmLaborCost: item.retailerConfirmLaborCost
+        }))
+      };
+
+      await updateOrderStatus(props.order.id, data);
+      ElMessage.success('공장 의뢰 처리가 완료되었습니다.');
+    } else {
+      ElMessage.success('모든 상품이 재고에서 할당되어 정산 대기 상태로 변경되었습니다.');
+    }
+
     visible.value = false;
-    emit('completed'); 
+    emit('completed');
   } catch (error) {
     console.error('Failed to update status:', error);
   } finally {
@@ -324,6 +445,22 @@ const tableRowClassName = ({ row }: { row: any }) => {
 }
 :deep(.child-row) {
   background-color: #fafafa;
+}
+.stock-allocated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+.stock-no-text {
+  font-size: 0.8125rem;
+  color: #67c23a;
+  font-weight: 600;
+}
+.no-stock-text {
+  font-size: 0.8125rem;
+  color: #909399;
+  margin-top: 0.25rem;
 }
 </style>
 

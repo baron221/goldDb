@@ -1,5 +1,5 @@
 ﻿<template>
-  <base-popup v-model="visible" :title="$t('admin.inspectionRequest.title')" width="90%" style="max-width: 1100px;" @close="handleClose">
+  <base-popup v-model="visible" :title="$t('admin.inspectionRequest.productDispatch')" width="90%" style="max-width: 1100px;" @close="handleClose">
     <el-form :model="completeForm" label-position="top">
       <base-table :data="completeForm.items" border style="width: 100%; margin-bottom: 1.25rem;" :row-class-name="tableRowClassName">
         <el-table-column
@@ -27,7 +27,7 @@
           :label="$t('admin.inspectionRequest.headers.options')"
           width="110"
           align="center"
-          :excel-formatter="(row: any) => [getCodeName(row.purity), row.color && row.color !== 'EMPTY' ? getCodeName(row.color) : ''].filter(Boolean).join(', ')"
+          :excel-formatter="(row: any) => [getCodeName(row.purity), row.color && row.color !== 'EMPTY' ? getCodeName(row.color) : '', row.size && row.size !== 'EMPTY' ? row.size : ''].filter(Boolean).join(', ')"
         >
           <template #default="scope">
             <div class="option-cell-luxury" style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center; justify-content: center;">
@@ -37,7 +37,10 @@
               <el-tag v-if="scope.row.color && scope.row.color !== 'EMPTY'" size="small" type="warning" effect="plain" style="font-size: 0.825rem; width: fit-content;">
                 {{ getCodeName(scope.row.color) }}
               </el-tag>
-              <span v-if="!scope.row.purity && !scope.row.color">-</span>
+              <el-tag v-if="scope.row.size && scope.row.size !== 'EMPTY'" size="small" type="success" effect="plain" style="font-size: 0.825rem; width: fit-content;">
+                {{ $t('admin.inspectionRequest.headers.size') }}: {{ scope.row.size }}
+              </el-tag>
+              <span v-if="!scope.row.purity && !scope.row.color && !scope.row.size">-</span>
             </div>
           </template>
         </el-table-column>
@@ -100,52 +103,6 @@
           </template>
         </el-table-column>
       </base-table>
-
-      <el-row :gutter="24" class="memo-action-row">
-        <el-col :xs="24" :sm="8" class="mb-4 sm:mb-0">
-          <el-form-item :label="$t('admin.inspectionRequest.labels.logisticsRemarks')">
-            <div class="memo-view-panel" style="min-height: 80px;">
-              <div class="memo-header-info">
-                <span class="info-item"><span class="label-tiny">{{ $t('admin.inspectionRequest.labels.company') }}</span> {{ props.order?.logisticsCompanyName || $t('dashboard.logistics.title') }}</span>
-                <span class="info-item date"><span class="label-tiny">{{ $t('admin.inspectionRequest.labels.date') }}</span> {{ parseTime(props.order?.updatedAt || props.order?.createdAt, '{y}-{m}-{d} {h}:{i}') }}</span>
-              </div>
-              <div class="memo-body-content">
-                <i class="fas fa-comment-dots quote-icon"></i>
-                <div class="memo-content">
-                  {{ completeForm.factoryRemarks || $t('admin.inspectionRequest.labels.noLogisticsMemo') }}
-                </div>
-              </div>
-            </div>
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="8" class="mb-4 sm:mb-0">
-          <el-form-item :label="$t('admin.inspectionRequest.labels.workOrderMemo')">
-            <div class="memo-view-panel" style="min-height: 80px;">
-              <div class="memo-header-info">
-                <span class="info-item"><span class="label-tiny">{{ $t('admin.inspectionRequest.labels.company') }}</span> {{ props.order?.manufacturerName || $t('dashboard.factory.title') }}</span>
-                <span class="info-item date"><span class="label-tiny">{{ $t('admin.inspectionRequest.labels.date') }}</span> {{ parseTime(props.order?.updatedAt || props.order?.createdAt, '{y}-{m}-{d} {h}:{i}') }}</span>
-              </div>
-              <div class="memo-body-content">
-                <i class="fas fa-comment-dots quote-icon"></i>
-                <div class="memo-content">
-                  {{ props.order?.workOrderRemarks || $t('admin.inspectionRequest.labels.noWorkOrderMemo') }}
-                </div>
-              </div>
-            </div>
-          </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="8">
-          <el-form-item :label="$t('admin.inspectionRequest.labels.inspectionMessage')">
-            <el-input
-              v-model="completeForm.inspectionRemarks"
-              type="textarea"
-              :rows="4"
-              :placeholder="$t('admin.inspectionRequest.placeholders.inspectionMsg')"
-              class="luxury-textarea"
-            />
-          </el-form-item>
-        </el-col>
-      </el-row>
     </el-form>
     <template #footer>
       <span class="dialog-footer">
@@ -164,8 +121,6 @@ import { useI18n } from 'vue-i18n';
 import { updateOrderStatus } from '@/api/order';
 import { ElMessage } from 'element-plus';
 import { BottomLeft } from '@element-plus/icons-vue';
-import { parseTime } from '@/utils';
-import { formatPrice } from '@/utils/format';
 import BasePopup from '@/components/BasePopup/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
 import AmountInput from '@/components/AmountInput/index.vue';
@@ -225,6 +180,7 @@ const initializeForm = () => {
       weight: item.weight,
       purity: item.purity,
       color: item.color,
+      size: item.size,
       factoryPrice: item.factoryPrice,
       laborCost: item.laborCost,
       factoryInputMaterialCost: item.factoryInputMaterialCost || item.retailerConfirmMaterialCost || item.factoryPrice || 0,
@@ -252,6 +208,7 @@ const initializeForm = () => {
           weight: child.weight,
           purity: child.purity,
           color: child.color,
+          size: child.size,
           factoryPrice: child.factoryPrice,
           laborCost: child.laborCost,
           factoryInputMaterialCost: child.factoryInputMaterialCost || child.retailerConfirmMaterialCost || child.factoryPrice || 0,

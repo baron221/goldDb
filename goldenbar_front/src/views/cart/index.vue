@@ -45,8 +45,6 @@
 
             <cart-order-summary
               v-model:main-customer-search="mainCustomerSearch"
-              v-model:order-memo="orderMemo"
-              v-model:request-memo="requestMemo"
               :selected-items="selectedItems"
               :total-price="totalPrice"
               :selected-customer-id="selectedCustomerId"
@@ -115,8 +113,6 @@ const cartItems = computed(() => store.cart()?.items || []);
 const selectedItems = ref<any[]>([]);
 const codeMap = computed(() => codeStore.codeMap);
 
-const orderMemo = ref('');
-const requestMemo = ref('');
 const selectedCustomerId = ref<number | null>(null);
 const mainCustomerSearch = ref('');
 const customerDialogVisible = ref(false);
@@ -203,7 +199,7 @@ const goToSetDetail = (id: number) => {
 };
 
 const goToShopping = () => {
-  router.push('/prd/pro_market');
+  router.push('/order/pro_market');
 };
 
 const handleCheckout = () => {
@@ -221,8 +217,6 @@ const handleCheckout = () => {
       const cartItemIds = selectedItems.value.map(item => item.id);
       await createOrder({
         cartItemIds,
-        orderMemo: orderMemo.value,
-        logisticsRemarks: requestMemo.value,
         customerId: selectedCustomerId.value || undefined
       });
       await store.cart().fetchCart();

@@ -164,6 +164,7 @@
       margin-bottom: 6px;
       display: flex;
       align-items: center;
+      gap: 8px;
       cursor: pointer;
 
       .order-no {
@@ -180,6 +181,29 @@
       .mr-1 {
         margin-right: 6px;
       }
+    }
+
+    .order-product-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 2px;
+      border: 1px solid #eae6df;
+      flex-shrink: 0;
+    }
+
+    .order-link-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .order-product-name {
+      font-size: 12px;
+      color: #606266;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .memo-text {

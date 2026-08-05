@@ -28,7 +28,12 @@
       </el-form-item>
       <el-form-item :label="$t('dashboard.factory.table.status')">
         <el-select v-model="localListQuery.status" :placeholder="$t('contact.form.placeholders.subject')" clearable @change="$emit('filter')">
-          <el-option v-for="item in orderStatusCodes" :key="item.code" :label="item.name" :value="item.code" />
+          <el-option label="주문접수" value="ORDERED" />
+          <el-option label="공장의뢰" value="LogisticsApproved,FactoryRequested,WorkOrderCreated" />
+          <el-option label="제품출고" value="InspectedRequested" />
+          <el-option label="물류도착" value="Inspected" />
+          <el-option label="정산" value="PENDING,PROCESSING,SETTLED" />
+          <el-option label="수령완료" value="DELIVERY_READY,DELIVERY_IN_TRANSIT,DELIVERED,Completed" />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('order.filters.dateRange')">

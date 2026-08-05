@@ -1,94 +1,77 @@
 <template>
-<div class="sidebar-widgets-wrapper">
-
-    <div class="sidebar-widget search-widget">
-      <h4 class="widget-title">{{ $t('productMarket.labels.searchTitle') }}</h4>
-      <div class="search-input-box">
-        <el-input
-          v-model="localFilters.search"
-          :placeholder="$t('productMarket.labels.searchPlaceholder')"
-          clearable
-          @keyup.enter="emit('filter')"
-          @clear="emit('filter')"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-      </div>
+<div class="market-filter-bar">
+    <div class="filter-widget search-widget">
+      <label class="widget-label">{{ $t('productMarket.labels.searchTitle') }}</label>
+      <el-input
+        v-model="localFilters.search"
+        :placeholder="$t('productMarket.labels.searchPlaceholder')"
+        clearable
+        class="filter-input"
+        @keyup.enter="emit('filter')"
+        @clear="emit('filter')"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
     </div>
 
-    <div class="sidebar-widget filter-widget" v-if="activeTab !== 'set'">
-      <h4 class="widget-title">{{ $t('productMarket.labels.categoryFilter') }}</h4>
-      <div class="category-selection-stack">
-        <common-select
-          v-model="localFilters.categoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          show-all
-          placeholder="대분류 전체"
-          class="sidebar-select"
-          @change="(val, opts) => emit('large-change', {val, opts})"
-        />
-        <common-select
-          v-model="localFilters.categoryMedium"
-          :parent-id="largeId"
-          placeholder="중분류 전체"
-          class="sidebar-select"
-          @change="(val, opts) => emit('medium-change', {val, opts})"
-        />
-        <common-select
-          v-model="localFilters.categorySmall"
-          :parent-id="mediumId"
-          placeholder="소분류 전체"
-          class="sidebar-select"
-          @change="emit('filter')"
-        />
-      </div>
-    </div>
-
-    <div class="sidebar-widget filter-widget set-categories" v-if="activeTab !== 'product'">
-      <h4 class="widget-title">{{ $t('productMarket.labels.setCategoryFilter') }}</h4>
-      <div class="category-selection-stack">
-        <common-select
-          v-model="localFilters.setCategoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          show-all
-          placeholder="세트 대분류"
-          class="sidebar-select"
-          @change="(val, opts) => emit('set-large-change', {val, opts})"
-        />
-        <common-select
-          v-model="localFilters.setCategoryMedium"
-          :parent-id="setLargeId"
-          placeholder="세트 중분류"
-          class="sidebar-select"
-          @change="(val, opts) => emit('set-medium-change', {val, opts})"
-        />
-        <common-select
-          v-model="localFilters.setCategorySmall"
-          :parent-id="setMediumId"
-          placeholder="세트 소분류"
-          class="sidebar-select"
-          @change="emit('filter')"
-        />
-      </div>
-    </div>
-
-    <div class="sidebar-widget company-widget">
-      <h4 class="widget-title">{{ $t('productMarket.labels.manufacturerFilter') }}</h4>
-      <company-select
-        v-model="localFilters.companyId"
-        placeholder="제조사 전체"
-        class="sidebar-select"
+    <div class="filter-widget">
+      <label class="widget-label">{{ $t('productMarket.labels.categoryFilter') }}</label>
+      <common-select
+        v-model="localFilters.categoryLarge"
+        group-code="PRODUCT_CATEGORY"
+        show-all
+        placeholder="대분류 전체"
+        class="filter-input"
         @change="emit('filter')"
       />
     </div>
 
-    <div class="sidebar-actions-wrap">
+    <div class="filter-widget">
+      <label class="widget-label">{{ $t('marketplace.filters.purity') }}</label>
+      <common-select
+        v-model="localFilters.purity"
+        group-code="MATERIAL_GRADE"
+        show-all
+        :placeholder="$t('marketplace.filters.purity')"
+        class="filter-input"
+        @change="emit('filter')"
+      />
+    </div>
+
+    <div class="filter-widget weight-widget">
+      <label class="widget-label">{{ $t('marketplace.filters.weightRange') }}</label>
+      <div class="range-inputs">
+        <el-input-number
+          v-model="localFilters.minWeight"
+          :min="0"
+          :precision="2"
+          :step="0.1"
+          controls-position="right"
+          :placeholder="$t('marketplace.filters.min')"
+          class="range-input"
+          @change="emit('filter')"
+        />
+        <span class="range-sep">~</span>
+        <el-input-number
+          v-model="localFilters.maxWeight"
+          :min="0"
+          :precision="2"
+          :step="0.1"
+          controls-position="right"
+          :placeholder="$t('marketplace.filters.max')"
+          class="range-input"
+          @change="emit('filter')"
+        />
+      </div>
+    </div>
+
+    <div class="filter-actions">
       <el-button type="primary" class="search-btn" @click="emit('filter')">
         <el-icon><Search /></el-icon> {{ $t('common.search') }}
       </el-button>
-      <el-button class="reset-all-btn" @click="emit('reset')">
+      <el-button class="reset-btn" @click="emit('reset')">
         <i class="fas fa-undo"></i> {{ $t('productMarket.labels.resetFilters') }}
       </el-button>
     </div>
@@ -99,19 +82,13 @@
 import { reactive, watch } from 'vue';
 import { Search } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
-import CompanySelect from '@/components/CompanySelect/index.vue';
 
 const props = defineProps<{
   filters: any;
-  activeTab: string;
-  largeId: number | null;
-  mediumId: number | null;
-  setLargeId: number | null;
-  setMediumId: number | null;
 }>();
 
 const emit = defineEmits([
-  'filter', 'reset', 'large-change', 'medium-change', 'set-large-change', 'set-medium-change', 'update:filters'
+  'filter', 'reset', 'update:filters'
 ]);
 
 const localFilters = reactive({ ...props.filters });
@@ -126,34 +103,94 @@ watch(localFilters, (newVal) => {
 </script>
 
 <style lang="scss" scoped>
-.sidebar-widgets-wrapper { display: flex; flex-direction: column; gap: 1.875rem; }
-.sidebar-widget {
-  border: 1px solid #eae6df; border-radius: 2px; padding: 1.625rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
-  &.set-categories { border-top: 3px solid #c5a880; }
-  .widget-title {
-    font-size: 0.875rem; font-weight: 600; margin: 0 0 1.25rem 0; padding-bottom: 0.95rem; padding-left: 0.9375rem; border-bottom: 1px solid #eae6df; text-transform: uppercase; letter-spacing: 0.5px; position: relative;
-    &::after { content: ''; position: absolute; bottom: 0; left: 0; top: 0; width: 3px; background-color: #c5a880; }
+.market-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 1.25rem 1.625rem;
+  border: 1px solid #eae6df;
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+  margin-bottom: 2rem;
+
+  :global(html.dark) & {
+    border-color: #2e2e2e;
   }
 }
-.category-selection-stack { display: flex; flex-direction: column; gap: 0.75rem; }
-.sidebar-select { width: 100% !important; }
-.sidebar-actions-wrap {
+
+.filter-widget {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  margin-top: 0.625rem;
+  gap: 0.5rem;
+  min-width: 180px;
+
+  &.search-widget {
+    flex: 1 1 240px;
+  }
+
+  &.weight-widget {
+    min-width: 220px;
+  }
 }
-.search-btn {
-  width: 100%;
-  height: 48px;
-  font-weight: 700;
-  letter-spacing: 1px;
+
+.widget-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #888;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.reset-all-btn {
-  width: 100%; height: 42px; border: 1px dashed #c5a880; color: #c5a880; background: #fdfcf9; border-radius: 2px; font-weight: 600; letter-spacing: 0.5px; transition: all 0.3s;
-  margin-left: 0 !important;
-  &:hover { background: #c5a880; color: white; border-style: solid; }
+
+.filter-input {
+  width: 100%;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .range-input {
+    width: 100%;
+  }
+
+  .range-sep {
+    color: #999;
+  }
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-left: auto;
+
+  .search-btn {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .reset-btn {
+    border: 1px dashed #c5a880;
+    color: #c5a880;
+    background: transparent;
+
+    &:hover {
+      background: #c5a880;
+      color: white;
+      border-style: solid;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-actions {
+    margin-left: 0;
+    width: 100%;
+
+    .el-button {
+      flex: 1;
+    }
+  }
 }
 </style>
-

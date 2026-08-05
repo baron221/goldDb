@@ -303,6 +303,8 @@ export default {
       LogisticsApproved: 'Approved',
       FactoryRequested: 'Requested',
       WorkOrderCreated: 'Work Order Created',
+      FactoryApproved: 'Factory Approved',
+      FactoryRejected: 'Factory Rejected',
       InspectedRequested: 'Inspected Requested',
       Inspected: 'Inspected',
       PENDING: 'Settlement Pending',
@@ -753,15 +755,19 @@ export default {
     },
     inspectionRequest: {
       title: 'Inspection Request',
+      productDispatch: 'Product Dispatch',
       print: 'Print Work Order',
+      printSticker: 'Print Work Order 2 (Sticker)',
       headers: {
         productInfo: 'Product Info',
         qty: 'Qty',
         options: 'Options',
+        size: 'Size',
         logisticsApproval: 'Logistics App',
         factoryRequest: 'Factory Req / Weight(g)',
         priceInfo: 'Price/Labor',
-        factoryInput: 'Factory Input'
+        factoryInput: 'Factory Input',
+        retailerConfirm: 'Logistics Confirmed Cost'
       },
       labels: {
         logisticsRemarks: 'Logistics Remarks (Read Only)',
@@ -1166,6 +1172,8 @@ export default {
       purity: 'Select Purity',
       color: 'Select Color',
       size: 'Select Size',
+      standardSize: 'Standard Size',
+      wantedSize: 'Desired Size',
       orderSizePlaceholder: 'Enter the size you want to order',
       memo: 'Order Memo',
       memoPlaceholder: 'Enter any request (optional)',
@@ -1372,6 +1380,7 @@ export default {
     saveAndContinue: 'Save & Continue',
     save: 'Save',
     nameRequired: 'Please enter a product name',
+    productNoRequired: 'Please enter a product number',
     categoryLargeRequired: 'Please select a main category',
     purityRequired: 'Please select at least one purity',
     colorsRequired: 'Please select at least one color',

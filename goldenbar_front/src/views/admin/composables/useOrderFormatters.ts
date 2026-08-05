@@ -2,8 +2,11 @@ import { computed } from 'vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import { isPostPendingStatus } from '@/utils/order';
+import useUserStore from '@/store/modules/user';
 
 export function useOrderFormatters(codeMap: any) {
+  const userStore = useUserStore();
+
   const formatDate = (date: string) => {
     return parseTime(date, '{y}-{m}-{d} {h}:{i}');
   };
@@ -14,11 +17,32 @@ export function useOrderFormatters(codeMap: any) {
 
   const getOrderTotalAmount = (order: any) => {
     const isPostPending = isPostPendingStatus(order.status);
+
+    // MFG is only ever owed what THEY themselves declared (factory input cost) -
+    // never the logistics-confirmed retailer price (or the order's settlementAmount,
+    // computed from that same figure), which may include logistics' own markup.
+    if (isPostPending && userStore.companyType === 'MFG' && order.orderItems && order.orderItems.length > 0) {
+      const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
+      return topLevelItems.reduce((acc: number, item: any) => {
+        const material = item.factoryInputMaterialCost || 0;
+        const labor = item.factoryInputLaborCost || 0;
+        return acc + (material + labor) * item.quantity;
+      }, 0);
+    }
+
+    // Orders that skip straight from 제품출고 to 정산 (PENDING) never get a logistics
+    // (retailerConfirm*) figure - only the factory's own input, or the amount the
+    // backend already settled on at PENDING (order.settlementAmount). Prefer whichever
+    // is actually populated instead of assuming retailerConfirm* is always set.
+    if (isPostPending && order.settlementAmount) {
+      return order.settlementAmount;
+    }
+
     if (isPostPending && order.orderItems && order.orderItems.length > 0) {
       const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
       return topLevelItems.reduce((acc: number, item: any) => {
-        const material = item.retailerConfirmMaterialCost || 0;
-        const labor = item.retailerConfirmLaborCost || 0;
+        const material = item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0;
+        const labor = item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0;
         return acc + (material + labor) * item.quantity;
       }, 0);
     }

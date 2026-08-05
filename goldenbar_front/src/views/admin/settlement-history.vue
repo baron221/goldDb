@@ -93,9 +93,29 @@
           </template>
         </el-table-column>
         <el-table-column :label="$t('order.filters.orderNo')" prop="orderNo" width="200" align="center" />
-        <el-table-column :label="$t('admin.settlement.filters.company')" width="180" align="center" prop="userDisplayName" :excel-formatter="(row) => `${row.userDisplayName} (${row.userName})`">
+        <el-table-column :label="$t('orderDetail.headers.productInfo')" min-width="220" :excel-formatter="productSummaryFormatter">
+          <template #default="{row}">
+            <div v-if="primaryOrderItem(row)" class="product-info-cell">
+              <el-image :src="primaryOrderItem(row).photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 40px; height: 40px;" />
+              <div class="product-text">
+                <div class="product-name">
+                  {{ primaryOrderItem(row).productName || primaryOrderItem(row).productSetTitle }}
+                  <el-tag v-if="orderItemCount(row) > 1" size="small" type="info" effect="plain" style="margin-left: 0.3125rem;">+{{ orderItemCount(row) - 1 }}</el-tag>
+                </div>
+                <div class="product-no">{{ primaryOrderItem(row).productNo }}</div>
+              </div>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="!isMfg" :label="$t('admin.settlement.filters.company')" width="180" align="center" prop="userDisplayName" :excel-formatter="(row) => `${row.userDisplayName} (${row.userName})`">
           <template #default="{row}">
             <span>{{ row.userDisplayName }} ({{ row.userName }})</span>
+          </template>
+        </el-table-column>
+        <el-table-column v-else label="물류" width="180" align="center" prop="logisticsCompanyName" :excel-formatter="(row) => row.logisticsCompanyName || '-'">
+          <template #default="{row}">
+            <span>{{ row.logisticsCompanyName || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column :label="$t('admin.settlement.summary.totalAmount')" width="150" align="right" prop="totalSettlementAmount" :excel-formatter="(row) => '₩ ' + formatPrice(calculateOrderTotalSettlement(row))">
@@ -103,7 +123,7 @@
             <span style="font-weight: bold; color: #f56c6c;">₩ {{ formatPrice(calculateOrderTotalSettlement(row)) }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="$t('admin.settlement.table.receivableLink')" width="150" align="center">
+        <el-table-column v-if="!isMfg" :label="$t('admin.settlement.table.receivableLink')" width="150" align="center">
           <template #default="{row}">
             <el-button link size="small" @click="goToReceivable(row.userId)">{{ $t('admin.settlement.table.receivableCheck') }}</el-button>
           </template>
@@ -131,46 +151,112 @@
     </el-card>
 
     <div id="print-area" v-if="printData" style="display: none;">
-      <div class="statement-print">
-        <h2 style="text-align: center;">{{ $t('admin.settlement.statement.title') }}</h2>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 1.25rem;">
-          <div>
-            <p><strong>{{ $t('order.filters.orderNo') }}:</strong> {{ printData.orderNo }}</p>
-            <p><strong>{{ $t('admin.settlement.filters.company') }}:</strong> {{ printData.userDisplayName }} ({{ printData.userName }})</p>
-            <p><strong>{{ $t('orderDetail.headers.requestedWeight') }}:</strong> {{ formatDate(printData.createdAt) }}</p>
+      <div class="receipt-double-container">
+        <template v-for="copyType in ['고객용', '보관용']" :key="copyType">
+          <div class="receipt-copy-block">
+            <!-- Header Table -->
+            <table class="receipt-header-table">
+              <tr>
+                <td class="header-title-cell">
+                  <span class="company-tag">[{{ isMfg ? (printData.companyName || '제조사') : (printData.userDisplayName || printData.userName || printData.companyName || '거래처') }}]</span>
+                  <span class="main-title">임가공 거래 명세서</span>
+                  <span class="copy-badge" :class="{ 'blue-badge': copyType === '고객용' }">({{ copyType }})</span>
+                </td>
+                <td class="supplier-info-cell" rowspan="2">
+                  <div>공급자: {{ isMfg ? (printData.companyName || '제조사') : (printData.logisticsCompanyName || '골든바') }}</div>
+                  <div>전 화: {{ printData.logisticsCompanyPhone || printData.userPhone || '051-633-1116' }}</div>
+                  <div>팩 스: {{ printData.logisticsCompanyFax || '-' }}</div>
+                </td>
+              </tr>
+              <tr>
+                <td class="header-meta-cell">
+                  <span>일자: {{ formatDate(printData.createdAt) }}</span>
+                  <span class="meta-separator">|</span>
+                  <span>거래No: {{ printData.id || printData.orderNo }}</span>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Order Items Table -->
+            <table class="receipt-items-table">
+              <thead>
+                <tr>
+                  <th width="12%">No</th>
+                  <th width="42%">주문내용</th>
+                  <th width="12%">함량</th>
+                  <th width="13%">실중량</th>
+                  <th width="10%">주문수량</th>
+                  <th width="11%">공임비</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in flattenOrderItems(printData.orderItems)" :key="item.id">
+                  <td align="center">{{ item.productNo || item.id }}</td>
+                  <td>
+                    <div class="item-info-flex">
+                      <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
+                      <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
+                    </div>
+                  </td>
+                  <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
+                  <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
+                  <td align="center">{{ item.quantity }}개</td>
+                  <td align="right">{{ formatPrice(isMfg ? ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1) : (item.settlementAmount || item.totalPrice || 0)) }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Settlement Balance Table -->
+            <table class="receipt-balance-table">
+              <thead>
+                <tr>
+                  <th width="30%"></th>
+                  <th width="22%">순금(g)</th>
+                  <th width="24%">공임 및 현금</th>
+                  <th width="24%">금액 합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="row-label">최근 결제</td>
+                  <td></td>
+                  <td></td>
+                  <td align="center" style="font-size: 9px;">{{ formatDate(printData.createdAt) }}</td>
+                </tr>
+                <tr>
+                  <td class="row-label">거래 전 미수(A)</td>
+                  <td align="right">{{ (printData.beforeWeight || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(printData.beforeAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">판매(B)</td>
+                  <td align="right">{{ (calculateOrderTotalPureWeight(printData) || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(calculateOrderTotalSettlement(printData) || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">결제(C)</td>
+                  <td align="right">{{ (printData.paidWeight || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(printData.paidAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">할인(D)</td>
+                  <td align="right">0.00</td>
+                  <td align="right">{{ formatPrice(printData.discountAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr class="after-balance-row">
+                  <td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td>
+                  <td align="right"><strong>{{ ((printData.beforeWeight || 0) + (calculateOrderTotalPureWeight(printData) || 0) - (printData.paidWeight || 0)).toFixed(2) }}</strong></td>
+                  <td align="right"><strong>{{ formatPrice((printData.beforeAmount || 0) + (calculateOrderTotalSettlement(printData) || 0) - (printData.paidAmount || 0) - (printData.discountAmount || 0)) }}</strong></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div style="text-align: right;">
-            <p><strong>{{ $t('admin.settlement.statement.supplier') }}:</strong> {{ $t('admin.settlement.statement.companyName') }}</p>
-            <p>(인)</p>
-          </div>
-        </div>
-        <table border="1" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th>{{ $t('productDetail.gemstoneInfo.gemstoneName') }}</th>
-              <th>{{ $t('orderDetail.headers.qty') }}</th>
-              <th>{{ $t('orderDetail.headers.actualWeight') }}</th>
-              <th>{{ $t('productDetail.labels.purity') }}</th>
-              <th>{{ $t('orderDetail.settlement.labor') }}</th>
-              <th>{{ $t('admin.settlement.table.amount') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in flattenOrderItems(printData.orderItems)" :key="item.id">
-              <td>{{ item.productName || item.productSetTitle }}</td>
-              <td align="center">{{ item.quantity }}</td>
-              <td align="center">{{ item.actualWeight }}g</td>
-              <td align="center">{{ item.purity }}</td>
-              <td align="right">₩ {{ formatPrice(item.settlementAmount) }}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" align="right"><strong>{{ $t('orderDetail.settlement.total') }} {{ $t('orderDetail.headers.price') }}</strong></td>
-              <td align="right"><strong>₩ {{ formatPrice(calculateOrderTotalSettlement(printData)) }}</strong></td>
-            </tr>
-          </tfoot>
-        </table>
+        </template>
       </div>
     </div>
   </div>
@@ -185,11 +271,14 @@ import { Printer } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 import BaseTable from '@/components/BaseTable/index.vue';
 import SettlementHistoryFilter from './components/SettlementHistoryFilter.vue';
 
 const { isMobile } = useMobile();
 const router = useRouter();
+const userStore = useUserStore();
+const isMfg = computed(() => userStore.companyType === 'MFG');
 
 const listLoading = ref(true);
 const summaryLoading = ref(true);
@@ -239,13 +328,29 @@ const calculatePurityWeight = (weight: number, purity: string) => {
   if (!weight) return '0.00';
   let ratio = 0;
   switch (purity) {
-    case '14K': ratio = 0.585; break;
-    case '18K': ratio = 0.75; break;
+    case '14K': ratio = 0.6435; break;
+    case '18K': ratio = 0.825; break;
     case '24K': ratio = 1.0; break;
     case 'PT': ratio = 0.95; break;
     default: ratio = 0;
   }
   return (weight * ratio).toFixed(2);
+};
+
+const primaryOrderItem = (row: any) => {
+  return row.orderItems && row.orderItems.length > 0 ? row.orderItems[0] : null;
+};
+
+const orderItemCount = (row: any) => {
+  return row.orderItems ? row.orderItems.length : 0;
+};
+
+const productSummaryFormatter = (row: any) => {
+  const item = primaryOrderItem(row);
+  if (!item) return '-';
+  const name = item.productName || item.productSetTitle || '';
+  const extra = orderItemCount(row) > 1 ? ` 외 ${orderItemCount(row) - 1}건` : '';
+  return `${name}${extra}`;
 };
 
 const flattenOrderItems = (orderItems: any[]) => {
@@ -262,12 +367,59 @@ const flattenOrderItems = (orderItems: any[]) => {
 };
 
 const calculateOrderTotalSettlement = (order: any) => {
+  // MFG only ever sees what THEY themselves declared (factory input cost) - the
+  // retailer-facing settlement amount may include logistics' own markup.
+  if (isMfg.value) {
+    let mfgTotal = 0;
+    order.orderItems.forEach((item: any) => {
+      mfgTotal += ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1);
+      if (item.children) {
+        item.children.forEach((c: any) => {
+          mfgTotal += ((c.factoryInputMaterialCost || 0) + (c.factoryInputLaborCost || 0)) * (c.quantity || 1);
+        });
+      }
+    });
+    return mfgTotal;
+  }
+
   let total = 0;
   order.orderItems.forEach((item: any) => {
     total += (item.settlementAmount || 0);
     if (item.children) {
       item.children.forEach((c: any) => {
         total += (c.settlementAmount || 0);
+      });
+    }
+  });
+  return total;
+};
+
+const calculateOrderTotalPureWeight = (order: any) => {
+  if (!order || !order.orderItems) return 0;
+  let total = 0;
+  order.orderItems.forEach((item: any) => {
+    const weight = item.actualWeight || item.requestedWeight || item.confirmedWeight || 0;
+    let ratio = 0;
+    switch (item.purity) {
+      case '14K': ratio = 0.6435; break;
+      case '18K': ratio = 0.825; break;
+      case '24K': ratio = 1.0; break;
+      case 'PT': ratio = 0.95; break;
+      default: ratio = 0;
+    }
+    total += weight * ratio * (item.quantity || 1);
+    if (item.children) {
+      item.children.forEach((c: any) => {
+        const cWeight = c.actualWeight || c.requestedWeight || c.confirmedWeight || 0;
+        let cRatio = 0;
+        switch (c.purity) {
+          case '14K': cRatio = 0.6435; break;
+          case '18K': cRatio = 0.825; break;
+          case '24K': cRatio = 1.0; break;
+          case 'PT': cRatio = 0.95; break;
+          default: cRatio = 0;
+        }
+        total += cWeight * cRatio * (c.quantity || 1);
       });
     }
   });
@@ -325,7 +477,7 @@ const resetQuery = () => {
 
 const goToReceivable = (userId: number) => {
   router.push({
-    path: '/admin/receivable',
+    path: '/admin/receivable-management',
     query: { userId }
   });
 };
@@ -338,13 +490,47 @@ const printStatement = (row: any) => {
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      printWindow.document.write('<html><head><title>거래명세서 출력</title>');
-      printWindow.document.write('<style>table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid black; padding: 0.5rem; font-size: 0.95rem; } th { background-color: #f2f2f2; }</style>');
-      printWindow.document.write('</head><body>');
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>거래명세서 - ${row.orderNo || ''}</title>
+          <style>
+            @page { size: A4 landscape; margin: 8mm; }
+            body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #111; margin: 0; padding: 5px; background: #fff; }
+            .receipt-double-container { display: flex; gap: 6mm; width: 100%; box-sizing: border-box; }
+            .receipt-copy-block { flex: 1; min-width: 0; border: 1.5px solid #222; padding: 6px; background: #fff; box-sizing: border-box; }
+
+            .receipt-header-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #333; }
+            .receipt-header-table td { padding: 4px 6px; border: 1px solid #333; vertical-align: top; }
+            .header-title-cell { font-size: 12px; font-weight: bold; }
+            .company-tag { color: #333; margin-right: 4px; }
+            .main-title { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
+            .copy-badge { font-weight: bold; margin-left: 4px; color: #222; }
+            .copy-badge.blue-badge { color: #1d4ed8; }
+            .header-meta-cell { font-size: 10px; color: #444; background: #fafafa; }
+            .meta-separator { margin: 0 4px; color: #aaa; }
+            .supplier-info-cell { font-size: 10px; text-align: left; width: 35%; background: #fff; line-height: 1.3; }
+
+            .receipt-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
+            .receipt-items-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px 2px; font-weight: bold; text-align: center; color: #222; }
+            .receipt-items-table td { border: 1px solid #333; padding: 3px; vertical-align: middle; }
+            .item-info-flex { display: flex; align-items: center; gap: 4px; }
+            .item-img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; border: 1px solid #ccc; }
+            .item-name { font-weight: 600; }
+
+            .receipt-balance-table { width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10px; }
+            .receipt-balance-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
+            .receipt-balance-table td { border: 1px solid #333; padding: 3px 5px; }
+            .receipt-balance-table .row-label { background-color: #fafafa; font-weight: 600; text-align: left; }
+            .receipt-balance-table .after-balance-row td { background-color: #f8f9fa; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+      `);
       printWindow.document.write(printContents);
+      printWindow.document.write('<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>');
       printWindow.document.write('</body></html>');
       printWindow.document.close();
-      printWindow.print();
     }
   }, 100);
 };

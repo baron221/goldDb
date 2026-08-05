@@ -1,15 +1,31 @@
-export function printBulkBarcode(selectedGroups: any[], codeMap: any) {
+import QRCode from 'qrcode';
+
+// Generates the QR code locally (data URI) instead of relying on an external
+// HTTP barcode API — removes the network dependency that caused blank
+// barcodes / premature print-window closes on slow connections.
+async function generateQrDataUrl(text: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(text || '-', { width: 200, margin: 1 });
+  } catch (error) {
+    console.error('Failed to generate QR code:', error);
+    return '';
+  }
+}
+
+export async function printBulkBarcode(selectedGroups: any[], codeMap: any) {
   const allItems = selectedGroups.flatMap(g => g.items);
   if (allItems.length === 0) return;
 
   const win = window.open('', '_blank');
   if (!win) return;
 
+  const qrDataUrls = await Promise.all(allItems.map((item) => generateQrDataUrl(item.stockNo || '')));
+
   let labelsHtml = '';
 
   allItems.forEach((item, index) => {
     const stockNo = item.stockNo || '';
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(stockNo)}&scale=3&includetext=false`;
+    const barcodeUrl = qrDataUrls[index];
 
     const productName = item.productName || '-';
     const productNo = item.productNo || '-';
@@ -151,9 +167,8 @@ export function printBulkBarcode(selectedGroups: any[], codeMap: any) {
   win.document.close();
 }
 
-export function printBarcode(qrInfo: any, codeMap: any, mfgLabel: string) {
+export async function printBarcode(qrInfo: any, codeMap: any, mfgLabel: string) {
   const stockNo = qrInfo?.stockNo || '';
-  const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(stockNo)}&scale=3&includetext=false`;
 
   const productName = qrInfo?.productName || '-';
   const productNo = qrInfo?.productNo || '-';
@@ -164,6 +179,8 @@ export function printBarcode(qrInfo: any, codeMap: any, mfgLabel: string) {
 
   const win = window.open('', '_blank');
   if (!win) return;
+
+  const barcodeUrl = await generateQrDataUrl(stockNo);
 
   win.document.write(`
     <html>

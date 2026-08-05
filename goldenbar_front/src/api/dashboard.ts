@@ -48,3 +48,10 @@ export function getPartnerRetailerStats() {
     method: 'get'
   });
 }
+
+export function getPartnerLogisticsStats() {
+  return request({
+    url: '/dashboard/partner-logistics',
+    method: 'get'
+  });
+}

@@ -40,6 +40,13 @@
                 <div v-if="row.userDisplayName" style="color: #909399; font-size: 0.8875rem;">({{ row.userDisplayName }})</div>
               </template>
             </el-table-column>
+            <el-table-column label="미납 순금(g)" align="right" width="100" :excel-formatter="(row) => (row.totalReceivableWeight || 0).toFixed(2)">
+              <template #default="{row}">
+                <span class="amount-text" :class="{'has-debt': row.totalReceivableWeight > 0}">
+                  {{ (row.totalReceivableWeight || 0).toFixed(2) }}
+                </span>
+              </template>
+            </el-table-column>
             <el-table-column label="총 청구액" align="right" width="100" :excel-formatter="(row) => formatPrice(row.totalCharge)">
               <template #default="{row}">
                 <span style="color: #909399;">
@@ -127,14 +134,38 @@
                   <span v-else>-</span>
                 </template>
               </el-table-column>
+              <el-table-column label="순금(g)" align="right" width="100" :excel-formatter="(row) => row.weight ? `${row.type === 'CHARGE' ? '+' : '-'}${row.weight.toFixed(2)}` : '-'">
+                <template #default="{row}">
+                  <span v-if="row.weight" :class="row.type === 'CHARGE' ? 'text-danger' : 'text-success'">
+                    {{ row.type === 'CHARGE' ? '+' : '-' }}{{ row.weight.toFixed(2) }}
+                  </span>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="잔여 순금(g)" align="right" width="100" :excel-formatter="(row) => row.type === 'CHARGE' ? row.remainingWeight.toFixed(2) : '-'">
+                <template #default="{row}">
+                  <span v-if="row.type === 'CHARGE'" class="text-gray">{{ row.remainingWeight.toFixed(2) }}</span>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
               <el-table-column label="수납방법" width="100" align="center" :excel-formatter="(row) => row.settlementMethod ? codeStore.getCodeName(row.settlementMethod) : '-'">
                 <template #default="{row}">
                   {{ row.settlementMethod ? codeStore.getCodeName(row.settlementMethod) : '-' }}
                 </template>
               </el-table-column>
-              <el-table-column label="관련 주문/메모" min-width="200" :excel-formatter="(row) => (row.orderNo ? row.orderNo + '\n' : '') + row.memo">
+              <el-table-column label="관련 주문/메모" min-width="260" :excel-formatter="(row) => (row.orderNo ? row.orderNo + (row.productName ? ' - ' + row.productName : '') + '\n' : '') + row.memo">
                 <template #default="{row}">
-                  <div v-if="row.orderNo" class="order-link">{{ row.orderNo }}</div>
+                  <div v-if="row.orderNo" class="order-link-row" @click="goToOrder(row.orderNo)">
+                    <el-image :src="getThumbnailUrl(row.productPhotoUrl) || defaultImage" fit="cover" class="order-link-thumb">
+                      <template #error>
+                        <el-image :src="defaultImage" fit="cover" class="order-link-thumb" />
+                      </template>
+                    </el-image>
+                    <div class="order-link-info">
+                      <span class="order-link">{{ row.orderNo }}</span>
+                      <span v-if="row.productName" class="order-link-product">{{ row.productName }}</span>
+                    </div>
+                  </div>
                   <div class="memo-text">{{ row.memo }}</div>
                 </template>
               </el-table-column>
@@ -155,15 +186,23 @@
 <script setup lang="ts">
 
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
 import { getUserSummaries, getReceivables } from '@/api/receivable';
 import { formatPrice } from '@/utils/format';
+import { getThumbnailUrl } from '@/utils';
 import BaseTable from '@/components/BaseTable/index.vue';
 import ReceivableDepositDialog from './components/ReceivableDepositDialog.vue';
 import useCodeStore from '@/store/modules/code';
 import dayjs from 'dayjs';
 
+const router = useRouter();
+const defaultImage = '/thumb_no_img.png';
 const codeStore = useCodeStore();
+
+const goToOrder = (orderNo: string) => {
+  router.push({ path: '/order/order-tracking', query: { orderNo } });
+};
 const codeMap = computed(() => codeStore.codeMap);
 
 const summaryLoading = ref(false);

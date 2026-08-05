@@ -5,10 +5,22 @@
       <el-dropdown-menu>
 
         <el-dropdown-item
-          v-if="props.userCategory === 'MFG' && (props.order.status === 'FactoryRequested' || props.order.status === 'REQUEST_CLOSE_BY_AGREEMENT')"
+          v-if="props.userCategory === 'MFG' && ['FactoryRequested', 'WorkOrderCreated', 'REQUEST_CLOSE_BY_AGREEMENT'].includes(props.order.status)"
           @click="$emit('inspection-request', props.order)"
         >
-          {{ $t('admin.inspectionRequest.title') }}
+          {{ $t('admin.inspectionRequest.productDispatch') }}
+        </el-dropdown-item>
+        <el-dropdown-item
+          v-if="props.userCategory === 'MFG' && ['FactoryRequested', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
+          @click="handlePrintWorkOrder(props.order)"
+        >
+          {{ $t('admin.inspectionRequest.print') }}
+        </el-dropdown-item>
+        <el-dropdown-item
+          v-if="props.userCategory === 'MFG' && ['FactoryRequested', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
+          @click="handlePrintWorkOrderSticker(props.order)"
+        >
+          {{ $t('admin.inspectionRequest.printSticker') }}
         </el-dropdown-item>
         <el-dropdown-item
           v-if="props.userCategory === 'MFG' && props.order.status === 'REQUEST_CLOSE_BY_AGREEMENT'"
@@ -19,32 +31,18 @@
         </el-dropdown-item>
 
         <el-dropdown-item
-          v-if="props.userCategory !== 'MFG' && props.order.status === 'ORDERED'"
-          @click="$emit('approve', props.order)"
-          :disabled="!isActionEnabled(props.order)"
-        >
-          {{ $t('order.status.LogisticsApproved') }}
-        </el-dropdown-item>
-        <el-dropdown-item
-          v-if="props.userCategory !== 'MFG' && props.order.status === 'LogisticsApproved'"
+          v-if="props.userCategory !== 'MFG' && (props.order.status === 'ORDERED' || props.order.status === 'LogisticsApproved')"
           @click="$emit('factory-request', props.order)"
           :disabled="!isActionEnabled(props.order)"
         >
           {{ $t('order.status.FactoryRequested') }}
         </el-dropdown-item>
         <el-dropdown-item
-          v-if="props.userCategory !== 'MFG' && props.order.status === 'InspectedRequested'"
+          v-if="props.userCategory !== 'MFG' && (props.order.status === 'InspectedRequested' || props.order.status === 'Inspected')"
           @click="$emit('inspection', props.order)"
           :disabled="!isActionEnabled(props.order)"
         >
-          {{ $t('order.status.Inspected') }}
-        </el-dropdown-item>
-        <el-dropdown-item
-          v-if="props.userCategory !== 'MFG' && props.order.status === 'Inspected'"
-          @click="$emit('settlement-start', props.order)"
-          :disabled="!isActionEnabled(props.order)"
-        >
-          {{ $t('order.tabs.settlement') }}
+          {{ getStatusLabel('Inspected', props.userCategory) }}
         </el-dropdown-item>
         <el-dropdown-item
           v-if="props.userCategory !== 'MFG' && props.order.status === 'PROCESSING'"
@@ -158,10 +156,11 @@
 <script setup lang="ts">
 
 import { MoreFilled, Delete, Box, Refresh, Clock } from '@element-plus/icons-vue';
-import { isStatementVisibleStatus } from '@/utils/order';
+import { isStatementVisibleStatus, getStatusLabel } from '@/utils/order';
 import { getOrderStatementPdf } from '@/api/order';
 import { ElMessage } from 'element-plus';
 import useUserStore from '@/store/modules/user';
+import { printWorkOrder, printWorkOrderSticker } from '@/views/admin/utils/workOrderPrint';
 const userStore = useUserStore();
 
 const props = defineProps({
@@ -172,15 +171,17 @@ const props = defineProps({
   userCategory: {
     type: String,
     default: ''
+  },
+  codeMap: {
+    type: Object,
+    default: () => ({})
   }
 });
 
 defineEmits([
-  'approve',
   'factory-request',
   'inspection',
   'inspection-request',
-  'settlement-start',
   'settlement-confirm',
   'cancel',
   'stock-exhaustion',
@@ -222,6 +223,78 @@ const hasMainAction = (status: string) => {
     'DELIVERY_IN_TRANSIT'
   ];
   return mainStatuses.includes(status);
+};
+
+const buildWorkOrderItems = (order: any) => {
+  const items: any[] = [];
+  (order.orderItems || []).forEach((item: any) => {
+    items.push({
+      orderItemId: item.id,
+      productName: item.productName,
+      productSetTitle: item.productSetTitle,
+      productNo: item.productNo,
+      purity: item.purity,
+      color: item.color,
+      size: item.size,
+      quantity: item.quantity,
+      requestedWeight: item.requestedWeight || item.actualWeight,
+      memo: item.memo,
+      requestedMemo: item.requestedMemo,
+      inspectionMemo: item.inspectionMemo,
+      isAsOrder: !!item.isAsOrder,
+      isSet: !!item.productSetId,
+      manufacturerName: item.manufacturerName,
+      isChild: false
+    });
+
+    (item.children || []).forEach((child: any) => {
+      items.push({
+        orderItemId: child.id,
+        productName: child.productName,
+        productSetTitle: child.productSetTitle,
+        productNo: child.productNo,
+        purity: child.purity,
+        color: child.color,
+        size: child.size,
+        quantity: child.quantity,
+        requestedWeight: child.requestedWeight || child.actualWeight,
+        memo: child.memo,
+        requestedMemo: child.requestedMemo,
+        inspectionMemo: child.inspectionMemo,
+        isAsOrder: !!child.isAsOrder,
+        manufacturerName: child.manufacturerName,
+        isChild: true
+      });
+    });
+  });
+  return items;
+};
+
+const handlePrintWorkOrder = (order: any) => {
+  printWorkOrder(
+    {
+      orderNo: order.orderNo,
+      logisticsCompanyName: order.logisticsCompanyName,
+      manufacturerName: order.manufacturerName,
+      factoryRemarks: order.factoryRemarks,
+      workOrderRemarks: order.workOrderRemarks
+    },
+    buildWorkOrderItems(order),
+    props.codeMap as Record<string, string>
+  );
+};
+
+const handlePrintWorkOrderSticker = (order: any) => {
+  printWorkOrderSticker(
+    {
+      orderNo: order.orderNo,
+      orderDate: order.createdAt,
+      logisticsCompanyName: order.logisticsCompanyName,
+      manufacturerName: order.manufacturerName
+    },
+    buildWorkOrderItems(order),
+    props.codeMap as Record<string, string>
+  );
 };
 
 const handleDownloadStoredPdf = async (order: any) => {

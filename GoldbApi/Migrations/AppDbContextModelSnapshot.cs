@@ -290,6 +290,12 @@ namespace GoldbApi.Migrations
                         .HasColumnName("is_deleted")
                         .HasComment("삭제 여부");
 
+                    b.Property<string>("Memo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("memo")
+                        .HasComment("주문 메모");
+
                     b.Property<int?>("ProductId")
                         .HasColumnType("integer")
                         .HasColumnName("product_id")
@@ -310,6 +316,12 @@ namespace GoldbApi.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("quantity")
                         .HasComment("수량");
+
+                    b.Property<string>("Size")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("size")
+                        .HasComment("사이즈");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -1739,6 +1751,11 @@ namespace GoldbApi.Migrations
                         .HasColumnName("group_order_no")
                         .HasComment("그룹주문번호");
 
+                    b.Property<int?>("HandledByUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("handled_by_user_id")
+                        .HasComment("담당자 ID (대리 주문을 처리한 직원)");
+
                     b.Property<string>("InspectionRemarks")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1842,6 +1859,9 @@ namespace GoldbApi.Migrations
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_orders_customer_id");
 
+                    b.HasIndex("HandledByUserId")
+                        .HasDatabaseName("ix_orders_handled_by_user_id");
+
                     b.HasIndex("LogisticsCompanyId")
                         .HasDatabaseName("ix_orders_logistics_company_id");
 
@@ -1943,6 +1963,12 @@ namespace GoldbApi.Migrations
                         .HasColumnName("logistics_memo")
                         .HasComment("물류 검수 메모");
 
+                    b.Property<string>("Memo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("memo")
+                        .HasComment("주문 메모");
+
                     b.Property<int>("OrderId")
                         .HasColumnType("integer")
                         .HasColumnName("order_id")
@@ -2025,6 +2051,12 @@ namespace GoldbApi.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("settlement_ratio")
                         .HasComment("정산 비율");
+
+                    b.Property<string>("Size")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("size")
+                        .HasComment("사이즈");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
@@ -2186,6 +2218,114 @@ namespace GoldbApi.Migrations
                     b.ToTable("order_status_histories", "goldb", t =>
                         {
                             t.HasComment("주문 상태 변경 이력");
+                        });
+                });
+
+            modelBuilder.Entity("GoldbApi.Models.Payable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("생성 일시");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by")
+                        .HasComment("생성자 ID");
+
+                    b.Property<decimal>("Discount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("discount")
+                        .HasComment("할인 금액");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_cancelled")
+                        .HasComment("취소 여부");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted")
+                        .HasComment("삭제 여부");
+
+                    b.Property<int>("LogisticsCompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("logistics_company_id");
+
+                    b.Property<int>("ManufacturerCompanyId")
+                        .HasColumnType("integer")
+                        .HasColumnName("manufacturer_company_id");
+
+                    b.Property<string>("Memo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("memo");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_id");
+
+                    b.Property<decimal>("RemainingAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("remaining_amount");
+
+                    b.Property<decimal>("RemainingWeight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("remaining_weight")
+                        .HasComment("잔여 순금 중량(g)");
+
+                    b.Property<string>("SettlementMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("settlement_method");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("수정 일시");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by")
+                        .HasComment("수정자 ID");
+
+                    b.Property<decimal>("Weight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("weight")
+                        .HasComment("순금 중량(g)");
+
+                    b.HasKey("Id")
+                        .HasName("pk_payables");
+
+                    b.HasIndex("LogisticsCompanyId")
+                        .HasDatabaseName("ix_payables_logistics_company_id");
+
+                    b.HasIndex("ManufacturerCompanyId")
+                        .HasDatabaseName("ix_payables_manufacturer_company_id");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_payables_order_id");
+
+                    b.ToTable("payables", "goldb", t =>
+                        {
+                            t.HasComment("물류-공장 정산 내역 (물류가 공장에 지급해야 할 금액)");
                         });
                 });
 
@@ -2904,6 +3044,16 @@ namespace GoldbApi.Migrations
                         .HasColumnName("created_by")
                         .HasComment("생성자 ID");
 
+                    b.Property<decimal>("Discount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("discount")
+                        .HasComment("할인 금액");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_cancelled")
+                        .HasComment("취소 여부");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted")
@@ -2921,6 +3071,11 @@ namespace GoldbApi.Migrations
                     b.Property<decimal>("RemainingAmount")
                         .HasColumnType("numeric")
                         .HasColumnName("remaining_amount");
+
+                    b.Property<decimal>("RemainingWeight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("remaining_weight")
+                        .HasComment("잔여 순금 중량(g)");
 
                     b.Property<string>("SettlementMethod")
                         .HasMaxLength(20)
@@ -2947,6 +3102,11 @@ namespace GoldbApi.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("user_id");
 
+                    b.Property<decimal>("Weight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("weight")
+                        .HasComment("순금 중량(g)");
+
                     b.HasKey("Id")
                         .HasName("pk_receivables");
 
@@ -2959,6 +3119,72 @@ namespace GoldbApi.Migrations
                     b.ToTable("receivables", "goldb", t =>
                         {
                             t.HasComment("미수금 내역");
+                        });
+                });
+
+            modelBuilder.Entity("GoldbApi.Models.ReceivableApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AppliedAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("applied_amount");
+
+                    b.Property<decimal>("AppliedWeight")
+                        .HasColumnType("numeric")
+                        .HasColumnName("applied_weight")
+                        .HasComment("적용된 순금 중량(g)");
+
+                    b.Property<int>("ChargeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("charge_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at")
+                        .HasComment("생성 일시");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by")
+                        .HasComment("생성자 ID");
+
+                    b.Property<int>("DepositId")
+                        .HasColumnType("integer")
+                        .HasColumnName("deposit_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted")
+                        .HasComment("삭제 여부");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at")
+                        .HasComment("수정 일시");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by")
+                        .HasComment("수정자 ID");
+
+                    b.HasKey("Id")
+                        .HasName("pk_receivable_applications");
+
+                    b.HasIndex("ChargeId")
+                        .HasDatabaseName("ix_receivable_applications_charge_id");
+
+                    b.HasIndex("DepositId")
+                        .HasDatabaseName("ix_receivable_applications_deposit_id");
+
+                    b.ToTable("receivable_applications", "goldb", t =>
+                        {
+                            t.HasComment("입금이 어느 청구건에 얼마나 적용됐는지 기록 (정산 내역 추적용)");
                         });
                 });
 
@@ -3036,7 +3262,7 @@ namespace GoldbApi.Migrations
                     b.Property<decimal>("ActualWeight")
                         .HasColumnType("numeric")
                         .HasColumnName("actual_weight")
-                        .HasComment("실중량");
+                        .HasComment("실중량 (1개 기준)");
 
                     b.Property<string>("Color")
                         .HasMaxLength(50)
@@ -3116,6 +3342,11 @@ namespace GoldbApi.Migrations
                         .HasColumnName("purity")
                         .HasComment("함량");
 
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity")
+                        .HasComment("수량");
+
                     b.Property<DateTime?>("RentDate")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("rent_date")
@@ -3141,6 +3372,12 @@ namespace GoldbApi.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("return_due_date")
                         .HasComment("반납예정일");
+
+                    b.Property<string>("Size")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("size")
+                        .HasComment("사이즈");
 
                     b.Property<int?>("SourceOrderId")
                         .HasColumnType("integer")
@@ -3337,7 +3574,8 @@ namespace GoldbApi.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
+                        .HasColumnName("is_deleted")
+                        .HasComment("삭제 여부");
 
                     b.Property<bool>("KakaoAllowed")
                         .HasColumnType("boolean")
@@ -4239,6 +4477,12 @@ namespace GoldbApi.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_orders_customers_customer_id");
 
+                    b.HasOne("GoldbApi.Models.User", "HandledByUser")
+                        .WithMany()
+                        .HasForeignKey("HandledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_orders_users_handled_by_user_id");
+
                     b.HasOne("GoldbApi.Models.Company", "LogisticsCompany")
                         .WithMany()
                         .HasForeignKey("LogisticsCompanyId")
@@ -4252,6 +4496,8 @@ namespace GoldbApi.Migrations
                         .HasConstraintName("fk_orders_users_user_id");
 
                     b.Navigation("Customer");
+
+                    b.Navigation("HandledByUser");
 
                     b.Navigation("LogisticsCompany");
 
@@ -4320,6 +4566,34 @@ namespace GoldbApi.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoldbApi.Models.Payable", b =>
+                {
+                    b.HasOne("GoldbApi.Models.Company", "LogisticsCompany")
+                        .WithMany()
+                        .HasForeignKey("LogisticsCompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_payables_companies_logistics_company_id");
+
+                    b.HasOne("GoldbApi.Models.Company", "ManufacturerCompany")
+                        .WithMany()
+                        .HasForeignKey("ManufacturerCompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_payables_companies_manufacturer_company_id");
+
+                    b.HasOne("GoldbApi.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .HasConstraintName("fk_payables_orders_order_id");
+
+                    b.Navigation("LogisticsCompany");
+
+                    b.Navigation("ManufacturerCompany");
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("GoldbApi.Models.PlasterOrder", b =>
@@ -4457,6 +4731,27 @@ namespace GoldbApi.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("GoldbApi.Models.ReceivableApplication", b =>
+                {
+                    b.HasOne("GoldbApi.Models.Receivable", "Charge")
+                        .WithMany()
+                        .HasForeignKey("ChargeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_receivable_applications_receivables_charge_id");
+
+                    b.HasOne("GoldbApi.Models.Receivable", "Deposit")
+                        .WithMany()
+                        .HasForeignKey("DepositId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_receivable_applications_receivables_deposit_id");
+
+                    b.Navigation("Charge");
+
+                    b.Navigation("Deposit");
                 });
 
             modelBuilder.Entity("GoldbApi.Models.Stock", b =>

@@ -21,6 +21,16 @@ public static class ReceivableEndpoints
             return Results.Ok(await service.GetLogisticsSummaryAsync());
         });
 
+        group.MapGet("/purity-summary", async (IReceivableService service, [FromQuery] int userId) =>
+        {
+            return Results.Ok(await service.GetPuritySummaryAsync(userId));
+        });
+
+        group.MapGet("/user-summary/{userId:int}", async (IReceivableService service, int userId) =>
+        {
+            return Results.Ok(await service.GetUserSummaryByIdAsync(userId));
+        });
+
         group.MapGet("/", async (IReceivableService service, [AsParameters] ReceivableQueryDto query) =>
         {
             return Results.Ok(await service.GetReceivablesAsync(query));
@@ -29,6 +39,16 @@ public static class ReceivableEndpoints
         group.MapPost("/deposit", async (IReceivableService service, CreateDepositDto request) =>
         {
             return Results.Ok(await service.ProcessDepositAsync(request));
+        });
+
+        group.MapPut("/{id:int}", async (IReceivableService service, int id, UpdateDepositDto request) =>
+        {
+            return Results.Ok(await service.UpdateDepositAsync(id, request));
+        });
+
+        group.MapPost("/{id:int}/cancel", async (IReceivableService service, int id) =>
+        {
+            return Results.Ok(await service.CancelDepositAsync(id));
         });
     }
 }

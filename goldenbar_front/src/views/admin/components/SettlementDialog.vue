@@ -1,5 +1,38 @@
 <template>
 <base-popup v-model="visible" :title="$t('admin.settlementDialog.title')" width="95%" style="max-width: 1600px;" @close="handleClose">
+    <div v-if="order" v-loading="receivableSummaryLoading" style="margin-bottom: 1.25rem;">
+      <table class="retailer-summary-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>순금(g)</th>
+            <th>공임 및 현금</th>
+            <th>금액합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="summary-label">총 판매</td>
+            <td>{{ (receivableSummary?.totalChargeWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableSummary?.totalCharge || 0) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 결제</td>
+            <td>{{ (receivableSummary?.totalDepositWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableSummary?.totalDeposit || 0) }}</td>
+            <td>0</td>
+          </tr>
+          <tr class="summary-total-row">
+            <td class="summary-label">미수금</td>
+            <td>{{ (receivableSummary?.totalReceivableWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableSummary?.totalReceivable || 0) }}</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <el-form :model="settlementForm" label-position="top">
       <base-table :data="settlementForm.items" border style="width: 100%; margin-bottom: 1.25rem;" :row-class-name="tableRowClassName">
         <el-table-column :label="$t('admin.settlementDialog.headers.productInfo')" min-width="200" :fixed="!isMobile ? 'left' : false" prop="productName" :excel-formatter="productInfoFormatter">
@@ -79,6 +112,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { updateOrderStatus } from '@/api/order';
+import { getUserSummaryById } from '@/api/receivable';
 import { ElMessage } from 'element-plus';
 import { BottomLeft } from '@element-plus/icons-vue';
 import BasePopup from '@/components/BasePopup/index.vue';
@@ -106,6 +140,26 @@ const settlementForm = reactive({
   items: [] as any[]
 });
 
+const receivableSummary = ref<any>(null);
+const receivableSummaryLoading = ref(false);
+
+const loadReceivableSummary = async () => {
+  if (!props.order?.userId) {
+    receivableSummary.value = null;
+    return;
+  }
+  receivableSummaryLoading.value = true;
+  try {
+    const res: any = await getUserSummaryById(props.order.userId);
+    receivableSummary.value = res.data;
+  } catch (error) {
+    console.error('Failed to load receivable summary:', error);
+    receivableSummary.value = null;
+  } finally {
+    receivableSummaryLoading.value = false;
+  }
+};
+
 const totalSettlementAmount = computed(() => {
   return settlementForm.items.reduce((sum, item) => sum + (item.settlementAmount || 0), 0);
 });
@@ -114,6 +168,7 @@ watch(() => props.modelValue, (val) => {
   visible.value = val;
   if (val && props.order) {
     initializeForm();
+    loadReceivableSummary();
   }
 });
 
@@ -173,6 +228,7 @@ const initializeForm = () => {
 const handleClose = () => {
   visible.value = false;
   settlementForm.items = [];
+  receivableSummary.value = null;
 };
 
 const productInfoFormatter = (row: any) => {
@@ -220,6 +276,33 @@ const handleSettlementSubmit = async () => {
 </script>
 
 <style scoped>
+.retailer-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.retailer-summary-table th,
+.retailer-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+  text-align: center;
+}
+.retailer-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.summary-label {
+  text-align: left;
+  font-weight: 600;
+  background: #fafafa;
+  white-space: nowrap;
+}
+.summary-total-row {
+  font-weight: bold;
+}
+.summary-total-row td:not(.summary-label) {
+  color: #f56c6c;
+}
 .product-info-cell {
   display: flex;
   align-items: center;

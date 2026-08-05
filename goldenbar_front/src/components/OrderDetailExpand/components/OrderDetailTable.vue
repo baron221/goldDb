@@ -142,7 +142,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="price" :label="isStatementVisible ? $t('orderDetail.headers.settlementConfirmed') : $t('orderDetail.headers.settlementExpected')" width="150" align="right" header-align="center" :fixed="isMobile ? false : 'right'" class-name="price-column" :excel-formatter="settlementTotalFormatter">
+      <el-table-column v-if="userStore.companyType !== 'MFG'" prop="price" :label="isStatementVisible ? $t('orderDetail.headers.settlementConfirmed') : $t('orderDetail.headers.settlementExpected')" width="150" align="right" header-align="center" :fixed="isMobile ? false : 'right'" class-name="price-column" :excel-formatter="settlementTotalFormatter">
         <template #default="{ row }">
           <div class="settlement-luxury-box">
             <div class="settle-line">{{ $t('orderDetail.settlement.material') }}: <span class="v">

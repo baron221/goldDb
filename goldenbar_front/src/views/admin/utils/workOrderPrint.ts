@@ -2,15 +2,29 @@
 // the browser print dialog. Kept framework-free so it can be called from any
 // component with the order + prepared item rows.
 
+import QRCode from 'qrcode';
+
+// Generated locally instead of via an external HTTP barcode API — avoids
+// blank barcodes / premature print-window closes on slow connections.
+async function generateQrDataUrl(text: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(text || '-', { width: 150, margin: 1 });
+  } catch (error) {
+    console.error('Failed to generate QR code:', error);
+    return '';
+  }
+}
+
 interface WorkOrderPrintData {
   orderNo?: string;
+  orderDate?: string;
   logisticsCompanyName?: string;
   manufacturerName?: string;
   factoryRemarks?: string;
   workOrderRemarks?: string;
 }
 
-export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap: Record<string, string> = {}) {
+export async function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap: Record<string, string> = {}) {
   const win = window.open('', '_blank');
   if (!win) return;
 
@@ -26,8 +40,11 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
     || items.find((i) => i.manufacturerName)?.manufacturerName
     || '-';
 
+  const barcodeValues = items.map((item) => `${order.orderNo || ''}-${item.orderItemId ?? ''}`);
+  const barcodeUrls = await Promise.all(barcodeValues.map((v) => generateQrDataUrl(v)));
+
   let seq = 0;
-  const rowsHtml = items.map((item) => {
+  const rowsHtml = items.map((item, idx) => {
     const isChild = !!item.isChild;
     if (!isChild) seq += 1;
     const name = item.productName || item.productSetTitle || '-';
@@ -40,13 +57,20 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
     const memo = [item.memo, item.requestedMemo || item.inspectionMemo].filter(Boolean).join(' / ');
     const asBadge = item.isAsOrder ? '<span class="as">AS</span>' : '';
     const setBadge = item.isSet ? '<span class="set">SET</span>' : '';
+    const barcodeValue = barcodeValues[idx];
+    const barcodeUrl = barcodeUrls[idx];
 
     return `
       <tr class="${isChild ? 'child' : ''}">
         <td class="c">${isChild ? '&#8627;' : seq}</td>
+        <td class="c barcode-cell">
+          <img class="barcode-img" src="${barcodeUrl}" />
+          <div class="barcode-no">${esc(barcodeValue)}</div>
+        </td>
         <td>
           <div class="pname">${setBadge}${esc(name)} ${asBadge}</div>
-          <div class="pno">${esc(item.productNo || '')}</div>
+          <div class="pno"><b>No:</b> ${esc(item.productNo || '-')}</div>
+          ${item.size && item.size !== 'EMPTY' ? `<div class="pno"><b>사이즈:</b> ${esc(item.size)}</div>` : ''}
           <div class="mfg">${esc(item.manufacturerName || '')}</div>
         </td>
         <td class="c qty">${esc(item.quantity ?? '-')}</td>
@@ -104,6 +128,9 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
           td.c { text-align: center; }
           td.qty { font-weight: 700; }
           td.strong { font-weight: 700; color: #8a6d3b; }
+          .barcode-cell { padding: 4px !important; }
+          .barcode-img { width: 16mm; height: 16mm; object-fit: contain; }
+          .barcode-no { font-size: 7px; color: #666; word-break: break-all; margin-top: 1px; }
           .pname { font-weight: 700; font-size: 12.5px; }
           .pno { color: #666; font-size: 10.5px; margin-top: 1px; }
           .mfg { color: #b07d2b; font-size: 10.5px; margin-top: 1px; }
@@ -146,6 +173,7 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
           <thead>
             <tr>
               <th style="width: 34px;">No</th>
+              <th style="width: 64px;">바코드</th>
               <th>제품 정보</th>
               <th style="width: 48px;">수량</th>
               <th style="width: 90px;">옵션</th>
@@ -154,7 +182,7 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
             </tr>
           </thead>
           <tbody>
-            ${rowsHtml || '<tr><td colspan="6" class="c">항목이 없습니다.</td></tr>'}
+            ${rowsHtml || '<tr><td colspan="7" class="c">항목이 없습니다.</td></tr>'}
           </tbody>
         </table>
 
@@ -176,7 +204,121 @@ export function printWorkOrder(order: WorkOrderPrintData, items: any[], codeMap:
         </div>
 
         <script>
-          window.onload = () => { window.print(); window.close(); };
+          const imgs = document.querySelectorAll('img.barcode-img');
+          let loadedCount = 0;
+          const totalImgs = imgs.length;
+
+          const triggerPrint = () => {
+            window.print();
+            window.close();
+          };
+
+          if (totalImgs === 0) {
+            triggerPrint();
+          } else {
+            imgs.forEach(img => {
+              if (img.complete) {
+                loadedCount++;
+                if (loadedCount === totalImgs) triggerPrint();
+              } else {
+                img.onload = () => {
+                  loadedCount++;
+                  if (loadedCount === totalImgs) triggerPrint();
+                };
+                img.onerror = () => {
+                  loadedCount++;
+                  if (loadedCount === totalImgs) triggerPrint();
+                };
+              }
+            });
+          }
+        <\/script>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+// Small sticker label (per item) meant to be stuck on the product box.
+// One label per order item: 물류 / 주문일시 / 제품번호 / 옵션+중량+사이즈 / 메모.
+export function printWorkOrderSticker(order: WorkOrderPrintData, items: any[], codeMap: Record<string, string> = {}) {
+  const win = window.open('', '_blank');
+  if (!win) return;
+
+  const esc = (v: any) => String(v ?? '').replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string
+  ));
+  const codeName = (code: string) => (code && codeMap[code]) || code || '';
+
+  const formatOrderDate = (d?: string) => {
+    if (!d) return '-';
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+  const orderDateFormatted = formatOrderDate(order.orderDate);
+
+  const labelsHtml = items.map((item, index) => {
+    const opts = [
+      codeName(item.purity),
+      item.color && item.color !== 'EMPTY' ? codeName(item.color) : '',
+      item.requestedWeight ? `${item.requestedWeight}g` : '',
+      item.size && item.size !== 'EMPTY' ? item.size : ''
+    ].filter(Boolean).join(' / ') || '-';
+    const memo = [item.memo, item.requestedMemo || item.inspectionMemo].filter(Boolean).join(' / ');
+
+    const asBadge = item.isAsOrder ? '<span class="as">AS</span>' : '';
+
+    return `
+      <div class="sticker" style="${index < items.length - 1 ? 'page-break-after: always;' : ''}">
+        <div class="row"><span class="k">주문번호:</span><span class="v">${esc(order.orderNo || '-')}${asBadge}</span></div>
+        <div class="row"><span class="k">물류:</span><span class="v">${esc(order.logisticsCompanyName || '-')}</span></div>
+        <div class="row"><span class="k">주문일시:</span><span class="v">${esc(orderDateFormatted)}</span></div>
+        <div class="row"><span class="k">제품번호:</span><span class="v">${esc(item.productNo || '-')}</span></div>
+        <div class="row opts">${esc(opts)}</div>
+        <div class="row memo"><span class="k">메모:</span><span class="v">${esc(memo || '-')}</span></div>
+      </div>`;
+  }).join('');
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>작업지시서 인쇄2 - ${esc(order.orderNo || '')}</title>
+        <style>
+          @page { size: 60mm 40mm; margin: 0; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            color: #1a1a1a;
+          }
+          .sticker {
+            width: 60mm;
+            height: 40mm;
+            padding: 2.5mm 3mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 1.2mm;
+          }
+          .row { display: flex; gap: 1.5mm; font-size: 7.5px; line-height: 1.3; }
+          .row .k { font-weight: 700; color: #555; flex-shrink: 0; }
+          .row .v { color: #1a1a1a; word-break: break-word; }
+          .row.opts { font-size: 8px; font-weight: 700; color: #8a6d3b; margin: 0.5mm 0; }
+          .row.memo .v { color: #444; }
+          .as {
+            display: inline-block; background: #f56c6c; color: #fff;
+            font-size: 6.5px; font-weight: 700; padding: 0.3mm 1mm; border-radius: 1mm; margin-left: 1mm;
+          }
+        </style>
+      </head>
+      <body>
+        ${labelsHtml || ''}
+        <script>
+          window.onload = () => {
+            setTimeout(() => { window.print(); window.close(); }, 300);
+          };
         <\/script>
       </body>
     </html>

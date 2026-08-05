@@ -2,21 +2,29 @@
 <div class="action-buttons-container">
 
     <template v-if="userCategory === 'MFG'">
+      <template v-if="row.status === 'LogisticsApproved' || row.status === 'FactoryRequested'">
+        <el-button
+          type="success"
+          size="small"
+          @click="$emit('factory-approve', row)"
+        >
+          공장승인
+        </el-button>
+        <el-button
+          type="danger"
+          size="small"
+          @click="$emit('factory-reject', row)"
+        >
+          공장거절
+        </el-button>
+      </template>
       <el-button
-        v-if="row.status === 'FactoryRequested'"
-        type="warning"
-        size="small"
-        @click="$emit('work-order-create', row)"
-      >
-        {{ $t('orderDetail.memos.workOrderMemo').split(' ')[0] }}
-      </el-button>
-      <el-button
-        v-else-if="row.status === 'WorkOrderCreated'"
+        v-if="row.status === 'FactoryApproved' || row.status === 'WorkOrderCreated' || row.status === 'FactoryRequested'"
         type="primary"
         size="small"
         @click="$emit('inspection-request', row)"
       >
-        {{ $t('admin.inspectionRequest.title') }}
+        {{ $t('admin.inspectionRequest.productDispatch') }}
       </el-button>
       <el-button
         v-else-if="row.status === 'REQUEST_CLOSE_BY_AGREEMENT'"
@@ -30,40 +38,22 @@
 
     <template v-else>
       <el-button
-        v-if="row.status === 'ORDERED'"
+        v-if="row.status === 'ORDERED' || row.status === 'LogisticsApproved' || row.status === 'FactoryRejected'"
         type="primary"
-        size="small"
-        @click="$emit('approve', row)"
-        :disabled="!isActionEnabled(row)"
-      >
-        {{ $t('order.status.LogisticsApproved') }}
-      </el-button>
-      <el-button
-        v-else-if="row.status === 'LogisticsApproved'"
-        type="warning"
         size="small"
         @click="$emit('factory-request', row)"
         :disabled="!isActionEnabled(row)"
       >
-        {{ $t('order.status.FactoryRequested') }}
+        {{ row.status === 'FactoryRejected' ? '재의뢰' : $t('order.status.FactoryRequested') }}
       </el-button>
       <el-button
-        v-else-if="row.status === 'InspectedRequested'"
+        v-else-if="row.status === 'InspectedRequested' || row.status === 'Inspected'"
         type="success"
         size="small"
         @click="$emit('inspection', row)"
         :disabled="!isActionEnabled(row)"
       >
-        {{ $t('order.status.Inspected') }}
-      </el-button>
-      <el-button
-        v-else-if="row.status === 'Inspected'"
-        type="primary"
-        size="small"
-        @click="$emit('settlement-start', row)"
-        :disabled="!isActionEnabled(row)"
-      >
-        {{ $t('order.tabs.settlement') }}
+        {{ getStatusLabel('Inspected', userCategory) }}
       </el-button>
       <el-button
         v-else-if="row.status === 'PROCESSING'"
@@ -75,32 +65,22 @@
         {{ $t('admin.settlement.messages.settlementBtn') }}
       </el-button>
       <el-button
-        v-else-if="row.status === 'SETTLED'"
-        type="primary"
-        size="small"
-        @click="$emit('status-update', row.id, 'DELIVERY_READY', $t('order.status.DELIVERY_READY'))"
-        :disabled="!isActionEnabled(row)"
-      >
-        {{ $t('order.status.DELIVERY_READY') }}
-      </el-button>
-      <el-button
-        v-else-if="row.status === 'DELIVERY_READY'"
-        type="warning"
-        size="small"
-        @click="$emit('status-update', row.id, 'DELIVERY_IN_TRANSIT', $t('order.status.DELIVERY_IN_TRANSIT'))"
-        :disabled="!isActionEnabled(row)"
-      >
-        {{ $t('order.status.DELIVERY_IN_TRANSIT') }}
-      </el-button>
-      <el-button
-        v-else-if="row.status === 'DELIVERY_IN_TRANSIT'"
+        v-else-if="['SETTLED', 'DELIVERY_READY', 'DELIVERY_IN_TRANSIT', 'DELIVERED'].includes(row.status)"
         type="success"
         size="small"
-        @click="$emit('status-update', row.id, 'DELIVERED', $t('order.status.DELIVERED'))"
+        @click="$emit('status-update', row.id, 'Completed', $t('order.status.Completed'))"
         :disabled="!isActionEnabled(row)"
       >
-        {{ $t('order.status.DELIVERED') }}
+        {{ getStatusLabel('Completed', userCategory) }}
       </el-button>
+      <el-tag
+        v-else-if="row.status === 'Completed'"
+        type="success"
+        size="small"
+        effect="plain"
+      >
+        수령완료
+      </el-tag>
     </template>
   </div>
 </template>
@@ -108,6 +88,7 @@
 <script setup lang="ts">
 
 import useUserStore from '@/store/modules/user';
+import { getStatusLabel } from '@/utils/order';
 
 const props = defineProps<{
   row: any;
@@ -115,14 +96,13 @@ const props = defineProps<{
 }>();
 
 defineEmits([
-  'approve',
   'factory-request',
+  'factory-approve',
+  'factory-reject',
   'inspection',
   'inspection-request',
-  'settlement-start',
   'settlement-confirm',
   'status-update',
-  'work-order-create',
   'close-by-agreement'
 ]);
 

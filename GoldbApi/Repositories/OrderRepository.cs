@@ -143,6 +143,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
     public async Task<List<OrderItem>> GetTopLevelOrderItemsAsync(int orderId)
     {
         return await Context.OrderItems
+            .Include(oi => oi.Product)
+            .Include(oi => oi.ProductSet)
             .Where(oi => oi.OrderId == orderId && oi.ParentId == null)
             .ToListAsync();
     }
@@ -342,8 +344,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
         {
             decimal ratio = group.Purity switch
             {
-                "14K" => 0.585m,
-                "18K" => 0.75m,
+                "14K" => 0.6435m,
+                "18K" => 0.825m,
                 "24K" or "PURE_GOLD" => 1.0m,
                 "PT" or "PLATINUM" => 0.95m,
                 _ => 0
@@ -408,10 +410,13 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                         dbQuery = dbQuery.Where(o => o.Status == "ORDERED" || o.Status == "LogisticsApproved");
                         break;
                     case "Production":
-                        dbQuery = dbQuery.Where(o => o.Status == "FactoryRequested" || o.Status == "WorkOrderCreated" || o.Status == "InspectedRequested");
+                        dbQuery = dbQuery.Where(o => o.Status == "FactoryRequested" || o.Status == "FactoryApproved" || o.Status == "FactoryRejected" || o.Status == "WorkOrderCreated" || o.Status == "InspectedRequested");
                         break;
                     case "Inspection":
                         dbQuery = dbQuery.Where(o => o.Status == "Inspected" || o.Status == "PENDING");
+                        break;
+                    case "Inspection_Group":
+                        dbQuery = dbQuery.Where(o => o.Status == "InspectedRequested" || o.Status == "WorkOrderCreated");
                         break;
                     case "Settlement":
                         dbQuery = dbQuery.Where(o => o.Status == "PROCESSING" || o.Status == "SETTLED");

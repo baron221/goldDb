@@ -43,7 +43,7 @@
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item :label="$t('productDialog.productNo')" prop="productNo">
+          <el-form-item :label="$t('productDialog.productNo')" prop="productNo" required>
             <el-input v-model="localTemp.productNo" />
           </el-form-item>
         </el-col>

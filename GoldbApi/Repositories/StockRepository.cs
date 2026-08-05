@@ -239,6 +239,21 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
             dbQuery = dbQuery.Where(s => s.Company != null && s.Company.IsDirectManagement == query.IsDirectManagement.Value);
         }
 
+        if (query.ProductId.HasValue)
+        {
+            dbQuery = dbQuery.Where(s => s.ProductId == query.ProductId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(query.Purity))
+        {
+            dbQuery = dbQuery.Where(s => s.Purity == query.Purity);
+        }
+
+        if (!string.IsNullOrEmpty(query.Color))
+        {
+            dbQuery = dbQuery.Where(s => s.Color == query.Color);
+        }
+
         if (query.MinWeight.HasValue)
         {
             dbQuery = dbQuery.Where(s => s.ActualWeight >= query.MinWeight.Value);

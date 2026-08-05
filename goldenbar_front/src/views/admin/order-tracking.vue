@@ -136,6 +136,11 @@
                 <span>{{ row.logisticsCompanyName || '-' }}</span>
               </template>
             </el-table-column>
+            <el-table-column v-if="showRetailerInfo" label="업체" width="120" align="center" :excel-formatter="(row) => row.companyName || '-'">
+              <template #default="{row}">
+                <span>{{ row.companyName || '-' }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="담당자" width="100" align="center" :excel-formatter="(row) => row.handledByUserName || '-'">
               <template #default="{row}">
                 <span>{{ row.handledByUserName || '-' }}</span>
@@ -207,6 +212,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { getAllOrders, getOrderHistory } from '@/api/order';
 import { ElMessage } from 'element-plus';
 import { Search, Refresh, ArrowRight, Picture } from '@element-plus/icons-vue';
@@ -215,7 +221,9 @@ import CommonSelect from '@/components/CommonSelect/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
 import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
+import { getStatusLabel as getCompactStatusLabel, getStatusTagType as getCompactStatusTagType } from '@/utils/order';
 
+const route = useRoute();
 const listLoading = ref(false);
 const list = ref<any[]>([]);
 const total = ref(0);
@@ -226,6 +234,7 @@ const isAdmin = computed(() => userStore.roles.includes('admin'));
 const showManufacturerInfo = computed(() => isAdmin.value || userStore.companyType === 'DCC');
 const showMarketInfo = computed(() => isAdmin.value || userStore.companyType === 'DCC');
 const showLogisticsInfo = computed(() => isAdmin.value || userStore.companyType === 'MFG' || userStore.companyType === 'RTL');
+const showRetailerInfo = computed(() => userStore.companyType === 'DCC');
 
 const end = new Date();
 const start = new Date();
@@ -286,9 +295,16 @@ const orderHistory = ref<any[]>([]);
 
 const codeMap = computed(() => codeStore.codeMap);
 
-const statusLabel = (status: string) => codeStore.getCodeName(status);
+const isCompactRole = computed(() => userStore.companyType === 'MFG' || userStore.companyType === 'DCC');
+
+const statusLabel = (status: string) => {
+  if (isCompactRole.value) return getCompactStatusLabel(status, userStore.companyType);
+  return codeStore.getCodeName(status);
+};
 
 const getStatusType = (status: string) => {
+  if (isCompactRole.value) return getCompactStatusTagType(status, userStore.companyType);
+
   const types: Record<string, string> = {
     'ORDERED': 'info', 'FactoryRequested': 'warning', 'LogisticsApproved': '',
     'Inspected': 'success', 'Completed': 'info', 'Cancelled': 'danger'
@@ -369,7 +385,13 @@ const handleRowClick = async (row: any) => {
   }
 };
 
-onMounted(() => { fetchOrderStatuses(); getList(); });
+onMounted(() => {
+  if (route.query.orderNo) {
+    listQuery.orderNo = String(route.query.orderNo);
+  }
+  fetchOrderStatuses();
+  getList();
+});
 </script>
 
 <style lang="scss" src="./OrderTrackingStyles.scss" scoped></style>

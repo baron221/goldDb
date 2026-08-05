@@ -55,6 +55,10 @@
         <el-icon><Download /></el-icon>
         <span>엑셀 내보내기 (화면 그대로)</span>
       </div>
+      <div class="menu-item" @click="handlePrintDomTable">
+        <el-icon><Printer /></el-icon>
+        <span>인쇄 (화면 그대로)</span>
+      </div>
 
       <slot name="contextmenu" :row="contextMenuRow" :close="closeContextMenu" />
     </div>
@@ -66,8 +70,9 @@
 import { ref, useSlots, useAttrs, computed, cloneVNode, defineComponent } from 'vue';
 import { useMobile } from '@/hooks/useMobile';
 import { ElTableColumn } from 'element-plus';
-import { Download } from '@element-plus/icons-vue';
+import { Download, Printer } from '@element-plus/icons-vue';
 import { useTableExcel } from './hooks/useTableExcel';
+import { useTablePrint } from './hooks/useTablePrint';
 
 const props = defineProps({
   loading: {
@@ -121,6 +126,7 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuRow = ref<any>(null);
 
 const { exportDomExcel, exportExcel } = useTableExcel(tableRef, slots, attrs);
+const { printDomTable } = useTablePrint(tableRef);
 
 const handleRowContextMenu = (row: any, column: any, event: MouseEvent) => {
   event.preventDefault();
@@ -145,6 +151,11 @@ const handleExportRowExcel = () => {
 
 const handleExportDomExcel = () => {
   exportDomExcel();
+  closeContextMenu();
+};
+
+const handlePrintDomTable = () => {
+  printDomTable(document.title);
   closeContextMenu();
 };
 
@@ -223,6 +234,7 @@ defineExpose({
   tableRef,
   exportExcel,
   exportDomExcel,
+  printDomTable,
   clearSelection: () => tableRef.value?.clearSelection(),
   getSelectionRows: () => tableRef.value?.getSelectionRows(),
   toggleRowSelection: (row: any, selected?: boolean) => tableRef.value?.toggleRowSelection(row, selected),

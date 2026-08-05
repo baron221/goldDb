@@ -175,13 +175,20 @@
 
         <el-table-column
           :label="$t('retailerSettlement.orderAndMemo')"
-          min-width="250"
-          :excel-formatter="(row: any) => (row.orderNo ? '[주문] ' + row.orderNo : '') + (row.memo ? '\n' + row.memo : '')"
+          min-width="280"
+          :excel-formatter="(row: any) => (row.orderNo ? '[주문] ' + row.orderNo + (row.productName ? ' - ' + row.productName : '') : '') + (row.memo ? '\n' + row.memo : '')"
         >
           <template #default="{row}">
             <div v-if="row.orderNo" class="order-link-wrapper" @click="handleOrderClick(row.orderNo)">
-              <el-tag size="small" type="info" effect="plain" class="mr-1">주문</el-tag>
-              <span class="order-no">{{ row.orderNo }}</span>
+              <el-image :src="getThumbnailUrl(row.productPhotoUrl) || defaultImage" fit="cover" class="order-product-thumb">
+                <template #error>
+                  <el-image :src="defaultImage" fit="cover" class="order-product-thumb" />
+                </template>
+              </el-image>
+              <div class="order-link-info">
+                <span class="order-no">{{ row.orderNo }}</span>
+                <span v-if="row.productName" class="order-product-name">{{ row.productName }}</span>
+              </div>
             </div>
             <div class="memo-text">{{ row.memo || '-' }}</div>
           </template>
@@ -198,6 +205,7 @@ import { useRouter } from 'vue-router';
 import { getReceivables, getUserSummaries } from '@/api/receivable';
 import { getCompanies } from '@/api/company';
 import { formatPrice } from '@/utils/format';
+import { getThumbnailUrl } from '@/utils';
 import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
 import { Document, CircleCheck, Warning, Search, Refresh } from '@element-plus/icons-vue';
@@ -218,6 +226,7 @@ const manufacturers = ref<any[]>([]);
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);
 const dateRange = ref<string[]>([]);
+const defaultImage = '/thumb_no_img.png';
 
 const mySummary = reactive({
   totalCharge: 0,

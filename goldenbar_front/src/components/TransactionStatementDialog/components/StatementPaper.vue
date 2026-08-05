@@ -85,6 +85,7 @@
               <div class="p-name-row">
                 <span class="p-name">{{ item.productName || item.productSetTitle }}</span>
                 <span class="p-no" v-if="item.productNo">({{ item.productNo }})</span>
+                <span v-if="item.isAsOrder" class="as-badge">AS</span>
               </div>
               <div class="p-spec">
                 {{ displayCodeMap[item.purity] || item.purity }}

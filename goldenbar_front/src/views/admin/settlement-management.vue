@@ -88,15 +88,7 @@
           <template #default="{row}">
             <div class="action-buttons">
               <el-button
-                v-if="row.status === 'PENDING'"
-                type="primary"
-                size="small"
-                @click="handleStatusUpdate(row, 'PROCESSING')"
-              >
-                {{ $t('order.status.PROCESSING') }}
-              </el-button>
-              <el-button
-                v-if="row.status === 'PROCESSING'"
+                v-if="row.status === 'PENDING' || row.status === 'PROCESSING'"
                 type="success"
                 size="small"
                 @click="openSettlementDialog(row)"
@@ -141,18 +133,19 @@
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getAllOrders, updateOrderStatus } from '@/api/order';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { getAllOrders } from '@/api/order';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import { isPostPendingStatus } from '@/utils/order';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 import SettlementDialog from './components/SettlementDialog.vue';
 import SettlementManagementFilter from './components/SettlementManagementFilter.vue';
 
 const { isMobile } = useMobile();
 const { t } = useI18n();
+const userStore = useUserStore();
 
 const listLoading = ref(true);
 const list = ref<any[]>([]);
@@ -171,6 +164,8 @@ const listQuery = reactive({
   orderNo: '',
   userName: '',
   companyId: undefined as number | undefined,
+  logisticsCompanyId: undefined as number | undefined,
+  factoryCompanyId: undefined as number | undefined,
   categoryLarge: '',
   categoryMedium: '',
   categorySmall: '',
@@ -225,6 +220,8 @@ const resetQuery = () => {
   listQuery.orderNo = '';
   listQuery.userName = '';
   listQuery.companyId = undefined;
+  listQuery.logisticsCompanyId = undefined;
+  listQuery.factoryCompanyId = undefined;
   listQuery.status = 'PENDING';
   listQuery.categoryLarge = '';
   listQuery.categoryMedium = '';
@@ -240,31 +237,35 @@ const openSettlementDialog = (row: any) => {
   settlementDialogVisible.value = true;
 };
 
-const handleStatusUpdate = (row: any, status: string) => {
-  const label = status === 'PROCESSING' ? t('order.status.PROCESSING') : t('order.status.SETTLED');
-  ElMessageBox.confirm(`${label} ${t('admin.deposit.messages.confirmTitle')}?`, t('common.ok'), {
-    confirmButtonText: t('common.ok'),
-    cancelButtonText: t('common.cancel'),
-    type: 'warning'
-  }).then(async () => {
-    try {
-      await updateOrderStatus(row.id, { status });
-      ElMessage.success(`${label} ${t('admin.deposit.messages.success')}`);
-      getList();
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  });
-};
-
 const getOrderTotalAmount = (order: any) => {
   const isPostPending = isPostPendingStatus(order.status);
+
+  // MFG is only ever owed what THEY themselves declared (factory input cost) - the
+  // logistics-confirmed retailer price (and the order's settlementAmount, which is
+  // computed from that same retailer-facing figure) may include logistics' own
+  // markup and must never be shown to the manufacturer.
+  if (isPostPending && userStore.companyType === 'MFG' && order.orderItems && order.orderItems.length > 0) {
+    const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
+    return topLevelItems.reduce((acc: number, item: any) => {
+      const material = item.factoryInputMaterialCost || 0;
+      const labor = item.factoryInputLaborCost || 0;
+      return acc + (material + labor) * item.quantity;
+    }, 0);
+  }
+
+  // Orders that skip straight from 제품출고 to 정산 (PENDING) never get a logistics
+  // (retailerConfirm*) figure - only the factory's own input, or the amount the
+  // backend already settled on at PENDING (order.settlementAmount). Prefer whichever
+  // is actually populated instead of assuming retailerConfirm* is always set.
+  if (isPostPending && order.settlementAmount) {
+    return order.settlementAmount;
+  }
 
   if (isPostPending && order.orderItems && order.orderItems.length > 0) {
     const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
     return topLevelItems.reduce((acc: number, item: any) => {
-      const material = item.retailerConfirmMaterialCost || 0;
-      const labor = item.retailerConfirmLaborCost || 0;
+      const material = item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0;
+      const labor = item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0;
       return acc + (material + labor) * item.quantity;
     }, 0);
   }

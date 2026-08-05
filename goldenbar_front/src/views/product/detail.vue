@@ -146,14 +146,16 @@ const orderMemo = ref('');
 const orderSize = ref('');
 
 const activeWeight = computed(() => {
-  if (!product.value || !selectedPurity.value || !selectedColor.value) {
+  if (!product.value || !selectedPurity.value) {
     return product.value?.weight || 0;
   }
 
   if (product.value.optionWeights && product.value.optionWeights.length > 0) {
-    const matched = product.value.optionWeights.find(
-      (ow: any) => ow.purity === selectedPurity.value && ow.color === selectedColor.value
-    );
+    const matched = product.value.optionWeights.find((ow: any) => {
+      if (ow.purity !== selectedPurity.value) return false;
+      if (selectedColor.value) return ow.color === selectedColor.value;
+      return true;
+    });
     if (matched) {
       return matched.weight;
     }
@@ -163,11 +165,13 @@ const activeWeight = computed(() => {
 });
 
 const hasOptionWeight = computed(() => {
-  if (!product.value || !selectedPurity.value || !selectedColor.value) return false;
+  if (!product.value || !selectedPurity.value) return false;
   if (!product.value.optionWeights || product.value.optionWeights.length === 0) return false;
-  return product.value.optionWeights.some(
-    (ow: any) => ow.purity === selectedPurity.value && ow.color === selectedColor.value
-  );
+  return product.value.optionWeights.some((ow: any) => {
+    if (ow.purity !== selectedPurity.value) return false;
+    if (selectedColor.value) return ow.color === selectedColor.value;
+    return true;
+  });
 });
 
 const totalPrice = computed(() => {
@@ -365,7 +369,7 @@ const handleBuy = async () => {
         orderMemo: '물류사 대리 전화주문'
       });
       ElMessage.success('대리 주문이 성공적으로 등록되었습니다.');
-      router.push('/order/order-tracking');
+      router.push('/order/logistics-approval');
       return;
     }
 

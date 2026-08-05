@@ -1,5 +1,5 @@
 <template>
-<div v-if="order" class="timeline-container-luxury" :class="getContainerClass()">
+  <div v-if="order" class="timeline-container-luxury" :class="getContainerClass()">
     <el-steps
       :active="getActiveStep(order.status, flow)"
       finish-status="success"
@@ -48,7 +48,7 @@ const props = defineProps({
 });
 
 const isTerminated = computed(() => {
-  return props.order ? ['Cancelled', 'SETTLED_CANCELLED', 'CLOSED_BY_AGREEMENT'].includes(props.order.status) : false;
+  return props.order ? ['Cancelled', 'SETTLED_CANCELLED', 'CLOSED_BY_AGREEMENT', 'FactoryRejected'].includes(props.order.status) : false;
 });
 
 const isCompleted = computed(() => props.order ? props.order.status === 'Completed' : false);
@@ -108,7 +108,7 @@ const getActiveStep = (status: string, flowItems: any[]) => {
 };
 
 const getProcessStatus = (status: string) => {
-  if (status === 'Cancelled' || status === 'SETTLED_CANCELLED' || status === 'CLOSED_BY_AGREEMENT') {
+  if (status === 'Cancelled' || status === 'SETTLED_CANCELLED' || status === 'CLOSED_BY_AGREEMENT' || status === 'FactoryRejected') {
     return 'error';
   }
   return 'process';
@@ -157,148 +157,5 @@ const getStepTimeOnly = (order: any, step: any) => {
 </script>
 
 <style lang="scss" scoped>
-.timeline-container-luxury {
-  padding: 1.875rem 1.25rem 1.25rem;
-  background-color: #ffffff;
-  border-bottom: 1px solid #f7f5f0;
-  position: relative;
-  overflow: hidden;
-
-  .luxury-steps {
-    :deep(.el-step__icon) {
-      width: auto !important;
-      height: 32px !important;
-      background: transparent !important;
-      border: none !important;
-    }
-
-    :deep(.el-step__line) {
-      top: 15px !important;
-      background-color: #f0eeeb !important;
-    }
-
-    :deep(.el-step__head.is-success) {
-      .el-step__line { background-color: #c5a880 !important; }
-    }
-
-    .step-icon-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.125rem;
-      min-width: 60px;
-      background: #fff;
-      padding: 0 0.3125rem;
-      z-index: 1;
-
-      .step-num, .f-icon {
-        font-size: 0.825rem;
-        font-weight: 800;
-        color: #bbb;
-        width: 18px;
-        height: 18px;
-        border: 1px solid #eee;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #fbfaf7;
-      }
-
-      .f-icon { color: #c5a880; border-color: #c5a880; }
-
-      .step-status-name {
-        font-size: 0.825rem;
-        font-weight: 700;
-        color: #999;
-        white-space: nowrap;
-        letter-spacing: -0.5px;
-      }
-    }
-
-    :deep(.el-step__head.is-process) {
-      .step-num { color: #222; border-color: #222; background: #fff; }
-      .step-status-name { color: #222; }
-    }
-
-    :deep(.el-step__head.is-success) {
-      .step-num { color: #c5a880; border-color: #c5a880; background: #fbfaf7; }
-      .step-status-name { color: #c5a880; }
-    }
-
-    :deep(.el-step__head.is-error) {
-      .step-num { color: #ff4949; border-color: #ff4949; }
-      .step-status-name { color: #ff4949; }
-    }
-
-    .step-label-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 0.3125rem;
-    }
-
-    .step-date-indicator {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      line-height: 1;
-      .d { font-size: 0.825rem; font-weight: 700; color: #444; }
-      .t { font-size: 0.825rem; color: #bbbbbb; font-family: monospace; }
-    }
-  }
-
-  .closure-badge {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    background-color: #c5a880;
-    color: #ffffff;
-    font-size: 0.825rem;
-    font-weight: 900;
-    padding: 0.125rem 0.5rem;
-    border-radius: 0;
-    letter-spacing: 1px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-
-    &.terminated {
-      background-color: #ff4949;
-    }
-  }
-}
-
-.is-order-completed {
-  background-color: #fbfaf7;
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    background-color: #c5a880;
-  }
-}
-
-.is-order-terminated {
-  background-color: #fff9f9;
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    background-color: #ff4949;
-  }
-}
-
-@media (max-width: 991px) {
-  .timeline-container-luxury { padding: 1.875rem 0.625rem 0.9375rem; }
-  .luxury-steps {
-    :deep(.el-step__icon) { transform: scale(0.9); }
-  }
-}
+@import "./OrderStatusTimelineStyles.scss";
 </style>
-

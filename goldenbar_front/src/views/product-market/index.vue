@@ -1,5 +1,14 @@
 <template>
 <div class="product-market-page app-container">
+    <div class="shop-filter-top">
+      <market-sidebar
+        :filters="filters"
+        @update:filters="(val) => Object.assign(filters, val)"
+        @filter="handleFilter"
+        @reset="resetFilters"
+      />
+    </div>
+
     <div class="shop-layout-container">
 
       <div class="shop-main-content">
@@ -80,29 +89,12 @@
           />
         </div>
       </div>
-
-      <div class="shop-sidebar-content">
-        <market-sidebar
-          :filters="filters"
-          :active-tab="activeTab"
-          :large-id="largeId"
-          :medium-id="mediumId"
-          :set-large-id="setLargeId"
-          :set-medium-id="setMediumId"
-          @filter="handleFilter"
-          @reset="resetFilters"
-          @large-change="handleLargeChange"
-          @medium-change="handleMediumChange"
-          @set-large-change="handleSetLargeChange"
-          @set-medium-change="handleSetMediumChange"
-        />
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMarket } from './composables/useMarket';
 import ProductCard from './components/ProductCard.vue';
@@ -153,41 +145,6 @@ const favoriteItems = computed(() => {
   }).filter(Boolean);
 });
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
-const handleLargeChange = ({ val, opts }: any) => {
-  const selected = opts.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  filters.categoryMedium = '';
-  filters.categorySmall = '';
-  handleFilter();
-};
-
-const handleMediumChange = ({ val, opts }: any) => {
-  const selected = opts.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  filters.categorySmall = '';
-  handleFilter();
-};
-
-const handleSetLargeChange = ({ val, opts }: any) => {
-  const selected = opts.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  filters.setCategoryMedium = '';
-  filters.setCategorySmall = '';
-  handleFilter();
-};
-
-const handleSetMediumChange = ({ val, opts }: any) => {
-  const selected = opts.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  filters.setCategorySmall = '';
-  handleFilter();
-};
-
 const goToDetail = (item: any) => {
   if (item.isSet) {
     router.push(`/prd/product-set-detail/${item.id}`);
@@ -213,15 +170,17 @@ onMounted(() => {
   }
 }
 
+.shop-filter-top {
+  max-width: 1600px;
+  margin: 0 auto 2rem;
+}
+
 .shop-layout-container {
-  display: flex;
-  gap: 2.5rem;
   max-width: 1600px;
   margin: 0 auto;
 }
 
 .shop-main-content {
-  flex: 1;
   min-width: 0;
 }
 
@@ -321,17 +280,6 @@ onMounted(() => {
   margin: 3rem 0;
 }
 
-.shop-sidebar-content {
-  width: 290px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 100px;
-  align-self: start;
-  z-index: 10;
-}
 
-@media (max-width: 1200px) {
-  .shop-sidebar-content { display: none; }
-}
 </style>
 

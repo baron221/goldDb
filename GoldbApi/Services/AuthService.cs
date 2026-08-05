@@ -358,6 +358,7 @@ public class AuthService : IAuthService
         var roles = user?.UserRoles.Select(ur => ur.Role?.Key).ToList() ?? new List<string?>();
 
         var allMenus = await _menuRepository.GetQueryable()
+            .Where(m => !m.IsDeleted && m.Id != 134 && m.Id != 136)
             .OrderBy(m => m.SortOrder)
             .ToListAsync();
 
@@ -392,6 +393,26 @@ public class AuthService : IAuthService
             }
 
             filteredMenus = allMenus.Where(m => finalMenuIds.Contains(m.Id)).ToList();
+        }
+
+        if (!roles.Contains("admin"))
+        {
+            bool isFactory = roles.Any(r => r == "mfg" || r == "manufacturer");
+            bool isLogistics = roles.Any(r => r == "dc" || r == "market");
+            bool isRetailer = roles.Any(r => r == "editor" || r == "retail");
+
+            if (isFactory)
+            {
+                filteredMenus = filteredMenus.Where(m => m.Id != 139).ToList();
+            }
+            if (isLogistics)
+            {
+                filteredMenus = filteredMenus.Where(m => m.Id != 131).ToList();
+            }
+            if (isRetailer)
+            {
+                filteredMenus = filteredMenus.Where(m => m.Id != 131 && m.Id != 139).ToList();
+            }
         }
 
         var rootMenus = filteredMenus.Where(m => m.ParentId == null).ToList();

@@ -182,12 +182,8 @@ public class OrderService : IOrderService
 
         var createdOrders = new List<Order>();
 
-        // Orders placed after 16:00 KST skip the manual logistics-approval step:
-        // they are created already approved so factories can pick them up right away.
-        var kstNow = DateTime.UtcNow.AddHours(9);
-        var isAfterApprovalCutoff = kstNow.Hour >= 16;
-        var initialStatus = isAfterApprovalCutoff ? "LogisticsApproved" : "ORDERED";
-        var initialRemarks = isAfterApprovalCutoff ? "주문 접수 (오후 4시 이후 자동 물류승인)" : "주문 접수";
+        var initialStatus = "ORDERED";
+        var initialRemarks = "주문 접수";
 
         foreach (var manufacturerGroup in itemsByManufacturer)
         {
@@ -341,10 +337,24 @@ public class OrderService : IOrderService
 
     public async Task<ApiResponse<SettlementHistorySummaryDto>> GetSettlementSummaryAsync(OrderQueryDto query)
     {
-        var userCompany = await GetCurrentUserCompanyInfoAsync();
-        if (userCompany != null && userCompany.Company?.Category == "RTL")
+        // Scope the same way GetAllOrdersAsync does - otherwise a DCC/MFG user gets
+        // the LIST correctly limited to their own orders but the summary CARDS
+        // silently aggregate every company's orders in the system.
+        if (!_currentUserService.IsAdmin)
         {
-            query.CompanyId = userCompany.CompanyId;
+            var userCompany = await GetCurrentUserCompanyInfoAsync();
+            switch (userCompany?.Company?.Category)
+            {
+                case "RTL":
+                    query.CompanyId = userCompany.CompanyId;
+                    break;
+                case "DCC":
+                    query.LogisticsCompanyId = userCompany.CompanyId;
+                    break;
+                case "MFG":
+                    query.FactoryCompanyId = userCompany.CompanyId;
+                    break;
+            }
         }
 
         var summary = await _orderRepository.GetSettlementSummaryAsync(query);
@@ -486,27 +496,12 @@ public class OrderService : IOrderService
                 await _stockService.AddOrderItemsToStockAsync(id);
             }
 
-            if (oldStatus != request.Status && request.Status == "PENDING")
+            if (oldStatus != request.Status && (request.Status == "PENDING" || request.Status == "InspectedRequested"))
             {
-
-                var topLevelItems = await _orderRepository.GetTopLevelOrderItemsAsync(id);
-
-                var calculatedSettlementAmount = topLevelItems.Sum(oi => 
-                    ((oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0) + 
-                     (oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0)) * oi.Quantity);
-
-                order.SettlementAmount = calculatedSettlementAmount > 0 ? calculatedSettlementAmount : order.TotalAmount;
-
-                var charge = new Receivable
-                {
-                    UserId = order.UserId,
-                    OrderId = order.Id,
-                    Type = "CHARGE",
-                    Amount = order.SettlementAmount ?? 0m,
-                    RemainingAmount = order.SettlementAmount ?? 0m,
-                    Memo = $"주문 정산 청구 (정산시작): {order.OrderNo}"
-                };
-                await _orderRepository.AddReceivableAsync(charge);
+                // Bills the retailer and records what's owed to each manufacturer; shared
+                // with StockService's "fulfil from existing stock" shortcut so both paths
+                // settle immediately upon dispatch or approval.
+                await _receivableService.CreateOrderSettlementChargesAsync(order.Id);
             }
 
             if (oldStatus != request.Status && request.Status == "SETTLED")

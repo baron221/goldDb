@@ -28,7 +28,13 @@ public class Receivable : BaseModel
 
     public decimal Amount { get; set; }
 
-    public decimal RemainingAmount { get; set; } 
+    public decimal RemainingAmount { get; set; }
+
+    [Description("순금 중량(g)")]
+    public decimal Weight { get; set; }
+
+    [Description("잔여 순금 중량(g)")]
+    public decimal RemainingWeight { get; set; }
 
     [MaxLength(500)]
 
@@ -37,4 +43,10 @@ public class Receivable : BaseModel
     [MaxLength(20)]
 
     public string? SettlementMethod { get; set; }
+
+    [Description("할인 금액")]
+    public decimal Discount { get; set; } = 0;
+
+    [Description("취소 여부")]
+    public bool IsCancelled { get; set; } = false;
 }

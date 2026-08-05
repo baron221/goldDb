@@ -63,13 +63,13 @@
 
         <el-row :gutter="24" class="summary-grid">
           <el-col :xs="24" :sm="12" :md="8">
-            <div class="stat-card highlight-blue clickable" @click="$router.push({ path: '/product/list' })">
+            <div class="stat-card highlight-blue clickable" @click="$router.push({ path: '/prd/product' })">
               <div class="stat-label">{{ $t('dashboard.factory.regularProducts') || '일반 제품' }}</div>
               <div class="stat-value">{{ stats.regularProductCount || 0 }}<span class="unit">{{ $t('dashboard.common.units.items') }}</span></div>
             </div>
           </el-col>
           <el-col :xs="24" :sm="12" :md="8">
-            <div class="stat-card highlight-blue clickable" @click="$router.push({ path: '/product/set-list' })">
+            <div class="stat-card highlight-blue clickable" @click="$router.push({ path: '/prd/product-set' })">
               <div class="stat-label">{{ $t('dashboard.factory.setProducts') || '세트 제품' }}</div>
               <div class="stat-value">{{ stats.setProductCount || 0 }}<span class="unit">{{ $t('dashboard.common.units.items') }}</span></div>
             </div>

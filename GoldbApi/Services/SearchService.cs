@@ -178,6 +178,21 @@ public class SearchService : ISearchService
             productQuery = productQuery.Where(p => p.CompanyId == queryDto.CompanyId);
         }
 
+        if (!string.IsNullOrEmpty(queryDto.Purity))
+        {
+            productQuery = productQuery.Where(p => p.Purity != null && p.Purity.Contains(queryDto.Purity));
+        }
+
+        if (queryDto.MinWeight.HasValue)
+        {
+            productQuery = productQuery.Where(p => p.Weight >= queryDto.MinWeight.Value);
+        }
+
+        if (queryDto.MaxWeight.HasValue)
+        {
+            productQuery = productQuery.Where(p => p.Weight <= queryDto.MaxWeight.Value);
+        }
+
         var marketItems = new List<MarketItemDto>();
 
         if (queryDto.Type == "product")
@@ -192,8 +207,14 @@ public class SearchService : ISearchService
                     Id = p.Id,
                     Name = p.Name,
                     No = p.ProductNo,
+                    ProductNo = p.ProductNo,
                     IsSet = false,
                     CategoryName = p.CategoryLarge,
+                    CategoryLarge = p.CategoryLarge,
+                    CategoryMedium = p.CategoryMedium,
+                    CompanyName = p.Company != null ? p.Company.Name : null,
+                    Purity = p.Purity,
+                    PurityWeights = p.OptionWeights.Select(ow => new MarketItemPurityWeightDto { Purity = ow.Purity, Weight = ow.Weight }).ToList(),
                     PhotoUrl = p.ProductPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
                     Price = p.FactoryPrice
                 }).ToListAsync();
@@ -210,27 +231,50 @@ public class SearchService : ISearchService
                     Id = ps.Id,
                     Name = ps.Title,
                     No = ps.SetNo,
+                    ProductNo = ps.SetNo,
                     IsSet = true,
                     CategoryName = ps.CategoryLarge,
+                    CategoryLarge = ps.CategoryLarge,
+                    CategoryMedium = ps.CategoryMedium,
+                    CompanyName = ps.Company != null ? ps.Company.Name : null,
                     PhotoUrl = ps.ProductSetPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault()
                         ?? ps.SetItems.SelectMany(si => si.Product!.ProductPhotos).OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
-                    Price = 0 
+                    Price = 0
                 }).ToListAsync();
         }
-        else 
+        else
         {
 
-            var prods = await productQuery.Select(p => new MarketItemDto { Id = p.Id, Name = p.Name, No = p.ProductNo, IsSet = false, CategoryName = p.CategoryLarge, PhotoUrl = p.ProductPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(), Price = p.FactoryPrice }).ToListAsync();
-            var sets = await setQuery.Select(ps => new MarketItemDto 
-            { 
-                Id = ps.Id, 
-                Name = ps.Title, 
-                No = ps.SetNo, 
-                IsSet = true, 
-                CategoryName = ps.CategoryLarge, 
+            var prods = await productQuery.Select(p => new MarketItemDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                No = p.ProductNo,
+                ProductNo = p.ProductNo,
+                IsSet = false,
+                CategoryName = p.CategoryLarge,
+                CategoryLarge = p.CategoryLarge,
+                CategoryMedium = p.CategoryMedium,
+                CompanyName = p.Company != null ? p.Company.Name : null,
+                Purity = p.Purity,
+                PurityWeights = p.OptionWeights.Select(ow => new MarketItemPurityWeightDto { Purity = ow.Purity, Weight = ow.Weight }).ToList(),
+                PhotoUrl = p.ProductPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
+                Price = p.FactoryPrice
+            }).ToListAsync();
+            var sets = await setQuery.Select(ps => new MarketItemDto
+            {
+                Id = ps.Id,
+                Name = ps.Title,
+                No = ps.SetNo,
+                ProductNo = ps.SetNo,
+                IsSet = true,
+                CategoryName = ps.CategoryLarge,
+                CategoryLarge = ps.CategoryLarge,
+                CategoryMedium = ps.CategoryMedium,
+                CompanyName = ps.Company != null ? ps.Company.Name : null,
                 PhotoUrl = ps.ProductSetPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault()
-                    ?? ps.SetItems.SelectMany(si => si.Product!.ProductPhotos).OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(), 
-                Price = 0 
+                    ?? ps.SetItems.SelectMany(si => si.Product!.ProductPhotos).OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
+                Price = 0
             }).ToListAsync();
 
             var combined = prods.Concat(sets).OrderByDescending(x => x.Id).ToList();

@@ -22,21 +22,15 @@
       :user-category="store.user().companyType"
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
+      @factory-approve="handleFactoryApprove"
+      @factory-reject="handleFactoryReject"
       @inspection-request="openCompleteDialog"
-      @work-order-create="openWorkOrderDialog"
       @close-by-agreement="handleCloseByAgreement"
       @show-history="openHistoryDialog"
     />
 
     <InspectionRequestDialog
       v-model="completeDialogVisible"
-      :order="currentOrder"
-      :code-map="codeMap"
-      @saved="getList"
-    />
-
-    <WorkOrderCreateDialog
-      v-model="workOrderDialogVisible"
       :order="currentOrder"
       :code-map="codeMap"
       @saved="getList"
@@ -61,7 +55,6 @@ import { parseTime } from '@/utils';
 import store from '@/store';
 import OrderStatusHistoryDialog from '@/components/OrderStatusHistoryDialog/index.vue';
 import InspectionRequestDialog from './components/InspectionRequestDialog.vue';
-import WorkOrderCreateDialog from './components/WorkOrderCreateDialog.vue';
 import FactoryRequestFilter from './components/FactoryRequestFilter.vue';
 
 const { t } = useI18n();
@@ -81,7 +74,6 @@ const openHistoryDialog = (row: any) => {
 };
 
 const completeDialogVisible = ref(false);
-const workOrderDialogVisible = ref(false);
 const currentOrder = ref<any>(null);
 
 const end = new Date();
@@ -256,9 +248,48 @@ const openCompleteDialog = (row: any) => {
   completeDialogVisible.value = true;
 };
 
-const openWorkOrderDialog = (row: any) => {
-  currentOrder.value = row;
-  workOrderDialogVisible.value = true;
+const handleFactoryApprove = (order: any) => {
+  ElMessageBox.confirm(`[${order.orderNo}] 주문을 공장승인 하시겠습니까?`, '공장승인 확인', {
+    confirmButtonText: '승인',
+    cancelButtonText: '취소',
+    type: 'success'
+  }).then(async () => {
+    try {
+      await updateOrderStatus(order.id, {
+        status: 'FactoryApproved'
+      });
+      ElMessage.success('공장승인이 완료되었습니다.');
+      getList();
+    } catch (error) {
+      ElMessage.error('공장승인 처리 중 오류가 발생했습니다.');
+    }
+  }).catch(() => {});
+};
+
+const handleFactoryReject = (order: any) => {
+  ElMessageBox.prompt(`[${order.orderNo}] 주문을 거절하는 사유를 입력해주세요.`, '공장거절 (사유 입력)', {
+    confirmButtonText: '거절 제출',
+    cancelButtonText: '취소',
+    inputType: 'textarea',
+    inputPlaceholder: '거절 사유를 입력하세요 (예: 자재 부족, 규격 불가 등)',
+    inputValidator: (val) => {
+      if (!val || !val.trim()) {
+        return '거절 사유를 입력해야 합니다.';
+      }
+      return true;
+    }
+  }).then(async ({ value }) => {
+    try {
+      await updateOrderStatus(order.id, {
+        status: 'FactoryRejected',
+        factoryRemarks: value.trim()
+      });
+      ElMessage.warning('공장거절 처리가 완료되었습니다.');
+      getList();
+    } catch (error) {
+      ElMessage.error('공장거절 처리 중 오류가 발생했습니다.');
+    }
+  }).catch(() => {});
 };
 
 const handleCloseByAgreement = (order: any) => {

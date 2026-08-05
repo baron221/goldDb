@@ -20,9 +20,9 @@ export function useMarket() {
     pageSize: 24,
     search: '',
     categoryLarge: '',
-    categoryMedium: '',
-    categorySmall: '',
-    companyId: null,
+    purity: '',
+    minWeight: null as number | null,
+    maxWeight: null as number | null,
     sortBy: 'latest'
   });
 
@@ -78,9 +78,9 @@ export function useMarket() {
   const resetFilters = () => {
     filters.search = '';
     filters.categoryLarge = '';
-    filters.categoryMedium = '';
-    filters.categorySmall = '';
-    filters.companyId = null;
+    filters.purity = '';
+    filters.minWeight = null;
+    filters.maxWeight = null;
     handleFilter();
   };
 

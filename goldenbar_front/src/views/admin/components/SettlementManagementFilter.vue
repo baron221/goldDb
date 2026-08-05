@@ -1,7 +1,17 @@
 <template>
 <el-card shadow="never" class="filter-card">
     <el-form :inline="true" :model="localQuery" class="demo-form-inline">
-      <el-form-item :label="$t('sys.company.labels.name')">
+      <el-form-item v-if="isMfg" label="물류">
+        <el-select v-model="localQuery.logisticsCompanyId" placeholder="전체" clearable filterable style="width: 200px" @change="handleFilter">
+          <el-option v-for="c in linkedCompanies" :key="c.companyId" :label="c.companyName" :value="c.companyId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-else-if="isDcc" label="공장">
+        <el-select v-model="localQuery.factoryCompanyId" placeholder="전체" clearable filterable style="width: 200px" @change="handleFilter">
+          <el-option v-for="c in linkedCompanies" :key="c.companyId" :label="c.companyName" :value="c.companyId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-else :label="$t('sys.company.labels.name')">
         <company-select v-model="localQuery.companyId" :placeholder="$t('marketplace.filters.search')" style="width: 200px" @change="handleFilter" />
       </el-form-item>
       <el-form-item :label="$t('order.filters.title')">
@@ -72,14 +82,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { Search, Refresh } from '@element-plus/icons-vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
+import { getCompanySummaries } from '@/api/payable';
+import useUserStore from '@/store/modules/user';
 
 const props = defineProps<{
   query: any;
 }>();
+
+const userStore = useUserStore();
+const isMfg = computed(() => userStore.companyType === 'MFG');
+const isDcc = computed(() => userStore.companyType === 'DCC');
+
+// Only companies this manufacturer/logistics center has an actual settlement
+// relationship with (via existing Payable charges), instead of every company
+// in the system regardless of category or relevance.
+const linkedCompanies = ref<any[]>([]);
+
+const fetchLinkedCompanies = async () => {
+  if (!isMfg.value && !isDcc.value) return;
+  try {
+    const res: any = await getCompanySummaries({ page: 1, pageSize: 1000 });
+    linkedCompanies.value = res.data.items || [];
+  } catch (error) {
+    console.error('Failed to fetch linked companies:', error);
+  }
+};
+
+onMounted(() => {
+  fetchLinkedCompanies();
+});
 
 const emit = defineEmits<{(_e: 'filter'): void;
   (_e: 'reset'): void;

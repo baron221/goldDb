@@ -11,16 +11,11 @@
           <el-tabs v-model="listQuery.status" @tab-change="handleStatusChange">
             <el-tab-pane label="전체 주문" name="" />
             <el-tab-pane label="주문접수" name="ORDERED" />
-            <el-tab-pane label="물류승인" name="LogisticsApproved" />
-            <el-tab-pane label="공장의뢰" name="FactoryRequested" />
-            <el-tab-pane label="작업진행" name="WorkOrderCreated" />
-            <el-tab-pane label="검수요청" name="InspectedRequested" />
-            <el-tab-pane label="검수완료" name="Inspected" />
-            <el-tab-pane label="정산대기" name="PENDING" />
-            <el-tab-pane label="정산중" name="PROCESSING" />
-            <el-tab-pane label="배송준비" name="DELIVERY_READY" />
-            <el-tab-pane label="배송중" name="DELIVERY_IN_TRANSIT" />
-            <el-tab-pane label="수령완료" name="Completed" />
+            <el-tab-pane label="공장의뢰" name="LogisticsApproved,FactoryRequested,WorkOrderCreated" />
+            <el-tab-pane label="제품출고" name="InspectedRequested" />
+            <el-tab-pane label="물류도착" name="Inspected" />
+            <el-tab-pane label="정산" name="PENDING,PROCESSING,SETTLED" />
+            <el-tab-pane label="수령완료" name="DELIVERY_READY,DELIVERY_IN_TRANSIT,DELIVERED,Completed" />
           </el-tabs>
         </div>
       </section>
@@ -101,7 +96,7 @@ const {
 const handleSettleSubmit = async (formData: any) => {
   if (!currentSettleOrder.value) return;
   const success = await updateStatus(currentSettleOrder.value.id, {
-    status: '정산확인요청',
+    status: 'PROCESSING',
     ...formData
   });
   if (success) {

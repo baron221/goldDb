@@ -47,15 +47,18 @@ public class StockService : IStockService
     private readonly IStockRepository _stockRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IRepository<UserCompany> _userCompanyRepository;
+    private readonly IReceivableService _receivableService;
 
     public StockService(
         IStockRepository stockRepository,
         ICurrentUserService currentUserService,
-        IRepository<UserCompany> userCompanyRepository)
+        IRepository<UserCompany> userCompanyRepository,
+        IReceivableService receivableService)
     {
         _stockRepository = stockRepository;
         _currentUserService = currentUserService;
         _userCompanyRepository = userCompanyRepository;
+        _receivableService = receivableService;
     }
 
     private async Task<List<int>> GetCurrentUserCompanyIdsAsync()
@@ -219,6 +222,7 @@ public class StockService : IStockService
 
         stock.Status = request.Status ?? stock.Status;
         stock.ActualWeight = request.ActualWeight ?? stock.ActualWeight;
+        stock.Size = request.Size ?? stock.Size;
         stock.RenterName = request.RenterName;
         stock.RentDate = request.RentDate;
         stock.ReturnDueDate = request.ReturnDueDate;
@@ -258,16 +262,19 @@ public class StockService : IStockService
                 return ApiResponse<string>.Failure("Forbidden: Some stocks do not belong to you.", 403);
         }
 
-        Order? exhaustionOrder = null;
+        Order? manualExhaustionOrder = null;
         if (request.ExhaustionOrderId.HasValue && request.Reason == "SOLD")
         {
-            exhaustionOrder = await _stockRepository.GetOrderWithItemsAsync(request.ExhaustionOrderId.Value);
+            manualExhaustionOrder = await _stockRepository.GetOrderWithItemsAsync(request.ExhaustionOrderId.Value);
 
-            if (exhaustionOrder == null) return ApiResponse<string>.Failure("소진 처리할 주문을 찾을 수 없습니다.");
-            if (exhaustionOrder.Status != "LogisticsApproved") return ApiResponse<string>.Failure("물류승인 상태인 주문만 판매 소진 처리가 가능합니다.");
+            if (manualExhaustionOrder == null) return ApiResponse<string>.Failure("소진 처리할 주문을 찾을 수 없습니다.");
+            if (manualExhaustionOrder.Status != "LogisticsApproved") return ApiResponse<string>.Failure("물류승인 상태인 주문만 판매 소진 처리가 가능합니다.");
 
-            exhaustionOrder.Status = "PENDING";
+            manualExhaustionOrder.Status = "PENDING";
+            await _receivableService.CreateOrderSettlementChargesAsync(manualExhaustionOrder.Id);
         }
+
+        var autoLinkedOrderIds = new HashSet<int>();
 
         foreach (var stock in stocks)
         {
@@ -276,12 +283,29 @@ public class StockService : IStockService
             stock.IsExhausted = true;
             stock.ExhaustionDate = request.ExhaustionDate ?? DateTime.UtcNow;
 
-            if (exhaustionOrder != null)
+            if (manualExhaustionOrder != null)
             {
-                stock.ExhaustionOrderId = exhaustionOrder.Id;
+                stock.ExhaustionOrderId = manualExhaustionOrder.Id;
+            }
+            else if (request.Reason == "SOLD" && stock.SourceOrderId.HasValue)
+            {
+                // Stock auto-created from a completed production order already knows which
+                // order/item it fulfills (SourceOrderId/SourceOrderItemId) - link it back
+                // automatically so the order can progress to settlement once every item
+                // has been sold, without requiring the caller to pick an order manually.
+                stock.ExhaustionOrderId = stock.SourceOrderId;
+                stock.ExhaustionOrderItemId = stock.SourceOrderItemId;
+                autoLinkedOrderIds.Add(stock.SourceOrderId.Value);
             }
         }
+
         await _stockRepository.SaveChangesAsync();
+
+        foreach (var orderId in autoLinkedOrderIds)
+        {
+            await TryTransitionToPendingIfFullyExhaustedAsync(orderId);
+        }
+
         return ApiResponse<string>.Success("success");
     }
 
@@ -490,45 +514,59 @@ public class StockService : IStockService
 
         await _stockRepository.SaveChangesAsync();
 
-        var order = await _stockRepository.GetOrderWithItemsAndExhaustedStocksAsync(orderItem.OrderId);
+        await TryTransitionToPendingIfFullyExhaustedAsync(orderItem.OrderId);
 
-        if (order != null)
+        return ApiResponse<string>.Success("success");
+    }
+
+    // Orders that reach "Completed" have every item awaiting sale at the retailer; once each
+    // item's stock has been individually marked exhausted (sold), the order is ready for
+    // settlement. Shared by the per-item exhaustion flow and the regular stock "판매" flow so
+    // both paths reach settlement the same way.
+    private static readonly string[] AlreadyPastPendingStatuses = { "PENDING", "PROCESSING", "SETTLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
+
+    private async Task TryTransitionToPendingIfFullyExhaustedAsync(int orderId)
+    {
+        var order = await _stockRepository.GetOrderWithItemsAndExhaustedStocksAsync(orderId);
+        if (order == null) return;
+        if (AlreadyPastPendingStatuses.Contains(order.Status)) return;
+
+        var topLevelItems = order.OrderItems.Where(oi => oi.ParentId == null).ToList();
+        if (topLevelItems.Count == 0) return;
+
+        bool allExhausted = true;
+
+        foreach (var item in topLevelItems)
         {
-            var topLevelItems = order.OrderItems.Where(oi => oi.ParentId == null).ToList();
-            bool allExhausted = true;
-
-            foreach(var item in topLevelItems)
+            if (item.Children.Any())
             {
-                if (item.Children.Any())
-                {
-                    if (item.Children.Any(c => !c.ExhaustedStocks.Any()))
-                    {
-                        allExhausted = false;
-                        break;
-                    }
-                }
-                else if (item.ProductId.HasValue && !item.ExhaustedStocks.Any())
+                if (item.Children.Any(c => !c.ExhaustedStocks.Any()))
                 {
                     allExhausted = false;
                     break;
                 }
             }
-
-            if (allExhausted)
+            else if (item.ProductId.HasValue && !item.ExhaustedStocks.Any())
             {
-                order.Status = "PENDING";
-
-                var history = new OrderStatusHistory
-                {
-                    OrderId = order.Id,
-                    Status = order.Status,
-                    Remarks = "모든 주문 항목이 재고에서 소진되어 정산 대기 상태로 변경되었습니다."
-                };
-                await _stockRepository.AddOrderStatusHistoryAsync(history);
-                await _stockRepository.SaveChangesAsync();
+                allExhausted = false;
+                break;
             }
         }
 
-        return ApiResponse<string>.Success("success");
+        if (allExhausted)
+        {
+            order.Status = "PENDING";
+
+            var history = new OrderStatusHistory
+            {
+                OrderId = order.Id,
+                Status = order.Status,
+                Remarks = "모든 주문 항목이 재고에서 소진되어 정산 대기 상태로 변경되었습니다."
+            };
+            await _stockRepository.AddOrderStatusHistoryAsync(history);
+            await _stockRepository.SaveChangesAsync();
+
+            await _receivableService.CreateOrderSettlementChargesAsync(order.Id);
+        }
     }
 }

@@ -22,6 +22,12 @@ public class SearchQueryDto
     public string? CategorySmall { get; set; }
 
     public int? CompanyId { get; set; }
+
+    public string? Purity { get; set; }
+
+    public decimal? MinWeight { get; set; }
+
+    public decimal? MaxWeight { get; set; }
 }
 
 public class IntegratedSearchResultDto
@@ -49,13 +55,33 @@ public class MarketItemDto
 
     public string? No { get; set; }
 
+    public string? ProductNo { get; set; }
+
     public bool IsSet { get; set; }
 
     public string? CategoryName { get; set; }
 
+    public string? CategoryLarge { get; set; }
+
+    public string? CategoryMedium { get; set; }
+
+    public string? CompanyName { get; set; }
+
+    public string? Purity { get; set; }
+
+    public List<MarketItemPurityWeightDto> PurityWeights { get; set; } = new();
+
     public string? PhotoUrl { get; set; }
 
     public decimal Price { get; set; }
+}
+
+public class MarketItemPurityWeightDto
+{
+
+    public string Purity { get; set; } = string.Empty;
+
+    public decimal Weight { get; set; }
 }
 
 public class ProductSearchResultDto

@@ -93,6 +93,10 @@ public class AppDbContext : DbContext
 
     public DbSet<Receivable> Receivables { get; set; }
 
+    public DbSet<ReceivableApplication> ReceivableApplications { get; set; }
+
+    public DbSet<Payable> Payables { get; set; }
+
     public DbSet<ProductOptionWeight> ProductOptionWeights { get; set; }
 
     public DbSet<OrderStatement> OrderStatements { get; set; }

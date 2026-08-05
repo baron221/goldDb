@@ -25,10 +25,8 @@
       :user-category="store.user().companyType"
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
-      @approve="openApprovalDialog"
       @factory-request="openRequestDialog"
       @inspection="openInspectionDialog"
-      @settlement-start="openRetailerSettlementDialog"
       @settlement-confirm="handleConfirmSettlement"
       @cancel="handleCancelOrder"
       @stock-exhaustion="handleStockExhaustion"
@@ -38,8 +36,7 @@
       @show-statement="handleShowStatement"
       @show-live-statement="handleShowLiveDataStatement"
       @show-history="openHistoryDialog"
-      @inspection-request="openCompleteDialog"
-      @work-order-create="openWorkOrderDialog"
+      @as-toggle="handleAsToggle"
     />
 
     <factory-request-dialog
@@ -49,30 +46,9 @@
       @completed="getList"
     />
 
-    <logistics-approval-dialog
-      v-model="approvalDialogVisible"
-      :order="currentOrder"
-      :code-map="codeMap"
-      @completed="getList"
-    />
-
     <order-status-history-dialog
       v-model="historyDialogVisible"
       :order-id="selectedOrderId"
-    />
-
-    <InspectionRequestDialog
-      v-model="completeDialogVisible"
-      :order="currentOrder"
-      :code-map="codeMap"
-      @saved="getList"
-    />
-
-    <WorkOrderCreateDialog
-      v-model="workOrderDialogVisible"
-      :order="currentOrder"
-      :code-map="codeMap"
-      @saved="getList"
     />
 
     <inspection-dialog
@@ -84,12 +60,6 @@
 
     <order-stock-exhaustion-dialog
       v-model="exhaustionDialogVisible"
-      :order="currentOrder"
-      @completed="getList"
-    />
-
-    <retailer-settlement-dialog
-      v-model="retailerSettlementDialogVisible"
       :order="currentOrder"
       @completed="getList"
     />
@@ -108,6 +78,14 @@
       :loading="listLoading"
       @confirm="onSettlementConfirmed"
     />
+
+    <payment-dialog
+      v-model="paymentDialogVisible"
+      :company="paymentDialogCompany"
+      :order-id="currentOrder?.id"
+      :order-no="currentOrder?.orderNo"
+      @saved="onPaymentSaved"
+    />
   </div>
 </template>
 
@@ -118,21 +96,19 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { getAllOrders, updateOrderStatus, saveOrderStatement, getOrderStatement } from '@/api/order';
 import { getCompanies } from '@/api/company';
+import { getPayableSummaryForOrder } from '@/api/payable';
 import useCodeStore from '@/store/modules/code';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElLoading } from 'element-plus';
 import { parseTime } from '@/utils';
 import store from '@/store';
 import OrderStatusHistoryDialog from '@/components/OrderStatusHistoryDialog/index.vue';
 import InspectionDialog from '@/components/InspectionDialog/index.vue';
-import LogisticsApprovalDialog from '@/components/LogisticsApprovalDialog/index.vue';
 import FactoryRequestDialog from '@/components/FactoryRequestDialog/index.vue';
-import RetailerSettlementDialog from '@/components/RetailerSettlementDialog/index.vue';
 import OrderStockExhaustionDialog from './components/OrderStockExhaustionDialog.vue';
 import TransactionStatementDialog from '@/components/TransactionStatementDialog/index.vue';
 import OrderTableList from '@/components/OrderTableList/index.vue';
-import InspectionRequestDialog from './components/InspectionRequestDialog.vue';
-import WorkOrderCreateDialog from './components/WorkOrderCreateDialog.vue';
 import SettlementConfirmDialog from '@/components/SettlementConfirmDialog/index.vue';
+import PaymentDialog from './components/PaymentDialog.vue';
 import { useLogisticsApprovalActions } from './composables/useLogisticsApprovalActions';
 import LogisticsApprovalFilter from './components/LogisticsApprovalFilter.vue';
 
@@ -146,17 +122,16 @@ const companies = ref<any[]>([]);
 const codeMap = computed(() => codeStore.codeMap);
 
 const currentOrder = ref<any>(null);
-const historyDialogVisible = ref(false); const requestDialogVisible = ref(false); const exhaustionDialogVisible = ref(false); const approvalDialogVisible = ref(false); const inspectionDialogVisible = ref(false); const completeDialogVisible = ref(false); const workOrderDialogVisible = ref(false);
+const historyDialogVisible = ref(false); const requestDialogVisible = ref(false); const exhaustionDialogVisible = ref(false); const inspectionDialogVisible = ref(false);
 const selectedOrderId = ref<number | null>(null);
 const statementDialogVisible = ref(false); const statementRef = ref<any>(null); const currentStatement = ref<any>(null);
-const retailerSettlementDialogVisible = ref(false); const settlementConfirmDialogVisible = ref(false);
+const settlementConfirmDialogVisible = ref(false);
+const paymentDialogVisible = ref(false);
+const paymentDialogCompany = ref<any>(null);
 
-const openRetailerSettlementDialog = (row: any) => { currentOrder.value = row; retailerSettlementDialogVisible.value = true; };
 const openHistoryDialog = (row: any) => { selectedOrderId.value = row.id; historyDialogVisible.value = true; };
 const handleStockExhaustion = (row: any) => { currentOrder.value = row; exhaustionDialogVisible.value = true; };
 const openRequestDialog = (row: any) => { currentOrder.value = row; requestDialogVisible.value = true; };
-const openCompleteDialog = (row: any) => { currentOrder.value = row; completeDialogVisible.value = true; };
-const openWorkOrderDialog = (row: any) => { currentOrder.value = row; workOrderDialogVisible.value = true; };
 
 const end = new Date();
 const start = new Date();
@@ -182,7 +157,7 @@ const listQuery = reactive({
   startDate: defaultStartDate,
   endDate: defaultEndDate,
   excludeCancelled: true,
-  excludeCompleted: true,
+  excludeCompleted: false,
   isAsOnly: false,
   categoryLarge: '',
   categoryMedium: '',
@@ -279,12 +254,59 @@ const resetQuery = () => {
   handleFilter();
 };
 
-const handleConfirmSettlement = (order: any) => {
+const handleAsToggle = async (order: any, value: boolean) => {
+  try {
+    const itemIds: number[] = [];
+    (order.orderItems || []).forEach((item: any) => {
+      itemIds.push(item.id);
+      (item.children || []).forEach((child: any) => itemIds.push(child.id));
+    });
+
+    await updateOrderStatus(order.id, {
+      status: order.status,
+      itemWeights: itemIds.map((id) => ({
+        orderItemId: id,
+        isAsOrder: value
+      }))
+    });
+    ElMessage.success(value ? 'AS 주문으로 설정되었습니다.' : 'AS 설정이 해제되었습니다.');
+    getList();
+  } catch (error) {
+    console.error('Failed to toggle AS order:', error);
+    ElMessage.error('AS 상태 변경에 실패했습니다.');
+  }
+};
+
+const handleConfirmSettlement = async (order: any) => {
   currentOrder.value = order;
+
+  try {
+    const res: any = await getPayableSummaryForOrder(order.id);
+    if (res.data) {
+      paymentDialogCompany.value = res.data;
+      paymentDialogVisible.value = true;
+      return;
+    }
+  } catch (error) {
+    console.error('Failed to load payable summary for order:', error);
+  }
+
+  // No manufacturer payable charge linked to this order (e.g. no logistics
+  // company assigned) - skip straight to the settlement confirmation step.
+  settlementConfirmDialogVisible.value = true;
+};
+
+const onPaymentSaved = () => {
+  paymentDialogVisible.value = false;
   settlementConfirmDialogVisible.value = true;
 };
 
 const onSettlementConfirmed = async (order: any) => {
+  const fullscreenLoading = ElLoading.service({
+    lock: true,
+    text: '정산 확정 처리 중입니다 (거래명세서 생성)... 잠시만 기다려주세요.',
+    background: 'rgba(255, 255, 255, 0.8)'
+  });
   try {
     listLoading.value = true;
     currentOrder.value = order;
@@ -312,12 +334,8 @@ const onSettlementConfirmed = async (order: any) => {
     ElMessage.error(t('admin.settlement.messages.settlementError'));
   } finally {
     listLoading.value = false;
+    fullscreenLoading.close();
   }
-};
-
-const openApprovalDialog = (row: any) => {
-  currentOrder.value = row;
-  approvalDialogVisible.value = true;
 };
 
 const handleShowStatement = async (order: any) => {

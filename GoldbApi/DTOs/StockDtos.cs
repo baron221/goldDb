@@ -187,6 +187,8 @@ public class UpdateStockDto
 
     public decimal? ActualWeight { get; set; }
 
+    public string? Size { get; set; }
+
     public string? RenterName { get; set; }
 
     public DateTime? RentDate { get; set; }
@@ -220,6 +222,12 @@ public class StockQueryDto
     public int? LogisticsCompanyId { get; set; }
 
     public bool? IsDirectManagement { get; set; }
+
+    public int? ProductId { get; set; }
+
+    public string? Purity { get; set; }
+
+    public string? Color { get; set; }
 
     public string? CategoryLarge { get; set; }
 

@@ -82,33 +82,16 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     });
   });
 
-  const densityMap: Record<string, number> = {
-    '24K': 19.30,
-    'PURE_GOLD': 19.30,
-    '18K': 15.50,
-    '14K': 13.10,
-    '10K': 11.30,
-    '22K': 17.70,
-    'PT950': 20.10,
-    'PT900': 19.80,
-    'PLATINUM': 20.10,
-    'PT': 20.10,
-    'SILVER': 10.30,
-    'SV925': 10.30,
-    'SV': 10.30
-  };
-
-  const getDensity = (purityCode: string): number => {
-    const codeUpper = purityCode.toUpperCase();
-    if (densityMap[codeUpper]) return densityMap[codeUpper];
-    if (codeUpper.includes('24K') || codeUpper.includes('PURE_GOLD') || codeUpper.includes('PUREGOLD')) return 19.30;
-    if (codeUpper.includes('18K')) return 15.50;
-    if (codeUpper.includes('14K')) return 13.10;
-    if (codeUpper.includes('10K')) return 11.30;
-    if (codeUpper.includes('22K')) return 17.70;
-    if (codeUpper.includes('PT') || codeUpper.includes('PLATINUM')) return 20.10;
-    if (codeUpper.includes('SV') || codeUpper.includes('SILVER')) return 10.30;
-    return 15.50;
+  // Only 14K <-> 18K is auto-converted (fixed 1.2 ratio). Any other purity
+  // pair returns null so the caller leaves the weight at 0 for manual entry,
+  // since density-based estimates were unreliable for other karat/metal combos.
+  const getConversionRatio = (fromPurity: string, toPurity: string): number | null => {
+    const from = (fromPurity || '').toUpperCase();
+    const to = (toPurity || '').toUpperCase();
+    if (from.includes('14K') && to.includes('18K')) return 1.2;
+    if (from.includes('18K') && to.includes('14K')) return 1 / 1.2;
+    if (from === to) return 1;
+    return null;
   };
 
   const getCategoryChildren = (code: string): any[] => {
@@ -324,7 +307,6 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
 
     const basePurity = calcBasePurity.value;
     const baseWeight = calcBaseWeight.value;
-    const baseDensity = getDensity(basePurity);
 
     if (combinationGridData.value.length === 0) {
       ElMessage.warning(t('productDialog.noCombinationWarning'));
@@ -332,9 +314,8 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     }
 
     combinationGridData.value.forEach((row: any) => {
-      const rowDensity = getDensity(row.purity);
-      const converted = baseWeight * (rowDensity / baseDensity);
-      row.weight = Math.round(converted * 100) / 100;
+      const ratio = getConversionRatio(basePurity, row.purity);
+      row.weight = ratio !== null ? Math.round(baseWeight * ratio * 100) / 100 : 0;
     });
 
     temp.value.optionWeights = [...combinationGridData.value];
@@ -459,11 +440,10 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
         } else {
           const basePurity = newPurities[0];
           const baseWeight = temp.value.purityWeightsMap[basePurity] || temp.value.weight;
-          const baseDensity = getDensity(basePurity);
-          
+
           added.forEach(pCode => {
-            const density = getDensity(pCode);
-            temp.value.purityWeightsMap[pCode] = Math.round(baseWeight * (density / baseDensity) * 100) / 100;
+            const ratio = getConversionRatio(basePurity, pCode);
+            temp.value.purityWeightsMap[pCode] = ratio !== null ? Math.round(baseWeight * ratio * 100) / 100 : 0;
           });
         }
       }
@@ -500,6 +480,8 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
       return;
     }
 
+    if (!temp.value.purityWeightsMap) temp.value.purityWeightsMap = {};
+
     const currentWeightsMap = new Map();
     if (temp.value.optionWeights) {
       temp.value.optionWeights.forEach((ow: any) => {
@@ -511,7 +493,13 @@ export function useProductDialog(props: any, emit: any, dataForm: any) {
     temp.value.purity.forEach((pCode: string) => {
       temp.value.colors.forEach((cCode: string) => {
         const key = `${pCode}_${cCode}`;
-        const weight = currentWeightsMap.has(key) ? currentWeightsMap.get(key) : temp.value.weight;
+        // purityWeightsMap is the source of truth bound to the per-purity weight inputs
+        // (populated by the ratio-conversion watcher on temp.value.purity, which runs before
+        // this watcher). Falling back to the stale optionWeights/base weight here caused newly
+        // added purities to be saved with the wrong (duplicated base) weight.
+        const weight = temp.value.purityWeightsMap[pCode] !== undefined
+          ? temp.value.purityWeightsMap[pCode]
+          : (currentWeightsMap.has(key) ? currentWeightsMap.get(key) : temp.value.weight);
         grid.push({
           purity: pCode,
           color: cCode,

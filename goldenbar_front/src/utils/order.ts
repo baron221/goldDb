@@ -26,7 +26,7 @@ export const getOrderStatusFlow = (status: string, userType: string = 'retailer'
         codes: status === 'SETTLED_CANCELLED' ? ['SETTLED_CANCELLED'] : ['SETTLED']
       },
       {
-        name: '배송중',
+        name: '제품출고',
         codes: ['DELIVERY_READY', 'DELIVERY_IN_TRANSIT', 'DELIVERED']
       },
       {
@@ -68,15 +68,15 @@ export const getOrderStatusFlow = (status: string, userType: string = 'retailer'
   return [
     ...baseFlow,
     { code: 'SETTLED', name: '정산완료' },
-    { code: 'DELIVERY_READY', name: '배송시작' },
-    { code: 'DELIVERY_IN_TRANSIT', name: '배송중' },
-    { code: 'DELIVERED', name: '배송완료' },
+    { code: 'DELIVERY_READY', name: '출고대기' },
+    { code: 'DELIVERY_IN_TRANSIT', name: '이송중' },
+    { code: 'DELIVERED', name: '수령대기' },
     { code: 'Completed', name: '수령완료' }
   ];
 };
 
 export const postPendingStatuses = [
-  'LogisticsApproved', 'FactoryRequested', 'WorkOrderCreated', 'InspectedRequested',
+  'LogisticsApproved', 'FactoryRequested', 'WorkOrderCreated', 'FactoryApproved', 'FactoryRejected', 'InspectedRequested',
   'REQUEST_CLOSE_BY_AGREEMENT', 'CLOSED_BY_AGREEMENT', 'Inspected',
   'PENDING', 'PROCESSING', 'SETTLED', 'DELIVERY_READY',
   'DELIVERY_IN_TRANSIT', 'DELIVERED', 'Completed'
@@ -95,30 +95,48 @@ export const isStatementVisibleStatus = (status: string): boolean => {
   return statementVisibleStatuses.includes(status);
 };
 
-export const getStatusLabel = (status: string, userCategory: string = '') => {
-  if (userCategory === 'MFG') {
-    if (status === 'Inspected') return '검수완료';
+const compactStatusNameMap: Record<string, string> = {
+  'ORDERED': '주문접수',
+  'LogisticsApproved': '공장의뢰',
+  'FactoryRequested': '공장의뢰',
+  'WorkOrderCreated': '공장의뢰',
+  'FactoryApproved': '공장승인',
+  'FactoryRejected': '공장거절',
+  'InspectedRequested': '제품출고',
+  'Inspected': '물류도착',
+  'PENDING': '정산',
+  'PROCESSING': '정산',
+  'SETTLED': '정산',
+  'SETTLED_CANCELLED': '정산취소',
+  'DELIVERY_READY': '수령완료',
+  'DELIVERY_IN_TRANSIT': '수령완료',
+  'DELIVERED': '수령완료',
+  'Completed': '수령완료',
+  'Cancelled': '주문취소',
+  'REQUEST_CLOSE_BY_AGREEMENT': '검수불가 협의요청',
+  'CLOSED_BY_AGREEMENT': '검수불가 종결'
+};
 
-    const completedStatuses = [
-      'PENDING', 'PROCESSING', 'SETTLED', 'SETTLED_CANCELLED',
-      'DELIVERY_READY', 'DELIVERY_IN_TRANSIT', 'DELIVERED', 'Completed'
-    ];
-    if (completedStatuses.includes(status)) return '완료';
+export const getStatusLabel = (status: string, userCategory: string = '') => {
+  if (userCategory === 'MFG' || userCategory === 'DCC') {
+    return compactStatusNameMap[status] || status;
   }
 
   const statusNameMap: Record<string, string> = {
     'ORDERED': '주문접수',
     'LogisticsApproved': '물류승인',
     'FactoryRequested': '공장의뢰',
+    'FactoryApproved': '공장승인',
+    'FactoryRejected': '공장거절',
     'InspectedRequested': '검수요청',
     'Inspected': '검수완료',
     'PENDING': '정산대기',
     'PROCESSING': '정산중',
     'SETTLED': '정산완료',
     'SETTLED_CANCELLED': '정산취소',
-    'DELIVERY_READY': '배송준비',
-    'DELIVERY_IN_TRANSIT': '배송중',
-    'DELIVERED': '배송완료',
+    'DELIVERY_READY': '출고대기',
+    'DELIVERY_IN_TRANSIT': '이송중',
+    'DELIVERED': '수령대기',
     'Completed': '수령완료',
     'Cancelled': '주문취소',
     'REQUEST_CLOSE_BY_AGREEMENT': '검수불가 협의요청',
@@ -129,25 +147,39 @@ export const getStatusLabel = (status: string, userCategory: string = '') => {
   return statusNameMap[status] || status;
 };
 
+const compactStatusTagMap: Record<string, string> = {
+  'ORDERED': 'info',
+  'LogisticsApproved': 'warning',
+  'FactoryRequested': 'warning',
+  'WorkOrderCreated': 'warning',
+  'FactoryApproved': 'success',
+  'FactoryRejected': 'danger',
+  'InspectedRequested': 'primary',
+  'Inspected': 'success',
+  'PENDING': 'warning',
+  'PROCESSING': 'warning',
+  'SETTLED': 'warning',
+  'SETTLED_CANCELLED': 'info',
+  'DELIVERY_READY': 'success',
+  'DELIVERY_IN_TRANSIT': 'success',
+  'DELIVERED': 'success',
+  'Completed': 'success',
+  'Cancelled': 'danger',
+  'REQUEST_CLOSE_BY_AGREEMENT': 'warning',
+  'CLOSED_BY_AGREEMENT': 'danger'
+};
+
 export const getStatusTagType = (status: string, userCategory: string = '') => {
-  if (userCategory === 'MFG') {
-    const map: Record<string, string> = {
-      'ORDERED': 'info',
-      'LogisticsApproved': 'success',
-      'FactoryRequested': 'warning',
-      'WorkOrderCreated': 'warning',
-      'InspectedRequested': 'primary',
-      'Inspected': 'success',
-      'Completed': 'info',
-      'Cancelled': 'danger'
-    };
-    return map[status] || 'info';
+  if (userCategory === 'MFG' || userCategory === 'DCC') {
+    return compactStatusTagMap[status] || 'info';
   }
 
   const map: Record<string, string> = {
     'ORDERED': 'info',
     'LogisticsApproved': 'success',
     'FactoryRequested': 'warning',
+    'FactoryApproved': 'success',
+    'FactoryRejected': 'danger',
     'InspectedRequested': 'primary',
     'Inspected': 'success',
     'PENDING': 'warning',
@@ -168,11 +200,24 @@ export const getStatusTagType = (status: string, userCategory: string = '') => {
 
 export const getOrderTotalAmount = (order: any, userCategory: string = '') => {
   const status = order.status;
-  const isMfgOrDcc = userCategory === 'MFG' || userCategory === 'DCC';
   const settlementStatuses = ['PENDING', 'PROCESSING', 'SETTLED', 'SETTLED_CANCELLED', 'DELIVERY_READY', 'DELIVERY_IN_TRANSIT', 'DELIVERED', 'Completed'];
   const factoryInputStatuses = ['WorkOrderCreated', 'InspectedRequested', 'Inspected'];
 
-  if (isMfgOrDcc) {
+  // MFG is only ever owed what THEY themselves declared (factory input cost) - never
+  // the logistics-confirmed retailer price, which may include a markup that's
+  // logistics' own margin, not something the manufacturer should see or be paid.
+  if (userCategory === 'MFG') {
+    if ((settlementStatuses.includes(status) || factoryInputStatuses.includes(status)) && order.orderItems && order.orderItems.length > 0) {
+      const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
+      return topLevelItems.reduce((acc: number, item: any) => {
+        const material = item.factoryInputMaterialCost || 0;
+        const labor = item.factoryInputLaborCost || 0;
+        return acc + (material + labor) * item.quantity;
+      }, 0);
+    }
+  }
+
+  if (userCategory === 'DCC') {
     if (settlementStatuses.includes(status)) {
       if (order.orderItems && order.orderItems.length > 0) {
         const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);

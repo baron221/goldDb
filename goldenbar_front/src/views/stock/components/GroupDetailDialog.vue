@@ -110,14 +110,14 @@
           </template>
         </el-table-column>
         <el-table-column
-          label="함량/실중량"
-          width="100"
+          label="함량/사이즈/실중량"
+          width="120"
           align="right"
           header-align="center"
-          :excel-formatter="(row) => `${codeMap[row.purity] || row.purity}\n${row.actualWeight.toFixed(2)}g`"
+          :excel-formatter="(row) => `${codeMap[row.purity] || row.purity}${row.size && row.size !== 'EMPTY' ? ' / ' + row.size : ''}\n${row.actualWeight.toFixed(2)}g`"
         >
           <template #default="{row}">
-            <span style="font-size: 0.8875rem; color: #909399;">{{ codeMap[row.purity] || row.purity }}</span>
+            <span style="font-size: 0.8875rem; color: #909399;">{{ codeMap[row.purity] || row.purity }}<template v-if="row.size && row.size !== 'EMPTY'"> / {{ row.size }}</template></span>
             <br />
             <span>{{ row.actualWeight.toFixed(2) }}g<template v-if="row.quantity > 1"> x{{ row.quantity }}</template></span>
           </template>
@@ -174,9 +174,12 @@
 
         </el-table-column>
 
-        <el-table-column label="메모" prop="memo" min-width="120" header-align="center" show-overflow-tooltip />
-        <el-table-column label="액션" width="140" align="center" :fixed="!isMobile ? 'right' : false" header-align="center">
+        <el-table-column label="메모" prop="note" min-width="120" header-align="center" show-overflow-tooltip />
+        <el-table-column label="액션" width="170" align="center" :fixed="!isMobile ? 'right' : false" header-align="center">
           <template #default="{row}">
+            <el-tooltip content="정보 수정" placement="top">
+              <el-button size="small" :icon="Edit" circle @click="$emit('edit', row)" />
+            </el-tooltip>
             <el-tooltip content="바코드 출력" placement="top">
               <el-button size="small" :icon="Printer" circle @click="$emit('print-barcode', row)" />
             </el-tooltip>
@@ -201,7 +204,7 @@
 <script setup lang="ts">
 
 import { useMobile } from '@/hooks/useMobile';
-import { Delete, Printer, Picture } from '@element-plus/icons-vue';
+import { Delete, Printer, Picture, Edit } from '@element-plus/icons-vue';
 import BaseTable from '@/components/BaseTable/index.vue';
 import BasePopup from '@/components/BasePopup/index.vue';
 const { isMobile } = useMobile();
@@ -254,6 +257,8 @@ defineEmits([
   'print-barcode',
 
   'open-photo',
+
+  'edit',
 
   'delete'
 ]);

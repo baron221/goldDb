@@ -43,11 +43,11 @@
             :excel-formatter="(row) => `[${row.productNo || '-'}] ${row.name || '-'} (${row.companyName || '-'})`"
           >
             <template #default="{row}">
-              <span>{{ row.productNo || '-' }}</span>
+              <span class="product-no-bold">{{ row.productNo || '-' }}</span>
               <br />
-              <span>{{ row.name || '-' }}</span>
+              <span class="product-name-bold">{{ row.name || '-' }}</span>
               <br />
-              <span>{{ row.companyName || '-' }}</span>
+              <span class="product-company">{{ row.companyName || '-' }}</span>
             </template>
           </el-table-column>
 

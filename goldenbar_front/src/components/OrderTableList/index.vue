@@ -50,7 +50,7 @@
 
       <el-table-column
         label="주문 상품"
-        min-width="300"
+        min-width="440"
         header-align="center"
         :excel-formatter="(row) => {
           if (!row.orderItems || row.orderItems.length === 0) return '-';
@@ -87,6 +87,34 @@
       </el-table-column>
 
       <el-table-column
+        v-if="props.userCategory === 'DCC'"
+        label="AS"
+        width="60"
+        align="center"
+        :excel-formatter="(row) => isAsOrder(row) ? 'Y' : 'N'"
+      >
+        <template #default="{row}">
+          <el-checkbox :model-value="isAsOrder(row)" @change="(val) => $emit('as-toggle', row, val)" />
+        </template>
+      </el-table-column>
+
+      <el-table-column
+        v-if="props.userCategory === 'MFG'"
+        prop="logisticsCompanyName"
+        label="물류"
+        width="180"
+        align="center"
+        :excel-formatter="(row) => row.logisticsCompanyName || '-'"
+      >
+        <template #default="{row}">
+          <div class="company-name" style="font-weight: bold; color: #303133; font-size: 0.9rem;">
+            {{ row.logisticsCompanyName || '-' }}
+          </div>
+        </template>
+      </el-table-column>
+
+      <el-table-column
+        v-else
         prop="manufacturerName"
         label="제조사 / 소매점"
         width="180"
@@ -131,19 +159,18 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="액션" width="120" align="center" :fixed="!isMobile ? 'right' : false">
+      <el-table-column label="액션" width="170" align="center" :fixed="!isMobile ? 'right' : false">
         <template #default="{row}">
           <order-action-buttons
             :row="row"
             :user-category="props.userCategory"
-            @approve="(r) => $emit('approve', r)"
             @factory-request="(r) => $emit('factory-request', r)"
+            @factory-approve="(r) => $emit('factory-approve', r)"
+            @factory-reject="(r) => $emit('factory-reject', r)"
             @inspection="(r) => $emit('inspection', r)"
             @inspection-request="(r) => $emit('inspection-request', r)"
-            @settlement-start="(r) => $emit('settlement-start', r)"
             @settlement-confirm="(r) => $emit('settlement-confirm', r)"
             @status-update="(id, status, label) => $emit('status-update', id, status, label)"
-            @work-order-create="(r) => $emit('work-order-create', r)"
             @close-by-agreement="(r) => $emit('close-by-agreement', r)"
           />
         </template>
@@ -154,11 +181,10 @@
           <order-action-more
             :order="row"
             :user-category="props.userCategory"
-            @approve="(r) => $emit('approve', r)"
+            :code-map="props.codeMap"
             @factory-request="(r) => $emit('factory-request', r)"
             @inspection="(r) => $emit('inspection', r)"
             @inspection-request="(r) => $emit('inspection-request', r)"
-            @settlement-start="(r) => $emit('settlement-start', r)"
             @settlement-confirm="(r) => $emit('settlement-confirm', r)"
             @cancel="(r) => $emit('cancel', r)"
             @stock-exhaustion="(r) => $emit('stock-exhaustion', r)"
@@ -168,7 +194,6 @@
             @show-statement="(r) => $emit('show-statement', r)"
             @show-live-statement="(r) => $emit('show-live-statement', r)"
             @show-history="(r) => $emit('show-history', r)"
-            @work-order-create="(r) => $emit('work-order-create', r)"
           />
         </template>
       </el-table-column>
@@ -211,12 +236,11 @@ const emit = defineEmits([
   'expand-change',
   'refresh',
   'order-no-click',
-  'approve',
   'factory-request',
+  'factory-approve',
+  'factory-reject',
   'inspection',
   'inspection-request',
-  'work-order-create',
-  'settlement-start',
   'settlement-confirm',
   'status-update',
   'cancel',
@@ -225,12 +249,17 @@ const emit = defineEmits([
   'close-by-agreement',
   'show-statement',
   'show-live-statement',
-  'show-history'
+  'show-history',
+  'as-toggle'
 ]);
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   return parseTime(new Date(dateStr), '{y}-{m}-{d} {h}:{i}');
+};
+
+const isAsOrder = (row: any) => {
+  return !!(row.orderItems && row.orderItems.some((item: any) => item.isAsOrder));
 };
 
 const statusLabel = (status: string) => {

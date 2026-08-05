@@ -45,14 +45,63 @@
 .empty-state {
   margin-top: 6.25rem;
 }
+.order-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  margin-bottom: 0.25rem;
+
+  &:hover .order-link {
+    text-decoration: underline;
+  }
+}
+.order-link-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 2px;
+  border: 1px solid #eae6df;
+  flex-shrink: 0;
+}
+.order-link-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
 .order-link {
   color: #409eff;
   font-size: 0.95rem;
-  margin-bottom: 0.25rem;
+}
+.order-link-product {
+  font-size: 0.825rem;
+  color: #606266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .memo-text {
   font-size: 0.9rem;
   color: #606266;
+}
+.applied-charges-note {
+  margin-top: 0.3125rem;
+  padding-top: 0.3125rem;
+  border-top: 1px dashed #ebeef5;
+  font-size: 0.8125rem;
+  color: #909399;
+}
+.applied-charge-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.applied-order-link {
+  color: #409eff;
+  cursor: pointer;
+}
+.applied-order-link:hover {
+  text-decoration: underline;
 }
 .search-input {
   width: 250px;

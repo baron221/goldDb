@@ -18,26 +18,6 @@
             <el-button type="primary" class="primary-gold-btn" @click="openCustomerDialog">고객 찾기</el-button>
           </div>
         </el-form-item>
-        <el-form-item :label="$t('cart.orderSummary.labels.orderMemo')">
-          <el-input
-            :model-value="orderMemo"
-            @update:model-value="$emit('update:orderMemo', $event)"
-            type="textarea"
-            :rows="3"
-            :placeholder="$t('cart.orderSummary.placeholders.orderMemo')"
-            class="luxury-textarea"
-          />
-        </el-form-item>
-        <el-form-item :label="$t('cart.orderSummary.labels.logisticsRemarks')">
-          <el-input
-            :model-value="requestMemo"
-            @update:model-value="$emit('update:requestMemo', $event)"
-            type="textarea"
-            :rows="3"
-            :placeholder="$t('cart.orderSummary.placeholders.logisticsRemarks')"
-            class="luxury-textarea"
-          />
-        </el-form-item>
       </el-form>
     </div>
 
@@ -92,14 +72,6 @@ defineProps({
     type: [Number, null] as any,
     required: true
   },
-  orderMemo: {
-    type: String,
-    required: true
-  },
-  requestMemo: {
-    type: String,
-    required: true
-  },
   isMobile: {
     type: Boolean,
     default: false
@@ -108,8 +80,6 @@ defineProps({
 
 const emit = defineEmits([
   'update:mainCustomerSearch',
-  'update:orderMemo',
-  'update:requestMemo',
   'open-customer-dialog',
   'clear-customer',
   'checkout',

@@ -50,5 +50,11 @@ public static class DashboardEndpoints
             var result = await dashboardService.GetPartnerRetailerStatsAsync();
             return Results.Ok(result);
         });
+
+        group.MapGet("/partner-logistics", async (IDashboardService dashboardService) =>
+        {
+            var result = await dashboardService.GetPartnerLogisticsStatsAsync();
+            return Results.Ok(result);
+        });
     }
 }

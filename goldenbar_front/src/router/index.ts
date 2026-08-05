@@ -167,14 +167,10 @@ export const asyncRoutes:RouteRecordRaw[] = [
         path: 'order-tracking',
         component: () => import('@/views/admin/order-tracking.vue'),
         name: 'OrderTracking',
-        meta: { title: '주문 이력 추적', icon: 'Clock' }
+        meta: { title: '주문 이력 추적', icon: 'Clock' },
+        alias: ['/order/order-tracking', '/my/order']
       },
-      {
-        path: 'partner-retailers',
-        component: () => import('@/views/admin/partner-retailers.vue'),
-        name: 'PartnerRetailers',
-        meta: { title: '협력 소매점 관리', icon: 'Connection' }
-      },
+
       {
         path: 'logistics-approval',
         component: () => import('@/views/admin/logistics-approval.vue'),
@@ -189,10 +185,18 @@ export const asyncRoutes:RouteRecordRaw[] = [
         alias: 'receivable-management'
       },
       {
+        path: 'payable',
+        component: () => import('@/views/admin/payable-management.vue'),
+        name: 'PayableManagement',
+        meta: { title: '정산처리/정산받은 내역', icon: 'Money' },
+        alias: 'payable-management'
+      },
+      {
         path: 'factory-request',
         component: () => import('@/views/admin/factory-request.vue'),
         name: 'FactoryRequest',
-        meta: { title: '공장 의뢰 관리', icon: 'List' }
+        meta: { title: '공장 의뢰 관리', icon: 'List' },
+        alias: '/order/factory-request'
       },
       {
         path: 'inspection-management',
@@ -340,6 +344,13 @@ export const asyncRoutes:RouteRecordRaw[] = [
         component: () => import('@/views/product-set/detail.vue'),
         name: 'ProductSetDetail',
         meta: { title: '세트 상세', hidden: true }
+      },
+      {
+        path: 'cart',
+        component: () => import('@/views/cart/index.vue'),
+        name: 'Cart',
+        meta: { title: '장바구니', icon: 'ShoppingCart' },
+        alias: ['/my/cart', '/cart']
       }
     ]
   }

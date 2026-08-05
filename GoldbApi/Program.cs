@@ -85,8 +85,10 @@ builder.Services.AddScoped<GoldbApi.Repositories.IStockRepository, GoldbApi.Repo
 builder.Services.AddScoped<GoldbApi.Repositories.IReceivableRepository, GoldbApi.Repositories.ReceivableRepository>();
 builder.Services.AddScoped<GoldbApi.Services.IOrderService, GoldbApi.Services.OrderService>();
 builder.Services.AddScoped<GoldbApi.Services.IReceivableService, GoldbApi.Services.ReceivableService>();
+builder.Services.AddScoped<GoldbApi.Services.IPayableService, GoldbApi.Services.PayableService>();
 builder.Services.AddScoped<GoldbApi.Services.ISearchService, GoldbApi.Services.SearchService>();
 builder.Services.AddHostedService<GoldbApi.Services.MaterializedViewRefreshService>();
+builder.Services.AddHostedService<GoldbApi.Services.LogisticsAutoApprovalService>();
 
 builder.Services.AddCors(options =>
 {
@@ -99,6 +101,13 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 104857600;
+    options.ValueLengthLimit = 104857600;
+    options.MultipartHeadersLengthLimit = 104857600;
+});
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
 {
@@ -218,10 +227,84 @@ GoldbApi.Endpoints.FavoriteEndpoints.MapFavoriteEndpoints(app);
 GoldbApi.Endpoints.MenuFavoriteEndpoints.MapMenuFavoriteEndpoints(app);
 GoldbApi.Endpoints.OrderEndpoints.MapOrderEndpoints(app);
 GoldbApi.Endpoints.ReceivableEndpoints.MapReceivableEndpoints(app);
+GoldbApi.Endpoints.PayableEndpoints.MapPayableEndpoints(app);
 GoldbApi.Endpoints.SearchEndpoints.MapSearchEndpoints(app);
 
 app.MapGet("/api/seed", async (GoldbApi.Data.AppDbContext dbContext) =>
 {
+    await dbContext.Database.ExecuteSqlRawAsync(@"
+        UPDATE goldb.menus SET parent_id = 116, is_deleted = false WHERE id IN (201, 202, 203, 204);
+        DELETE FROM goldb.menu_permissions WHERE menu_id IN (87, 134, 135, 136, 116, 201, 202, 203, 204, 205);
+        UPDATE goldb.menus SET is_deleted = true WHERE id IN (87, 134, 135, 136);
+
+        INSERT INTO goldb.menu_permissions (role_key, menu_id, can_search, can_create, can_delete, can_save, can_print, custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8, created_at, is_deleted)
+        SELECT r.role_key, m.menu_id, true, true, true, true, true, true, true, true, true, true, true, true, true, NOW(), false
+        FROM (VALUES ('admin'), ('editor'), ('dc'), ('mfg'), ('retail'), ('market'), ('manufacturer')) AS r(role_key)
+        CROSS JOIN (VALUES (116), (201), (202), (203), (204)) AS m(menu_id);
+
+        -- 1. Factory (mfg, manufacturer): NO 139 (물류 승인 내역)
+        DELETE FROM goldb.menu_permissions WHERE role_key IN ('mfg', 'manufacturer') AND menu_id = 139;
+
+        -- 2. Logistics (dc, market): NO 131 (공장의뢰내역)
+        DELETE FROM goldb.menu_permissions WHERE role_key IN ('dc', 'market') AND menu_id = 131;
+
+        -- 3. Retailer (editor, retail): NO 131 AND NO 139
+        DELETE FROM goldb.menu_permissions WHERE role_key IN ('editor', 'retail') AND menu_id IN (131, 139);
+
+        -- Ensure Factory has 131 (공장의뢰내역)
+        DELETE FROM goldb.menu_permissions WHERE role_key IN ('mfg', 'manufacturer') AND menu_id = 131;
+        INSERT INTO goldb.menu_permissions (role_key, menu_id, can_search, can_create, can_delete, can_save, can_print, custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8, created_at, is_deleted)
+        SELECT r.role_key, 131, true, true, true, true, true, true, true, true, true, true, true, true, true, NOW(), false
+        FROM (VALUES ('mfg'), ('manufacturer')) AS r(role_key);
+
+        -- Ensure Logistics has 139 (물류 승인 내역)
+        DELETE FROM goldb.menu_permissions WHERE role_key IN ('dc', 'market') AND menu_id = 139;
+        INSERT INTO goldb.menu_permissions (role_key, menu_id, can_search, can_create, can_delete, can_save, can_print, custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8, created_at, is_deleted)
+        SELECT r.role_key, 139, true, true, true, true, true, true, true, true, true, true, true, true, true, NOW(), false
+        FROM (VALUES ('dc'), ('market')) AS r(role_key);
+
+        -- 4. Employee Management (직원 관리 - views/sys/employees) Menu 205 under parent 125 (거래처)
+        DELETE FROM goldb.menus WHERE id = 205;
+        INSERT INTO goldb.menus (id, parent_id, path, component, name, title, redirect, sort_order, is_mobile, is_deleted, created_at)
+        VALUES (205, 125, 'employee', 'views/sys/employees', 'Employees', '직원 관리', '', 10, false, false, NOW());
+
+        INSERT INTO goldb.menu_permissions (role_key, menu_id, can_search, can_create, can_delete, can_save, can_print, custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8, created_at, is_deleted)
+        SELECT r.role_key, 205, true, true, true, true, true, true, true, true, true, true, true, true, true, NOW(), false
+        FROM (VALUES ('admin'), ('editor'), ('dc'), ('mfg'), ('retail'), ('market'), ('manufacturer')) AS r(role_key);
+
+        DELETE FROM goldb.menu_permissions WHERE menu_id = 125;
+        INSERT INTO goldb.menu_permissions (role_key, menu_id, can_search, can_create, can_delete, can_save, can_print, custom1, custom2, custom3, custom4, custom5, custom6, custom7, custom8, created_at, is_deleted)
+        SELECT r.role_key, 125, true, true, true, true, true, true, true, true, true, true, true, true, true, NOW(), false
+        FROM (VALUES ('admin'), ('editor'), ('dc'), ('mfg'), ('retail'), ('market'), ('manufacturer')) AS r(role_key);
+        INSERT INTO goldb.gold_prices (announced_at, platinum, pure_gold, gold18_k, gold14_k, silver, is_deleted, created_at)
+        SELECT NOW(), 350000, 450000, 330000, 260000, 5000, false, NOW()
+        WHERE NOT EXISTS (SELECT 1 FROM goldb.gold_prices);
+        ALTER TABLE goldb.stocks ADD COLUMN IF NOT EXISTS quantity integer NOT NULL DEFAULT 1;
+        ALTER TABLE goldb.stocks ADD COLUMN IF NOT EXISTS size character varying(50);
+        ALTER TABLE goldb.receivables ADD COLUMN IF NOT EXISTS weight numeric NOT NULL DEFAULT 0;
+        ALTER TABLE goldb.receivables ADD COLUMN IF NOT EXISTS remaining_weight numeric NOT NULL DEFAULT 0;
+        ALTER TABLE goldb.receivables ADD COLUMN IF NOT EXISTS discount numeric NOT NULL DEFAULT 0;
+        ALTER TABLE goldb.receivables ADD COLUMN IF NOT EXISTS is_cancelled boolean NOT NULL DEFAULT false;
+        ALTER TABLE goldb.cart_items ADD COLUMN IF NOT EXISTS size character varying(50);
+        ALTER TABLE goldb.cart_items ADD COLUMN IF NOT EXISTS memo character varying(500);
+        UPDATE goldb.menus SET is_deleted = true WHERE path = 'partner-retailers' OR name = 'PartnerRetailers';
+    ");
+
+    if (!dbContext.GoldPrices.Any())
+    {
+        dbContext.GoldPrices.Add(new GoldbApi.Models.GoldPrice
+        {
+            PureGold = 100000,
+            Gold18K = 80000,
+            Gold14K = 60000,
+            Platinum = 50000,
+            Silver = 1000,
+            AnnouncedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
     var passwordHash = BCrypt.Net.BCrypt.HashPassword("123456");
 
     var roles = new[] { 

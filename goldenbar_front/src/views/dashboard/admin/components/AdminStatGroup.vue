@@ -98,13 +98,13 @@ const handleCardClick = (type: string) => {
       router.push({ path: '/sys/company' });
       break;
     case 'products':
-      router.push({ path: '/product/index' });
+      router.push({ path: '/prd/product' });
       break;
     case 'orders':
-      router.push({ path: '/order/index' });
+      router.push({ path: '/order/order-management' });
       break;
     case 'pending':
-      router.push({ path: '/admin/order-approval' });
+      router.push({ path: '/order/logistics-approval' });
       break;
   }
 };

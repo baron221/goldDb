@@ -173,8 +173,7 @@ const handleShowStock = async (item: any) => {
   try {
     const res = await fetchStocks({
       productId: item.productId,
-      logisticsCompanyId: userStore.companyId,
-      isDirectManagement: true,
+      companyId: userStore.companyId,
       isExhausted: false,
       status: 'ACTIVE',
       pageSize: 100

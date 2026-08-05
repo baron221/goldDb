@@ -29,13 +29,8 @@
   </el-dialog>
 </template>
 
-<script>
-
-const openPopups = [];
-</script>
-
 <script setup>
-import { computed, watch, onMounted, onUnmounted } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
   modelValue: {
@@ -92,82 +87,6 @@ const visible = computed({
   },
   set(val) {
     emit('update:modelValue', val);
-  }
-});
-
-const popupId = `base-popup-${Math.random().toString(36).substr(2, 9)}`;
-let poppedBySelf = false;
-
-const onKeyDown = (event) => {
-  if (event.key === 'Escape' && props.closeOnPressEscape && visible.value) {
-    if (openPopups[openPopups.length - 1] === popupId) {
-      visible.value = false;
-      event.stopPropagation();
-    }
-  }
-};
-
-const onPopState = (event) => {
-  if (visible.value) {
-    const newStateId = event.state?.popupId;
-    const myIndex = openPopups.indexOf(popupId);
-    const newTopIndex = openPopups.indexOf(newStateId);
-
-    if (myIndex > -1 && myIndex > newTopIndex) {
-      poppedBySelf = true;
-      visible.value = false;
-    }
-  }
-};
-
-watch(visible, (newVal) => {
-  if (newVal) {
-    if (!openPopups.includes(popupId)) {
-      openPopups.push(popupId);
-    }
-    window.history.pushState({ popupId }, '');
-    window.addEventListener('popstate', onPopState);
-    window.addEventListener('keydown', onKeyDown, true);
-  } else {
-    const index = openPopups.indexOf(popupId);
-    if (index > -1) {
-      openPopups.splice(index, 1);
-    }
-    window.removeEventListener('popstate', onPopState);
-    window.removeEventListener('keydown', onKeyDown, true);
-
-    if (!poppedBySelf) {
-      if (window.history.state && window.history.state.popupId === popupId) {
-        window.history.back();
-      }
-    }
-    poppedBySelf = false;
-  }
-});
-
-onMounted(() => {
-  if (visible.value) {
-    if (!openPopups.includes(popupId)) {
-      openPopups.push(popupId);
-    }
-    window.history.pushState({ popupId }, '');
-    window.addEventListener('popstate', onPopState);
-    window.addEventListener('keydown', onKeyDown, true);
-  }
-});
-
-onUnmounted(() => {
-  const index = openPopups.indexOf(popupId);
-  if (index > -1) {
-    openPopups.splice(index, 1);
-  }
-  window.removeEventListener('popstate', onPopState);
-  window.removeEventListener('keydown', onKeyDown, true);
-
-  if (visible.value && !poppedBySelf) {
-    if (window.history.state && window.history.state.popupId === popupId) {
-      window.history.back();
-    }
   }
 });
 

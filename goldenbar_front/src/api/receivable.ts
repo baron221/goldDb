@@ -30,3 +30,33 @@ export function processDeposit(data: any) {
     data
   });
 }
+
+export function getPuritySummary(userId: number) {
+  return request({
+    url: '/receivables/purity-summary',
+    method: 'get',
+    params: { userId }
+  });
+}
+
+export function getUserSummaryById(userId: number) {
+  return request({
+    url: `/receivables/user-summary/${userId}`,
+    method: 'get'
+  });
+}
+
+export function updateReceivable(id: number, data: any) {
+  return request({
+    url: `/receivables/${id}`,
+    method: 'put',
+    data
+  });
+}
+
+export function cancelReceivable(id: number) {
+  return request({
+    url: `/receivables/${id}/cancel`,
+    method: 'post'
+  });
+}

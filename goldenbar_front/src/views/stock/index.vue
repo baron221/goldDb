@@ -3,7 +3,8 @@
     <stock-summary-card :summary="summary" />
 
     <el-card shadow="never" style="margin-top: 1.25rem;">
-      <div style="display: flex; justify-content: flex-end; margin-bottom: 0.9375rem;">
+      <div style="display: flex; justify-content: flex-end; gap: 0.625rem; margin-bottom: 0.9375rem;">
+        <el-button v-if="canManualAdd" type="primary" :icon="Plus" @click="manualAddDialogVisible = true">재고 수기등록</el-button>
         <el-button type="success" :icon="Download" @click="handleExportExcel">엑셀 다운로드</el-button>
       </div>
 
@@ -59,7 +60,19 @@
       @navigate-order="navigateToOrder"
       @print-barcode="handlePrintBarcode"
       @open-photo="openPhotoDialog"
+      @edit="openEditDialog"
       @delete="handleDelete"
+    />
+
+    <stock-edit-dialog
+      v-model="editDialogVisible"
+      :stock="editingStock"
+      @saved="getList"
+    />
+
+    <stock-manual-add-dialog
+      v-model="manualAddDialogVisible"
+      @saved="getList"
     />
 
     <stock-exhaustion-reason-dialog
@@ -120,7 +133,7 @@ import {
   fetchStocks, fetchStockSummary
 } from '@/api/stock';
 import { ElMessage } from 'element-plus';
-import { Download } from '@element-plus/icons-vue';
+import { Download, Plus } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import useUserStore from '@/store/modules/user';
@@ -131,6 +144,8 @@ import StockTable from './components/StockTable.vue';
 import StockPhotoDialog from '@/components/StockPhotoDialog/index.vue';
 import StockExhaustionReasonDialog from './components/StockExhaustionReasonDialog.vue';
 import GroupDetailDialog from './components/GroupDetailDialog.vue';
+import StockEditDialog from './components/StockEditDialog.vue';
+import StockManualAddDialog from './components/StockManualAddDialog.vue';
 import QrInfoDialog from './components/QrInfoDialog.vue';
 import { printBulkBarcode } from './utils/stockPrint';
 import { useStockQr } from './composables/useStockQr';
@@ -141,6 +156,8 @@ const router = useRouter();
 const route = useRoute();
 const codeStore = useCodeStore();
 const isAdmin = computed(() => userStore.roles.includes('admin'));
+const canManualAdd = computed(() => isAdmin.value || userStore.companyType === 'MFG' || userStore.companyType === 'DCC');
+const manualAddDialogVisible = ref(false);
 const stockTableRef = ref<any>(null);
 
 const handleExportExcel = () => {
@@ -346,6 +363,14 @@ const deleteStockIds = ref<number[]>([]);
 const handleDelete = (row: any) => {
   deleteStockIds.value = [row.id];
   deleteDialogVisible.value = true;
+};
+
+const editDialogVisible = ref(false);
+const editingStock = ref<any>(null);
+
+const openEditDialog = (row: any) => {
+  editingStock.value = row;
+  editDialogVisible.value = true;
 };
 
 onMounted(() => {

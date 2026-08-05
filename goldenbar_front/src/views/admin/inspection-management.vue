@@ -132,6 +132,7 @@ import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import { isPostPendingStatus } from '@/utils/order';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 import InspectionDialog from '@/components/InspectionDialog/index.vue';
 import InspectionManagementFilter from './components/InspectionManagementFilter.vue';
 
@@ -142,6 +143,7 @@ const listLoading = ref(true);
 const list = ref<any[]>([]);
 const total = ref(0);
 const codeStore = useCodeStore();
+const userStore = useUserStore();
 const codeMap = computed(() => codeStore.codeMap);
 const orderStatusCodes = ref<any[]>([]);
 const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
@@ -176,12 +178,15 @@ const currentOrder = ref<any>(null);
 
 const getOrderTotalAmount = (order: any) => {
   const isPostPending = isPostPendingStatus(order.status);
+  const isMfg = userStore.companyType === 'MFG';
 
   if (isPostPending && order.orderItems && order.orderItems.length > 0) {
     const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
     return topLevelItems.reduce((acc: number, item: any) => {
-      const material = item.retailerConfirmMaterialCost || 0;
-      const labor = item.retailerConfirmLaborCost || 0;
+      // MFG only ever sees what THEY declared (factory input cost), never the
+      // logistics-confirmed retailer price which may include logistics' own markup.
+      const material = (isMfg ? item.factoryInputMaterialCost : item.retailerConfirmMaterialCost) || 0;
+      const labor = (isMfg ? item.factoryInputLaborCost : item.retailerConfirmLaborCost) || 0;
       return acc + (material + labor) * item.quantity;
     }, 0);
   }

@@ -135,7 +135,8 @@ const handleDownloadPDF = async () => {
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      imageTimeout: 15000
     });
 
     const imgData = canvas.toDataURL('image/png');
@@ -171,9 +172,10 @@ const generateSnapshotAndPdf = async () => {
     const snapshotJson = JSON.stringify(snapshotObj);
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      imageTimeout: 15000
     });
 
     const imgData = canvas.toDataURL('image/png');

@@ -5,6 +5,13 @@
 
       <!-- Step 1: Agreements -->
       <div v-if="showAgreements" class="agreements-section">
+        <!-- Agree to all -->
+        <div class="agree-all-block">
+          <el-checkbox v-model="allAgreed" size="large">
+            <span class="agree-all-text">전체 동의합니다.</span>
+          </el-checkbox>
+        </div>
+
         <!-- Agreement 1 -->
         <div class="agreement-block">
           <div class="agreement-header">
@@ -524,7 +531,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { register } from '@/api/user'
@@ -541,6 +548,15 @@ const agreements = reactive({
   terms: false,
   privacy: false,
   contract: false
+})
+
+const allAgreed = computed({
+  get: () => agreements.terms && agreements.privacy && agreements.contract,
+  set: (val: boolean) => {
+    agreements.terms = val
+    agreements.privacy = val
+    agreements.contract = val
+  }
 })
 
 const proceedToForm = () => {
@@ -697,6 +713,29 @@ const submitForm = async () => {
 
 .agreement-block {
   margin-bottom: 30px;
+}
+
+.agree-all-block {
+  border: 1px solid #8b00ff;
+  background-color: #f9f4ff;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+
+  .agree-all-text {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  :deep(.el-checkbox__label) {
+    font-size: 16px;
+  }
+
+  :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+    background-color: #8b00ff;
+    border-color: #8b00ff;
+  }
 }
 
 .agreement-header {

@@ -1,5 +1,5 @@
 <template>
-<el-col :xs="24" :sm="24" :md="8" :lg="6" class="shop-sidebar-content">
+  <el-col :xs="24" :sm="24" :md="8" :lg="6" class="shop-sidebar-content">
     <div class="sidebar-widgets-wrapper">
 
       <div class="sidebar-widget search-widget">
@@ -63,7 +63,6 @@ const emitSearchQuery = (val: string) => {
 };
 
 const goBackToMarket = () => {
-  router.push('/prd/product-market');
+  router.push('/order/pro_market');
 };
 </script>
-

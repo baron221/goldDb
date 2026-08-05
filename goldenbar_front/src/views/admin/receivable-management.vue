@@ -32,7 +32,7 @@
               </div>
               <base-table
                 v-loading="historyLoading[row.userId]"
-                :data="historyData[row.userId] || []"
+                :data="(historyData[row.userId] || []).filter(r => !r.isCancelled)"
                 border
                 size="small"
                 style="width: 100%; margin-top: 0.625rem;"
@@ -42,11 +42,12 @@
                     <span>{{ formatDate(item.row.createdAt) }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="type" label="구분" width="100" align="center" :excel-formatter="(row) => row.type === 'CHARGE' ? '청구(정산)' : '입금'">
+                <el-table-column prop="type" label="구분" width="100" align="center" :excel-formatter="(row) => row.type === 'CHARGE' ? '청구(정산)' : (row.isCancelled ? '입금(취소됨)' : '입금')">
                   <template #default="item">
-                    <el-tag :type="item.row.type === 'CHARGE' ? 'danger' : 'success'">
+                    <el-tag :type="item.row.type === 'CHARGE' ? 'danger' : (item.row.isCancelled ? 'info' : 'success')">
                       {{ item.row.type === 'CHARGE' ? '청구(정산)' : '입금' }}
                     </el-tag>
+                    <el-tag v-if="item.row.isCancelled" type="info" size="small" style="margin-left: 0.25rem;">취소됨</el-tag>
                   </template>
                 </el-table-column>
                 <el-table-column prop="orderNo" label="주문번호" width="180" align="center">
@@ -69,9 +70,28 @@
                     <span v-else>-</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="memo" label="메모" min-width="250">
+                <el-table-column prop="memo" label="메모" min-width="200" :excel-formatter="(row) => memoExcelFormatter(row)">
                   <template #default="item">
                     <span>{{ item.row.memo }}</span>
+                    <div v-if="item.row.type === 'DEPOSIT' && item.row.appliedCharges && item.row.appliedCharges.length > 0" class="applied-charges-note">
+                      <div>적용된 주문:</div>
+                      <div v-for="ac in item.row.appliedCharges" :key="ac.chargeId" class="applied-charge-line">
+                        <span class="applied-order-link" @click="goToOrder(ac.orderNo)">{{ ac.orderNo || '(주문없음)' }}</span>
+                        <span v-if="ac.appliedAmount">₩{{ formatPrice(ac.appliedAmount) }}</span>
+                        <span v-if="ac.appliedWeight">{{ ac.appliedWeight.toFixed(2) }}g</span>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="작업" width="220" align="center" fixed="right">
+                  <template #default="item">
+                    <div v-if="item.row.type === 'DEPOSIT'" style="display: flex; gap: 0.375rem; justify-content: center;">
+                      <el-button size="small" @click="handlePrintReceipt(item.row, row)">영수증 출력</el-button>
+                      <template v-if="!item.row.isCancelled">
+                        <el-button size="small" type="warning" @click="openEditDialog(item.row)">수정</el-button>
+                        <el-button size="small" type="danger" @click="handleCancelReceivable(item.row, row.userId)">정산취소</el-button>
+                      </template>
+                    </div>
                   </template>
                 </el-table-column>
               </base-table>
@@ -134,13 +154,20 @@
       :user="currentUser"
       @saved="onDepositSaved"
     />
+
+    <receivable-edit-dialog
+      v-model="editDialogVisible"
+      :record="editingRecord"
+      @saved="onEditSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, onMounted } from 'vue';
-import { getUserSummaries, getReceivables } from '@/api/receivable';
+import { useRouter, useRoute } from 'vue-router';
+import { getUserSummaries, getUserSummaryById, getReceivables, cancelReceivable } from '@/api/receivable';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance } from 'element-plus';
 import { Search, Refresh } from '@element-plus/icons-vue';
@@ -148,7 +175,27 @@ import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import DepositDialog from './components/DepositDialog.vue';
+import ReceivableEditDialog from './components/ReceivableEditDialog.vue';
+import useUserStore from '@/store/modules/user';
 const { isMobile } = useMobile();
+const userStore = useUserStore();
+const router = useRouter();
+
+const goToOrder = (orderNo: string) => {
+  if (!orderNo) return;
+  router.push({ path: '/order/order-tracking', query: { orderNo } });
+};
+
+const route = useRoute();
+
+const memoExcelFormatter = (row: any) => {
+  let text = row.memo || '';
+  if (row.type === 'DEPOSIT' && row.appliedCharges && row.appliedCharges.length > 0) {
+    const lines = row.appliedCharges.map((ac: any) => `${ac.orderNo || '(주문없음)'}: ₩${formatPrice(ac.appliedAmount)} ${ac.appliedWeight ? ac.appliedWeight.toFixed(2) + 'g' : ''}`);
+    text += `\n적용된 주문:\n${lines.join('\n')}`;
+  }
+  return text;
+};
 
 const listLoading = ref(true);
 const submitLoading = ref(false);
@@ -237,14 +284,142 @@ const openDepositDialog = (row: any) => {
 };
 
 const onDepositSaved = () => {
-  getList(); 
+  getList();
   if (currentUser.value && historyData[currentUser.value.userId]) {
-    fetchHistory(currentUser.value.userId); 
+    fetchHistory(currentUser.value.userId);
+  }
+};
+
+const editDialogVisible = ref(false);
+const editingRecord = ref<any>(null);
+const editingUserId = ref<number | null>(null);
+
+const openEditDialog = (record: any) => {
+  editingRecord.value = record;
+  editingUserId.value = record.userId;
+  editDialogVisible.value = true;
+};
+
+const onEditSaved = () => {
+  getList();
+  if (editingUserId.value && historyData[editingUserId.value]) {
+    fetchHistory(editingUserId.value);
+  }
+};
+
+const handleCancelReceivable = (record: any, userId: number) => {
+  ElMessageBox.confirm('이 입금 내역을 취소하시겠습니까? 관련 미수금이 다시 복구됩니다.', '정산 취소', {
+    confirmButtonText: '취소 처리',
+    cancelButtonText: '닫기',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await cancelReceivable(record.id);
+      ElMessage.success('정산이 취소되었습니다.');
+      getList();
+      fetchHistory(userId);
+    } catch (error) {
+      console.error('Failed to cancel receivable:', error);
+      ElMessage.error('취소에 실패했습니다.');
+    }
+  }).catch(() => {});
+};
+
+const handlePrintReceipt = (record: any, user: any) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  // The deposit record itself has no stored before/after snapshot (it's applied across
+  // however many outstanding charges it covers), so this shows the user's current
+  // outstanding balance as the "after" figure - accurate as of now, best-effort for
+  // older transactions if other settlements happened since.
+  const afterAmount = user.totalReceivable || 0;
+  const afterWeight = user.totalReceivableWeight || 0;
+  const beforeAmount = afterAmount + (record.amount || 0) + (record.discount || 0);
+  const beforeWeight = afterWeight + (record.weight || 0);
+  const supplierName = userStore.companyName || '-';
+  const partnerName = user.companyName || user.userDisplayName || '-';
+
+  const ledgerRows = `
+    <tr><td class="label">최근결제</td><td>${user.lastPaymentDate ? formatDate(user.lastPaymentDate) : '-'}</td><td></td><td></td></tr>
+    <tr><td class="label">거래 전 미수(A)</td><td>${beforeWeight.toFixed(2)}</td><td>${formatPrice(beforeAmount)}</td><td></td></tr>
+    <tr><td class="label">판매(B)</td><td>0.00</td><td>0</td><td></td></tr>
+    <tr><td class="label">결제(C)</td><td>${(record.weight || 0).toFixed(2)}</td><td>${formatPrice(record.amount || 0)}</td><td></td></tr>
+    <tr><td class="label">할인(D)</td><td>0.00</td><td>${formatPrice(record.discount || 0)}</td><td></td></tr>
+    <tr><td class="label"><strong>거래 후 미수(A+B-C-D)</strong></td><td><strong>${afterWeight.toFixed(2)}</strong></td><td><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
+  `;
+
+  const statementBlock = (copyLabel: string) => `
+    <div class="statement-copy">
+      <div class="statement-title">[${partnerName}] 거래 명세서(${copyLabel})</div>
+      <div class="statement-meta">
+        <span>공급자: ${supplierName}</span>
+        <span>일자: ${formatDate(record.createdAt)}</span>
+        <span>거래No: ${record.id}</span>
+      </div>
+      <table>
+        <thead><tr><th></th><th>순금(g)</th><th>공임 및 현금</th><th>금액 합계</th></tr></thead>
+        <tbody>${ledgerRows}</tbody>
+      </table>
+    </div>
+  `;
+
+  const html = `
+    <html>
+      <head>
+        <title>거래명세서 - ${partnerName}</title>
+        <style>
+          body { font-family: 'Malgun Gothic', sans-serif; padding: 10mm; }
+          .statements-row { display: flex; gap: 10mm; }
+          .statement-copy { flex: 1; min-width: 0; }
+          .statement-title { font-weight: bold; font-size: 1rem; margin-bottom: 8px; }
+          .statement-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: #333; margin-bottom: 8px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #333; padding: 6px; text-align: center; font-size: 0.85rem; }
+          th { background: #f5f5f5; }
+          td.label { text-align: left; background: #fafafa; font-weight: 600; }
+          .footer-note { margin-top: 16px; text-align: center; font-size: 0.85rem; color: #333; }
+        </style>
+      </head>
+      <body>
+        <div class="statements-row">
+          ${statementBlock('고객용')}
+          ${statementBlock('보관용')}
+        </div>
+        <p class="footer-note">상기 대여 및 영수(미수는 대여로 함)합니다. (VAT 별도)</p>
+        <p style="margin-top: 10px; font-size: 0.85rem;">메모: ${record.memo || '-'}</p>
+        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+const loadSingleUser = async (userId: number) => {
+  listLoading.value = true;
+  try {
+    const res: any = await getUserSummaryById(userId);
+    list.value = res.data ? [res.data] : [];
+    total.value = res.data ? 1 : 0;
+    if (res.data) {
+      fetchHistory(userId);
+    }
+  } catch (error) {
+    console.error('Failed to load user summary:', error);
+  } finally {
+    listLoading.value = false;
   }
 };
 
 onMounted(() => {
-  getList();
+  const userId = route.query.userId ? Number(route.query.userId) : null;
+  if (userId) {
+    loadSingleUser(userId);
+  } else {
+    getList();
+  }
 });
 </script>
 

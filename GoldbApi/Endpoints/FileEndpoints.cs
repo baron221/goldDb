@@ -12,7 +12,7 @@ public static class FileEndpoints
     {
         var group = app.MapGroup("/file").RequireAuthorization();
 
-        group.MapPost("/upload", async (IFormFile file, [FromQuery] string? subDir, IFileService fileService) =>
+        group.MapPost("/upload", [DisableRequestSizeLimit] async (IFormFile file, [FromQuery] string? subDir, IFileService fileService) =>
         {
             if (file == null || file.Length == 0) return Results.BadRequest("No file uploaded");
 
@@ -21,7 +21,7 @@ public static class FileEndpoints
         })
         .DisableAntiforgery();
 
-        group.MapPost("/upload-image", async (IFormFile file, [FromQuery] string? subDir, IFileService fileService) =>
+        group.MapPost("/upload-image", [DisableRequestSizeLimit] async (IFormFile file, [FromQuery] string? subDir, IFileService fileService) =>
         {
             if (file == null || file.Length == 0) return Results.BadRequest("No file uploaded");
 

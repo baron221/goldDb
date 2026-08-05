@@ -71,7 +71,7 @@
     <div class="product-details-box">
       <div class="product-title-row">
         <h3 class="product-name-title" :title="item.name || item.title">{{ item.name || item.title }}</h3>
-        <div class="manufacturer-badge" v-if="item.companyName">
+        <div class="manufacturer-badge" v-if="item.companyName && userStore.companyType !== 'RTL'">
           {{ item.companyName }}
         </div>
         <div class="category-meta-wrap" :title="getCategoryName()">
@@ -92,7 +92,7 @@
               effect="plain"
               class="attr-tag"
             >
-              {{ p.trim() }}
+              {{ p.trim() }}{{ getPurityWeight(p.trim()) !== null ? ` ${getPurityWeight(p.trim())}g` : '' }}
             </el-tag>
           </template>
         </div>
@@ -106,6 +106,7 @@
 import { Star, StarFilled, ShoppingCart } from '@element-plus/icons-vue';
 import { getThumbnailUrl } from '@/utils';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 
 const props = defineProps<{
   item: any;
@@ -116,6 +117,7 @@ const props = defineProps<{
 const emit = defineEmits(['click', 'favorite', 'add-to-cart']);
 
 const codeStore = useCodeStore();
+const userStore = useUserStore();
 
 const getCategoryName = () => {
   const parts = [];
@@ -130,13 +132,19 @@ const getCategoryParts = () => {
   if (props.item.categoryMedium) parts.push(codeStore.getName(props.item.categoryMedium));
   return parts;
 };
+
+const getPurityWeight = (purityCode: string): string | null => {
+  const list = props.item.purityWeights || props.item.optionWeights;
+  const match = list?.find((pw: any) => pw.purity === purityCode);
+  return match ? Number(match.weight).toFixed(2) : null;
+};
 </script>
 
 <style lang="scss" scoped>
 .jovenca-product-card {
    border: 1px solid #f2efeb; position: relative; cursor: pointer; transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); height: 100%; display: flex; flex-direction: column; overflow: hidden;
   &:hover { transform: translateY(-5px); border-color: #c5a880; box-shadow: 0 10px 30px rgba(197, 168, 128, 0.12);
-    .card-hover-actions { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .card-hover-actions { opacity: 1; }
     .product-img { transform: scale(1.08); }
   }
 }
@@ -144,8 +152,8 @@ const getCategoryParts = () => {
 .product-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transition: transform 0.8s cubic-bezier(0.165, 0.84, 0.44, 1); }
 .no-image-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #bbbbbb; font-size: 0.85rem; font-style: italic; }
 .set-label-badge { position: absolute; top: 12px; left: 12px; background: rgba(34, 34, 34, 0.85); color: #ffffff; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; z-index: 5; }
-.card-hover-actions { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); display: flex; gap: 0.75rem; opacity: 0; transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); z-index: 10; }
-.quick-action-button { width: 42px; height: 42px; border: none; background: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.card-hover-actions { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 0.5rem; opacity: 0; transition: opacity 0.3s ease; z-index: 10; }
+.quick-action-button { width: 36px; height: 36px; border: none; background: #ffffff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   &:hover { transform: scale(1.1); color: #c5a880; }
   &.is-active { background: #c5a880; color: #ffffff; }
 }

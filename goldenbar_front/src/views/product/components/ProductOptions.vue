@@ -63,9 +63,12 @@
           />
         </el-select>
       </div>
+      <div class="option-row" v-if="product.sizes">
+        <span class="option-label">{{ $t('productDetail.labels.standardSize') }}</span>
+        <span class="size-fixed-value">{{ product.sizes }}</span>
+      </div>
       <div class="option-row">
-        <span class="option-label">{{ $t('productDetail.labels.size') }}</span>
-        <span v-if="product.sizes" class="size-fixed-value">{{ product.sizes }}</span>
+        <span class="option-label">{{ $t('productDetail.labels.wantedSize') }}</span>
         <el-input
           :model-value="orderSize"
           @update:model-value="$emit('update:orderSize', $event)"

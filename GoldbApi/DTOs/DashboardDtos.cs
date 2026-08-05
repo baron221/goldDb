@@ -303,3 +303,29 @@ public class PartnerRetailerStatsDto
 
     public int PendingOrderCount { get; set; }
 }
+
+public class PartnerLogisticsStatsDto
+{
+
+    public int CompanyId { get; set; }
+
+    public string CompanyName { get; set; } = string.Empty;
+
+    public string CEO { get; set; } = string.Empty;
+
+    public string Region { get; set; } = string.Empty;
+
+    public int MonthlyOrderCount { get; set; }
+
+    public decimal MonthlyOrderAmount { get; set; }
+
+    public int TotalOrderCount { get; set; }
+
+    public decimal TotalOrderAmount { get; set; }
+
+    public int PendingOrderCount { get; set; }
+
+    public decimal TotalOutstanding { get; set; }
+
+    public decimal TotalOutstandingWeight { get; set; }
+}

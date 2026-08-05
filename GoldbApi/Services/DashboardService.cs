@@ -24,6 +24,8 @@ public interface IDashboardService
     Task<ApiResponse<AdminDashboardStatsDto>> GetAdminDashboardStatsAsync();
 
     Task<ApiResponse<List<PartnerRetailerStatsDto>>> GetPartnerRetailerStatsAsync();
+
+    Task<ApiResponse<List<PartnerLogisticsStatsDto>>> GetPartnerLogisticsStatsAsync();
 }
 
 public class DashboardService : IDashboardService
@@ -315,6 +317,60 @@ public class DashboardService : IDashboardService
             .ToListAsync();
 
         return ApiResponse<List<PartnerRetailerStatsDto>>.Success(stats);
+    }
+
+    // Manufacturer-facing mirror of GetPartnerRetailerStatsAsync: which logistics
+    // centers this manufacturer's orders route through, computed live (no
+    // materialized view) since the relationship is derived straight from
+    // Orders/OrderItems rather than a separately-maintained aggregate.
+    public async Task<ApiResponse<List<PartnerLogisticsStatsDto>>> GetPartnerLogisticsStatsAsync()
+    {
+        var factoryCompanyId = await GetUserCompanyIdAsync();
+        if (!factoryCompanyId.HasValue)
+        {
+            return ApiResponse<List<PartnerLogisticsStatsDto>>.Failure("User has no associated company.");
+        }
+
+        var myOrders = _orderRepository.GetQueryable()
+            .Where(o => o.LogisticsCompanyId.HasValue && o.OrderItems.Any(oi =>
+                (oi.Product != null && oi.Product.CompanyId == factoryCompanyId.Value) ||
+                (oi.ProductSet != null && oi.ProductSet.CompanyId == factoryCompanyId.Value)));
+
+        var startOfMonthUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var completedStatuses = new[] { "Completed", "Cancelled", "CLOSED_BY_AGREEMENT" };
+
+        var logisticsIds = await myOrders.Select(o => o.LogisticsCompanyId!.Value).Distinct().ToListAsync();
+        var logisticsCompanies = await _companyRepository.GetQueryable()
+            .Where(c => logisticsIds.Contains(c.Id))
+            .ToListAsync();
+
+        var payables = await _dbContext.Payables
+            .Where(p => p.ManufacturerCompanyId == factoryCompanyId.Value && logisticsIds.Contains(p.LogisticsCompanyId))
+            .ToListAsync();
+
+        var stats = new List<PartnerLogisticsStatsDto>();
+        foreach (var company in logisticsCompanies)
+        {
+            var companyOrders = await myOrders.Where(o => o.LogisticsCompanyId == company.Id).ToListAsync();
+            var companyPayables = payables.Where(p => p.LogisticsCompanyId == company.Id).ToList();
+
+            stats.Add(new PartnerLogisticsStatsDto
+            {
+                CompanyId = company.Id,
+                CompanyName = company.Name,
+                CEO = company.CEO,
+                Region = company.Region,
+                TotalOrderCount = companyOrders.Count,
+                TotalOrderAmount = companyOrders.Sum(o => o.TotalAmount),
+                MonthlyOrderCount = companyOrders.Count(o => o.CreatedAt >= startOfMonthUtc),
+                MonthlyOrderAmount = companyOrders.Where(o => o.CreatedAt >= startOfMonthUtc).Sum(o => o.TotalAmount),
+                PendingOrderCount = companyOrders.Count(o => !completedStatuses.Contains(o.Status)),
+                TotalOutstanding = companyPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingAmount),
+                TotalOutstandingWeight = companyPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingWeight)
+            });
+        }
+
+        return ApiResponse<List<PartnerLogisticsStatsDto>>.Success(stats.OrderByDescending(s => s.TotalOrderCount).ToList());
     }
 
     public async Task<ApiResponse<RetailDashboardStatsDto>> GetRetailStatsAsync()
