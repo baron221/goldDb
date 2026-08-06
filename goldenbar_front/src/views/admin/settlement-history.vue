@@ -27,6 +27,7 @@
       :is-mobile="isMobile"
       @filter="handleFilter"
       @reset="resetQuery"
+      @print-combined="printCombinedStatement"
       style="margin-top: 1.25rem;"
     />
 
@@ -269,10 +270,131 @@
         </template>
       </div>
     </div>
+
+    <div id="print-area-combined" v-if="combinedPrintData" style="display: none;">
+      <div class="receipt-double-container">
+        <template v-for="copyType in ['고객용', '보관용']" :key="copyType">
+          <div class="receipt-copy-block">
+            <!-- Header Table -->
+            <table class="receipt-header-table">
+              <tr>
+                <td class="header-title-cell">
+                  <span class="company-tag">[{{ combinedPrintData.partnerTitle }}]</span>
+                  <span class="main-title">일괄 거래 명세서</span>
+                  <span class="copy-badge" :class="{ 'blue-badge': copyType === '고객용' }">({{ copyType }})</span>
+                </td>
+                <td class="supplier-info-cell" rowspan="2">
+                  <div>공급자: {{ isMfg ? '제조사' : '골든바' }}</div>
+                  <div>전 화: 051-633-1116</div>
+                  <div>총 거래: {{ combinedPrintData.orderCount }}건</div>
+                </td>
+              </tr>
+              <tr>
+                <td class="header-meta-cell">
+                  <span>기간/일자: {{ combinedPrintData.dateTitle }}</span>
+                  <span class="meta-separator">|</span>
+                  <span>출력일시: {{ parseTime(new Date(), '{y}-{m}-{d} {h}:{i}') }}</span>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Order Items Table -->
+            <table class="receipt-items-table">
+              <thead>
+                <tr>
+                  <th width="12%">No</th>
+                  <th width="42%">주문내용</th>
+                  <th width="12%">함량</th>
+                  <th width="13%">실중량</th>
+                  <th width="10%">주문수량</th>
+                  <th width="11%">공임/금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in combinedPrintData.items" :key="idx">
+                  <template v-if="!item.isDummy">
+                    <td align="center">{{ item.productNo || (idx + 1) }}</td>
+                    <td>
+                      <div class="item-info-flex">
+                        <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
+                        <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
+                      </div>
+                    </td>
+                    <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
+                    <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
+                    <td align="center">{{ item.quantity || 1 }}개</td>
+                    <td align="right">{{ formatPrice(item.settlementPrice || 0) }}</td>
+                  </template>
+                  <template v-else>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                  </template>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Settlement Balance Table -->
+            <table class="receipt-balance-table">
+              <thead>
+                <tr>
+                  <th width="30%"></th>
+                  <th width="22%">순금(g)</th>
+                  <th width="24%">공임 및 현금</th>
+                  <th width="24%">금액 합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="row-label">최근 결제</td>
+                  <td></td>
+                  <td></td>
+                  <td align="center" style="font-size: 9px;">{{ combinedPrintData.lastPaymentDate || '-' }}</td>
+                </tr>
+                <tr>
+                  <td class="row-label">거래 전 미수(A)</td>
+                  <td align="right">{{ (combinedPrintData.beforeWeight || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(combinedPrintData.beforeAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">판매(B)</td>
+                  <td align="right">{{ (combinedPrintData.totalFineGold || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(combinedPrintData.totalSettlementAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">결제(C)</td>
+                  <td align="right">{{ (combinedPrintData.paidWeight || 0).toFixed(2) }}</td>
+                  <td align="right">{{ formatPrice(combinedPrintData.paidAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td class="row-label">할인(D)</td>
+                  <td align="right">0.00</td>
+                  <td align="right">{{ formatPrice(combinedPrintData.discountAmount || 0) }}</td>
+                  <td></td>
+                </tr>
+                <tr class="after-balance-row">
+                  <td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td>
+                  <td align="right"><strong>{{ ((combinedPrintData.beforeWeight || 0) + (combinedPrintData.totalFineGold || 0) - (combinedPrintData.paidWeight || 0)).toFixed(2) }}</strong></td>
+                  <td align="right"><strong>{{ formatPrice((combinedPrintData.beforeAmount || 0) + (combinedPrintData.totalSettlementAmount || 0) - (combinedPrintData.paidAmount || 0) - (combinedPrintData.discountAmount || 0)) }}</strong></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ElMessage } from 'element-plus';
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -403,22 +525,31 @@ const calculateOrderTotalSettlement = (order: any) => {
     return mfgTotal;
   }
 
-  if (order.settlementAmount && order.settlementAmount > 0) {
-    return order.settlementAmount;
-  }
-
   let total = 0;
-  if (order.orderItems) {
+  if (order.orderItems && order.orderItems.length > 0) {
     order.orderItems.forEach((item: any) => {
-      total += (item.settlementAmount || item.totalPrice || item.price || 0);
+      const itemPrice = item.settlementAmount || item.totalPrice || item.price || item.laborCost ||
+        (((item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0) + (item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0)) * (item.quantity || 1));
+      total += itemPrice;
       if (item.children) {
         item.children.forEach((c: any) => {
-          total += (c.settlementAmount || c.totalPrice || c.price || 0);
+          const childPrice = c.settlementAmount || c.totalPrice || c.price || c.laborCost ||
+            (((c.retailerConfirmMaterialCost || c.factoryInputMaterialCost || 0) + (c.retailerConfirmLaborCost || c.factoryInputLaborCost || 0)) * (c.quantity || 1));
+          total += childPrice;
         });
       }
     });
   }
-  return total || order.totalAmount || 0;
+
+  if (total > 0) {
+    return total;
+  }
+
+  if (order.settlementAmount && order.settlementAmount > 0) {
+    return order.settlementAmount;
+  }
+
+  return order.totalAmount || 0;
 };
 
 const calculateOrderTotalPureWeight = (order: any) => {
@@ -504,7 +635,7 @@ const resetQuery = () => {
 
 const goToReceivable = (userId: number) => {
   router.push({
-    path: '/admin/receivable-management',
+    path: '/정산/receivable-management',
     query: { userId }
   });
 };
@@ -521,6 +652,137 @@ const printStatement = (row: any) => {
         <html>
         <head>
           <title>거래명세서 - ${row.orderNo || ''}</title>
+          <style>
+            @page { size: A4 landscape; margin: 8mm; }
+            body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #111; margin: 0; padding: 5px; background: #fff; }
+            .receipt-double-container { display: flex; gap: 6mm; width: 100%; box-sizing: border-box; }
+            .receipt-copy-block { flex: 1; min-width: 0; border: 1.5px solid #222; padding: 6px; background: #fff; box-sizing: border-box; }
+
+            .receipt-header-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #333; }
+            .receipt-header-table td { padding: 4px 6px; border: 1px solid #333; vertical-align: top; }
+            .header-title-cell { font-size: 12px; font-weight: bold; }
+            .company-tag { color: #333; margin-right: 4px; }
+            .main-title { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
+            .copy-badge { font-weight: bold; margin-left: 4px; color: #222; }
+            .copy-badge.blue-badge { color: #1d4ed8; }
+            .header-meta-cell { font-size: 10px; color: #444; background: #fafafa; }
+            .meta-separator { margin: 0 4px; color: #aaa; }
+            .supplier-info-cell { font-size: 10px; text-align: left; width: 35%; background: #fff; line-height: 1.3; }
+
+            .receipt-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
+            .receipt-items-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px 2px; font-weight: bold; text-align: center; color: #222; }
+            .receipt-items-table td { border: 1px solid #333; padding: 3px 5px; vertical-align: middle; height: 25px; box-sizing: border-box; }
+            .item-info-flex { display: flex; align-items: center; gap: 4px; }
+            .item-img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; border: 1px solid #ccc; }
+            .item-name { font-weight: 600; }
+
+            .receipt-balance-table { width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10px; }
+            .receipt-balance-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
+            .receipt-balance-table td { border: 1px solid #333; padding: 3px 5px; }
+            .receipt-balance-table .row-label { background-color: #fafafa; font-weight: 600; text-align: left; }
+            .receipt-balance-table .after-balance-row td { background-color: #f8f9fa; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+      `);
+      printWindow.document.write(printContents);
+      printWindow.document.write('<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>');
+      printWindow.document.write('</body></html>');
+      printWindow.document.close();
+    }
+  }, 100);
+};
+
+const combinedPrintData = ref<any>(null);
+
+const printCombinedStatement = () => {
+  if (!list.value || list.value.length === 0) {
+    ElMessage.warning('출력할 거래 내역이 없습니다.');
+    return;
+  }
+
+  let dateTitle = '전체 기간';
+  if (listQuery.startDate && listQuery.endDate) {
+    if (listQuery.startDate === listQuery.endDate) {
+      dateTitle = listQuery.startDate;
+    } else {
+      dateTitle = `${listQuery.startDate} ~ ${listQuery.endDate}`;
+    }
+  } else if (listQuery.startDate) {
+    dateTitle = `${listQuery.startDate} ~`;
+  } else if (listQuery.endDate) {
+    dateTitle = `~ ${listQuery.endDate}`;
+  }
+
+  let partnerTitle = '전체 거래처';
+  if (listQuery.companyId) {
+    const firstOrder = list.value[0];
+    partnerTitle = firstOrder?.companyName || firstOrder?.userDisplayName || firstOrder?.userName || '선택 거래처';
+  }
+
+  let totalActualWeight = 0;
+  let totalFineGold = 0;
+  let totalSettlementAmount = 0;
+  let beforeWeight = list.value[0]?.beforeWeight || 0;
+  let beforeAmount = list.value[0]?.beforeAmount || 0;
+  let lastPaymentDate = list.value[0]?.createdAt ? formatDate(list.value[0].createdAt) : '-';
+  let paidWeight = 0;
+  let paidAmount = 0;
+  let discountAmount = 0;
+  const items: any[] = [];
+
+  list.value.forEach((order: any) => {
+    paidWeight += (order.paidWeight || 0);
+    paidAmount += (order.paidAmount || 0);
+    discountAmount += (order.discountAmount || 0);
+    totalSettlementAmount += calculateOrderTotalSettlement(order);
+    if (order.orderItems) {
+      const flattened = flattenOrderItems(order.orderItems);
+      flattened.forEach((item: any) => {
+        const weight = item.actualWeight || item.requestedWeight || 0;
+        const fineStr = calculatePurityWeight(weight, item.purity);
+        totalActualWeight += weight;
+        totalFineGold += parseFloat(fineStr || '0');
+
+        const itemPrice = item.settlementAmount || item.totalPrice || item.price || item.laborCost ||
+          (((item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0) + (item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0)) * (item.quantity || 1));
+
+        items.push({
+          ...item,
+          settlementPrice: itemPrice
+        });
+      });
+    }
+  });
+
+  const paddedItems = paddedOrderItems(items, 6);
+
+  combinedPrintData.value = {
+    dateTitle,
+    partnerTitle,
+    orderCount: list.value.length,
+    items: paddedItems,
+    totalActualWeight,
+    totalFineGold,
+    totalSettlementAmount,
+    beforeWeight,
+    beforeAmount,
+    lastPaymentDate,
+    paidWeight,
+    paidAmount,
+    discountAmount
+  };
+
+  setTimeout(() => {
+    const printContents = document.getElementById('print-area-combined')?.innerHTML;
+    if (!printContents) return;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>일괄 거래명세서 - ${dateTitle}</title>
           <style>
             @page { size: A4 landscape; margin: 8mm; }
             body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #111; margin: 0; padding: 5px; background: #fff; }

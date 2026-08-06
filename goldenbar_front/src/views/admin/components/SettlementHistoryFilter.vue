@@ -1,5 +1,5 @@
 <template>
-<el-card shadow="never" class="filter-card">
+  <el-card shadow="never" class="filter-card">
     <el-form :inline="!isMobile" :label-position="isMobile ? 'top' : 'right'" :model="localQuery" class="demo-form-inline">
       <el-form-item :label="$t('admin.settlement.filters.company')">
         <company-select v-model="localQuery.companyId" :placeholder="$t('admin.settlement.filters.companyPlaceholder')" style="width: 200px" @change="handleFilter" />
@@ -74,6 +74,7 @@
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="handleFilter">{{ $t('common.search') }}</el-button>
         <el-button :icon="Refresh" @click="resetQuery">{{ $t('common.reset') }}</el-button>
+        <el-button type="success" :icon="Printer" @click="$emit('print-combined')">일괄 거래명세서</el-button>
       </el-form-item>
     </el-form>
   </el-card>
@@ -81,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive } from 'vue';
-import { Search, Refresh } from '@element-plus/icons-vue';
+import { Search, Refresh, Printer } from '@element-plus/icons-vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 
@@ -90,8 +91,10 @@ const props = defineProps<{
   isMobile: boolean;
 }>();
 
-const emit = defineEmits<{(_e: 'filter'): void;
+const emit = defineEmits<{
+  (_e: 'filter'): void;
   (_e: 'reset'): void;
+  (_e: 'print-combined'): void;
   (_e: 'update:query', value: any): void;
 }>();
 
@@ -153,7 +156,7 @@ const handleSetMediumChange = (val: string, options: any) => {
 };
 
 const handleDateChange = (val: string[] | null) => {
-  if (val) {
+  if (val && val.length === 2) {
     localQuery.startDate = val[0];
     localQuery.endDate = val[1];
   } else {
@@ -168,8 +171,17 @@ const handleFilter = () => {
 };
 
 const resetQuery = () => {
-  dateRange.value = [];
   emit('reset');
 };
 </script>
 
+<style scoped lang="scss">
+.filter-card {
+  .demo-form-inline {
+    .el-form-item {
+      margin-right: 16px;
+      margin-bottom: 12px;
+    }
+  }
+}
+</style>

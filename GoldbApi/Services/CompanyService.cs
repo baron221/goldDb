@@ -77,7 +77,17 @@ public class CompanyService : ICompanyService
 
         if (request.OnlyPartners == true || !_currentUserService.IsAdmin)
         {
-            var targetCompanyId = _currentUserService.CompanyId;
+            var targetCompanyId = request.CompanyId ?? _currentUserService.CompanyId;
+            if (!targetCompanyId.HasValue && _currentUserService.UserId.HasValue)
+            {
+                var uc = await _userCompanyRepository.GetQueryable()
+                    .FirstOrDefaultAsync(u => u.UserId == _currentUserService.UserId.Value && !u.IsDeleted);
+                if (uc != null)
+                {
+                    targetCompanyId = uc.CompanyId;
+                }
+            }
+
             if (targetCompanyId.HasValue)
             {
                 var myCompanyId = targetCompanyId.Value;
@@ -85,7 +95,11 @@ public class CompanyService : ICompanyService
 
                 if (myCompany != null)
                 {
-                    var allowedIds = new HashSet<int> { myCompanyId };
+                    var allowedIds = new HashSet<int>();
+                    if (request.OnlyPartners != true)
+                    {
+                        allowedIds.Add(myCompanyId);
+                    }
 
                     if (myCompany.Category == "DCC")
                     {

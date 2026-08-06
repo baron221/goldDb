@@ -11,13 +11,13 @@
           {{ $t('admin.inspectionRequest.productDispatch') }}
         </el-dropdown-item>
         <el-dropdown-item
-          v-if="props.userCategory === 'MFG' && ['FactoryRequested', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
+          v-if="props.userCategory === 'MFG' && ['FactoryApproved', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
           @click="handlePrintWorkOrder(props.order)"
         >
           {{ $t('admin.inspectionRequest.print') }}
         </el-dropdown-item>
         <el-dropdown-item
-          v-if="props.userCategory === 'MFG' && ['FactoryRequested', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
+          v-if="props.userCategory === 'MFG' && ['FactoryApproved', 'WorkOrderCreated', 'InspectedRequested'].includes(props.order.status)"
           @click="handlePrintWorkOrderSticker(props.order)"
         >
           {{ $t('admin.inspectionRequest.printSticker') }}

