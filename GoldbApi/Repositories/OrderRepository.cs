@@ -322,8 +322,13 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
         var parentTotalWeight = await parentItems.SumAsync(oi => oi.ActualWeight ?? 0);
         var childTotalWeight = await childItems.SumAsync(c => c.ActualWeight ?? 0);
 
-        var parentTotalAmount = await parentItems.SumAsync(oi => oi.SettlementAmount ?? 0);
-        var childTotalAmount = await childItems.SumAsync(c => c.SettlementAmount ?? 0);
+        var parentTotalAmount = await parentItems.SumAsync(oi => oi.SettlementAmount ?? 0m);
+        var childTotalAmount = await childItems.SumAsync(c => c.SettlementAmount ?? 0m);
+        var orderTotalAmount = await baseQuery.SumAsync(o => o.SettlementAmount ?? o.TotalAmount);
+
+        var finalTotalAmount = (parentTotalAmount + childTotalAmount) > 0 
+            ? (parentTotalAmount + childTotalAmount) 
+            : orderTotalAmount;
 
         var parentPurityGroups = await parentItems
             .Where(oi => oi.Purity != null)
@@ -356,7 +361,7 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
         return new SettlementHistorySummaryDto
         {
             TotalActualWeight = parentTotalWeight + childTotalWeight,
-            TotalSettlementAmount = parentTotalAmount + childTotalAmount,
+            TotalSettlementAmount = finalTotalAmount,
             TotalFineGold = totalFineGold
         };
     }

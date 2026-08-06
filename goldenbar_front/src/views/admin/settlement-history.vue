@@ -76,9 +76,9 @@
                     <span>{{ item.row.settlementRatio }}%</span>
                   </template>
                 </el-table-column>
-                <el-table-column :label="$t('admin.settlement.table.amount')" width="120" align="right" prop="settlementAmount" :excel-formatter="(row) => '₩ ' + formatPrice(row.settlementAmount)">
+                <el-table-column :label="$t('admin.settlement.table.amount')" width="120" align="right" prop="settlementAmount" :excel-formatter="(row) => '₩ ' + formatPrice(row.settlementAmount || row.totalPrice || row.price || (((row.retailerConfirmMaterialCost || row.factoryInputMaterialCost || 0) + (row.retailerConfirmLaborCost || row.factoryInputLaborCost || 0)) * (row.quantity || 1)))">
                   <template #default="item">
-                    <span style="font-weight: bold; color: #f56c6c;">₩ {{ formatPrice(item.row.settlementAmount) }}</span>
+                    <span style="font-weight: bold; color: #f56c6c;">₩ {{ formatPrice(item.row.settlementAmount || item.row.totalPrice || item.row.price || (((item.row.retailerConfirmMaterialCost || item.row.factoryInputMaterialCost || 0) + (item.row.retailerConfirmLaborCost || item.row.factoryInputLaborCost || 0)) * (item.row.quantity || 1))) }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column :label="$t('admin.settlement.table.memo')" min-width="150" prop="settlementMemo" />
@@ -190,18 +190,28 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in flattenOrderItems(printData.orderItems)" :key="item.id">
-                  <td align="center">{{ item.productNo || item.id }}</td>
-                  <td>
-                    <div class="item-info-flex">
-                      <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
-                      <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
-                    </div>
-                  </td>
-                  <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
-                  <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
-                  <td align="center">{{ item.quantity }}개</td>
-                  <td align="right">{{ formatPrice(isMfg ? ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1) : (item.settlementAmount || item.totalPrice || 0)) }}</td>
+                <tr v-for="item in paddedOrderItems(printData.orderItems, 6)" :key="item.id">
+                  <template v-if="!item.isDummy">
+                    <td align="center">{{ item.productNo || item.id }}</td>
+                    <td>
+                      <div class="item-info-flex">
+                        <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
+                        <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
+                      </div>
+                    </td>
+                    <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
+                    <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
+                    <td align="center">{{ item.quantity }}개</td>
+                    <td align="right">{{ formatPrice(isMfg ? ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1) : (item.settlementAmount || item.totalPrice || 0)) }}</td>
+                  </template>
+                  <template v-else>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                  </template>
                 </tr>
               </tbody>
             </table>
@@ -355,6 +365,7 @@ const productSummaryFormatter = (row: any) => {
 
 const flattenOrderItems = (orderItems: any[]) => {
   const result: any[] = [];
+  if (!orderItems) return result;
   orderItems.forEach(item => {
     result.push({ ...item, depth: 0 });
     if (item.children && item.children.length > 0) {
@@ -366,32 +377,48 @@ const flattenOrderItems = (orderItems: any[]) => {
   return result;
 };
 
+const paddedOrderItems = (orderItems: any[], minCount: number = 6) => {
+  const flattened = flattenOrderItems(orderItems || []);
+  const result = [...flattened];
+  while (result.length < minCount) {
+    result.push({ isDummy: true, id: `dummy-${result.length}` });
+  }
+  return result;
+};
+
 const calculateOrderTotalSettlement = (order: any) => {
-  // MFG only ever sees what THEY themselves declared (factory input cost) - the
-  // retailer-facing settlement amount may include logistics' own markup.
+  if (!order) return 0;
   if (isMfg.value) {
     let mfgTotal = 0;
-    order.orderItems.forEach((item: any) => {
-      mfgTotal += ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1);
-      if (item.children) {
-        item.children.forEach((c: any) => {
-          mfgTotal += ((c.factoryInputMaterialCost || 0) + (c.factoryInputLaborCost || 0)) * (c.quantity || 1);
-        });
-      }
-    });
+    if (order.orderItems) {
+      order.orderItems.forEach((item: any) => {
+        mfgTotal += ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1);
+        if (item.children) {
+          item.children.forEach((c: any) => {
+            mfgTotal += ((c.factoryInputMaterialCost || 0) + (c.factoryInputLaborCost || 0)) * (c.quantity || 1);
+          });
+        }
+      });
+    }
     return mfgTotal;
   }
 
+  if (order.settlementAmount && order.settlementAmount > 0) {
+    return order.settlementAmount;
+  }
+
   let total = 0;
-  order.orderItems.forEach((item: any) => {
-    total += (item.settlementAmount || 0);
-    if (item.children) {
-      item.children.forEach((c: any) => {
-        total += (c.settlementAmount || 0);
-      });
-    }
-  });
-  return total;
+  if (order.orderItems) {
+    order.orderItems.forEach((item: any) => {
+      total += (item.settlementAmount || item.totalPrice || item.price || 0);
+      if (item.children) {
+        item.children.forEach((c: any) => {
+          total += (c.settlementAmount || c.totalPrice || c.price || 0);
+        });
+      }
+    });
+  }
+  return total || order.totalAmount || 0;
 };
 
 const calculateOrderTotalPureWeight = (order: any) => {
@@ -513,7 +540,7 @@ const printStatement = (row: any) => {
 
             .receipt-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
             .receipt-items-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px 2px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-items-table td { border: 1px solid #333; padding: 3px; vertical-align: middle; }
+            .receipt-items-table td { border: 1px solid #333; padding: 3px 5px; vertical-align: middle; height: 25px; box-sizing: border-box; }
             .item-info-flex { display: flex; align-items: center; gap: 4px; }
             .item-img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; border: 1px solid #ccc; }
             .item-name { font-weight: 600; }

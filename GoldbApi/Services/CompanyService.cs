@@ -75,6 +75,69 @@ public class CompanyService : ICompanyService
             .Include(c => c.LogisticsCompany)
             .AsQueryable();
 
+        if (request.OnlyPartners == true || !_currentUserService.IsAdmin)
+        {
+            var targetCompanyId = _currentUserService.CompanyId;
+            if (targetCompanyId.HasValue)
+            {
+                var myCompanyId = targetCompanyId.Value;
+                var myCompany = await _companyRepository.GetByIdAsync(myCompanyId);
+
+                if (myCompany != null)
+                {
+                    var allowedIds = new HashSet<int> { myCompanyId };
+
+                    if (myCompany.Category == "DCC")
+                    {
+                        var retailerIds = await _companyRepository.GetQueryable()
+                            .Where(c => c.Category == "RTL" && c.LogisticsCompanyId == myCompanyId)
+                            .Select(c => c.Id)
+                            .ToListAsync();
+                        foreach (var id in retailerIds) allowedIds.Add(id);
+
+                        var mfgIds = await _manufacturerLogisticsRepository.GetQueryable()
+                            .Where(ml => ml.LogisticsId == myCompanyId)
+                            .Select(ml => ml.ManufacturerId)
+                            .ToListAsync();
+                        foreach (var id in mfgIds) allowedIds.Add(id);
+                    }
+                    else if (myCompany.Category == "MFG")
+                    {
+                        var dccIds = await _manufacturerLogisticsRepository.GetQueryable()
+                            .Where(ml => ml.ManufacturerId == myCompanyId)
+                            .Select(ml => ml.LogisticsId)
+                            .ToListAsync();
+                        foreach (var id in dccIds) allowedIds.Add(id);
+
+                        if (dccIds.Any())
+                        {
+                            var retailerIds = await _companyRepository.GetQueryable()
+                                .Where(c => c.Category == "RTL" && c.LogisticsCompanyId.HasValue && dccIds.Contains(c.LogisticsCompanyId.Value))
+                                .Select(c => c.Id)
+                                .ToListAsync();
+                            foreach (var id in retailerIds) allowedIds.Add(id);
+                        }
+                    }
+                    else if (myCompany.Category == "RTL")
+                    {
+                        if (myCompany.LogisticsCompanyId.HasValue)
+                        {
+                            var parentDccId = myCompany.LogisticsCompanyId.Value;
+                            allowedIds.Add(parentDccId);
+
+                            var mfgIds = await _manufacturerLogisticsRepository.GetQueryable()
+                                .Where(ml => ml.LogisticsId == parentDccId)
+                                .Select(ml => ml.ManufacturerId)
+                                .ToListAsync();
+                            foreach (var id in mfgIds) allowedIds.Add(id);
+                        }
+                    }
+
+                    query = query.Where(c => allowedIds.Contains(c.Id));
+                }
+            }
+        }
+
         if (!string.IsNullOrEmpty(request.Name))
             query = query.Where(c => c.Name.Contains(request.Name));
 

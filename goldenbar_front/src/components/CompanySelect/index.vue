@@ -1,5 +1,5 @@
 <template>
-<el-select
+  <el-select
     v-model="internalValue"
     :placeholder="placeholder"
     :clearable="clearable"
@@ -26,6 +26,7 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
 import { getCompanies } from '@/api/company';
+import useUserStore from '@/store/modules/user';
 
 const props = defineProps({
   modelValue: [Number, String],
@@ -52,17 +53,25 @@ const props = defineProps({
   logisticsCompanyId: {
     type: [Number, String],
     default: null
+  },
+  onlyPartners: {
+    type: Boolean,
+    default: true
   }
 });
 
 const emit = defineEmits(['update:modelValue', 'change']);
 
+const userStore = useUserStore();
 const internalValue = ref(props.modelValue);
 const companies = ref([]);
 
 const filteredCompanies = computed(() => {
-  if (!props.logisticsCompanyId) return companies.value;
-  return companies.value.filter(c => c.logisticsCompanyId === props.logisticsCompanyId);
+  let list = companies.value;
+  if (props.logisticsCompanyId) {
+    list = list.filter(c => c.logisticsCompanyId === props.logisticsCompanyId);
+  }
+  return list;
 });
 
 watch(() => props.modelValue, (val) => {
@@ -70,7 +79,6 @@ watch(() => props.modelValue, (val) => {
 });
 
 watch(() => props.logisticsCompanyId, () => {
-
   if (internalValue.value && !filteredCompanies.value.find(c => c.id === internalValue.value)) {
     emit('update:modelValue', undefined);
     internalValue.value = undefined;
@@ -86,6 +94,9 @@ const fetchCompanies = async () => {
     const params = { page: 1, pageSize: 1000 };
     if (props.category) {
       params.category = props.category;
+    }
+    if (props.onlyPartners) {
+      params.onlyPartners = true;
     }
     const res = await getCompanies(params);
     companies.value = res.data.items || res.data;
@@ -122,4 +133,3 @@ const handleVisibleChange = (visible) => {
   }
 };
 </script>
-

@@ -15,6 +15,8 @@ public class CompanyListRequest
 
     public bool? IsDirectManagement { get; set; }
 
+    public bool? OnlyPartners { get; set; }
+
     public int? Page { get; set; }
 
     public int? PageSize { get; set; }
