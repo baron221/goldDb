@@ -1,5 +1,5 @@
 <template>
-<base-popup
+  <base-popup
     draggable
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
@@ -47,7 +47,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'success']);
 
-const role = reactive({
+const role = reactive<any>({
+  id: undefined,
   key: '',
   name: '',
   description: ''
@@ -65,6 +66,7 @@ watch(() => props.modelValue, (val) => {
 
 const resetRole = () => {
   Object.assign(role, {
+    id: undefined,
     key: '',
     name: '',
     description: ''
@@ -74,7 +76,8 @@ const resetRole = () => {
 const submitForm = async () => {
   try {
     if (props.dialogType === 'edit') {
-      await updateRole(role.key, role);
+      const targetId = role.id || role.key;
+      await updateRole(targetId, role);
       ElMessage.success('권한이 수정되었습니다.');
     } else {
       await addRole(role);
@@ -88,4 +91,3 @@ const submitForm = async () => {
   }
 };
 </script>
-

@@ -308,10 +308,10 @@ app.MapGet("/api/seed", async (GoldbApi.Data.AppDbContext dbContext) =>
     var passwordHash = BCrypt.Net.BCrypt.HashPassword("123456");
 
     var roles = new[] { 
-        new { Key = "admin", Name = "Admin" }, 
-        new { Key = "manufacturer", Name = "Ishlab chiqaruvchi" }, 
-        new { Key = "retail", Name = "Chakana savdo" }, 
-        new { Key = "market", Name = "Market/Ulgurji" } 
+        new { Key = "admin", Name = "관리자" }, 
+        new { Key = "manufacturer", Name = "제조사" }, 
+        new { Key = "retail", Name = "소매점" }, 
+        new { Key = "market", Name = "도매/마켓" } 
     };
 
     foreach (var r in roles)
