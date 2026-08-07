@@ -9,6 +9,6 @@ public class MvAdminDashboardSummaryConfiguration : IEntityTypeConfiguration<MvA
 
     public void Configure(EntityTypeBuilder<MvAdminDashboardSummary> builder)
     {
-        builder.HasNoKey().ToView("mv_admin_dashboard_summary");
+        builder.HasNoKey().ToView("mv_admin_dashboard_summaries");
     }
 }
