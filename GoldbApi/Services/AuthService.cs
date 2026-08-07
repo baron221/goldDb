@@ -216,7 +216,7 @@ public class AuthService : IAuthService
         string assignedRoleKey = request.UserType switch
         {
             "RETAIL" => "editor",
-            "LOGISTICS" => "dc",
+            "LOGISTICS" => "dcc",
             "MANUFACTURER" => "mfg",
             _ => "editor"
         };
@@ -413,7 +413,7 @@ public class AuthService : IAuthService
         if (!roles.Contains("admin"))
         {
             bool isFactory = roles.Any(r => r == "mfg" || r == "manufacturer");
-            bool isLogistics = roles.Any(r => r == "dc" || r == "market");
+            bool isLogistics = roles.Any(r => r == "dcc" || r == "dc" || r == "logistics" || r == "market");
             bool isRetailer = roles.Any(r => r == "editor" || r == "retail");
 
             if (isFactory)

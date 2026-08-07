@@ -192,7 +192,7 @@ public class UserService : IUserService
             var roleKey = company?.Category switch
             {
                 "MFG" => "mfg",
-                "DCC" => "dc",
+                "DCC" => "dcc",
                 "RTL" => "editor",
                 "ADMIN" => "admin",
                 _ => null
