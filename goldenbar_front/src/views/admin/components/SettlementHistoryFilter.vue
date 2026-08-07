@@ -19,57 +19,7 @@
         <el-input v-model="localQuery.orderNo" :placeholder="$t('order.filters.orderNo')" clearable @keyup.enter="handleFilter" />
       </el-form-item>
 
-      <el-form-item :label="$t('admin.settlement.filters.generalCategory')">
-        <div class="flex flex-wrap gap-2">
-          <common-select
-            v-model="localQuery.categoryLarge"
-            group-code="PRODUCT_CATEGORY"
-            :placeholder="$t('productMarket.labels.largeCategory')"
-            style="width: 120px;"
-            @change="(val, options) => handleLargeChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.categoryMedium"
-            :parent-id="largeId"
-            :placeholder="$t('productMarket.labels.mediumCategory')"
-            style="width: 120px;"
-            @change="(val, options) => handleMediumChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.categorySmall"
-            :parent-id="mediumId"
-            :placeholder="$t('productMarket.labels.smallCategory')"
-            style="width: 120px;"
-            @change="handleFilter"
-          />
-        </div>
-      </el-form-item>
 
-      <el-form-item :label="$t('admin.settlement.filters.setCategory')">
-        <div class="flex flex-wrap gap-2">
-          <common-select
-            v-model="localQuery.setCategoryLarge"
-            group-code="PRODUCT_CATEGORY"
-            :placeholder="$t('productMarket.labels.largeCategory')"
-            style="width: 120px;"
-            @change="(val, options) => handleSetLargeChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.setCategoryMedium"
-            :parent-id="setLargeId"
-            :placeholder="$t('productMarket.labels.mediumCategory')"
-            style="width: 120px;"
-            @change="(val, options) => handleSetMediumChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.setCategorySmall"
-            :parent-id="setMediumId"
-            :placeholder="$t('productMarket.labels.smallCategory')"
-            style="width: 120px;"
-            @change="handleFilter"
-          />
-        </div>
-      </el-form-item>
 
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="handleFilter">{{ $t('common.search') }}</el-button>

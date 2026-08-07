@@ -484,7 +484,16 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
 
         if (query.CompanyId.HasValue && query.CompanyId.Value > 0)
         {
-            dbQuery = dbQuery.Where(o => o.User != null && o.User.UserCompanies.Any(uc => uc.CompanyId == query.CompanyId.Value));
+            var targetCompId = query.CompanyId.Value;
+            dbQuery = dbQuery.Where(o => 
+                (o.User != null && o.User.UserCompanies.Any(uc => uc.CompanyId == targetCompId)) ||
+                (o.LogisticsCompanyId == targetCompId) ||
+                (o.OrderItems.Any(oi => 
+                    (oi.Product != null && oi.Product.CompanyId == targetCompId) ||
+                    (oi.ProductSet != null && oi.ProductSet.CompanyId == targetCompId) ||
+                    (oi.Children.Any(c => c.Product != null && c.Product.CompanyId == targetCompId))
+                ))
+            );
         }
 
         if (query.CustomerId.HasValue)

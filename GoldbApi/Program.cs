@@ -311,7 +311,9 @@ app.MapGet("/api/seed", async (GoldbApi.Data.AppDbContext dbContext) =>
         new { Key = "admin", Name = "관리자" }, 
         new { Key = "manufacturer", Name = "제조사" }, 
         new { Key = "retail", Name = "소매점" }, 
-        new { Key = "market", Name = "도매/마켓" } 
+        new { Key = "market", Name = "도매/마켓" },
+        new { Key = "dc", Name = "물류" },
+        new { Key = "logistics", Name = "물류" }
     };
 
     foreach (var r in roles)
