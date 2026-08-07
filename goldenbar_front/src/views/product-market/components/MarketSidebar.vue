@@ -7,8 +7,8 @@
         :placeholder="$t('productMarket.labels.searchPlaceholder')"
         clearable
         class="filter-input"
-        @keyup.enter="emit('filter')"
-        @clear="emit('filter')"
+        @keyup.enter="triggerFilter"
+        @clear="triggerFilter"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
@@ -24,7 +24,7 @@
         show-all
         placeholder="대분류 전체"
         class="filter-input"
-        @change="emit('filter')"
+        @change="triggerFilter"
       />
     </div>
 
@@ -36,7 +36,7 @@
         show-all
         :placeholder="$t('marketplace.filters.purity')"
         class="filter-input"
-        @change="emit('filter')"
+        @change="triggerFilter"
       />
     </div>
 
@@ -51,7 +51,7 @@
           controls-position="right"
           :placeholder="$t('marketplace.filters.min')"
           class="range-input"
-          @change="emit('filter')"
+          @change="triggerFilter"
         />
         <span class="range-sep">~</span>
         <el-input-number
@@ -62,13 +62,13 @@
           controls-position="right"
           :placeholder="$t('marketplace.filters.max')"
           class="range-input"
-          @change="emit('filter')"
+          @change="triggerFilter"
         />
       </div>
     </div>
 
     <div class="filter-actions">
-      <el-button type="primary" class="search-btn" @click="emit('filter')">
+      <el-button type="primary" class="search-btn" @click="triggerFilter">
         <el-icon><Search /></el-icon> {{ $t('common.search') }}
       </el-button>
       <el-button class="reset-btn" @click="emit('reset')">
@@ -100,6 +100,11 @@ watch(() => props.filters, (newVal) => {
 watch(localFilters, (newVal) => {
   emit('update:filters', newVal);
 }, { deep: true });
+
+const triggerFilter = () => {
+  emit('update:filters', localFilters);
+  emit('filter');
+};
 </script>
 
 <style lang="scss" scoped>

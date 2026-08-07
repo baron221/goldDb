@@ -2,6 +2,7 @@
 <div class="order-management-container app-container">
     <order-search-filter
       :query="listQuery"
+      @update:query="(val) => Object.assign(listQuery, val)"
       @filter="handleFilter"
       @reset="resetQuery"
       @print-all="handlePrintAll"

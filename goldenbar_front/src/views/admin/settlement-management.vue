@@ -3,6 +3,7 @@
 
     <settlement-management-filter
       :query="listQuery"
+      @update:query="(val) => Object.assign(listQuery, val)"
       @filter="handleFilter"
       @reset="resetQuery"
     />

@@ -25,6 +25,7 @@
     <settlement-history-filter
       :query="listQuery"
       :is-mobile="isMobile"
+      @update:query="Object.assign(listQuery, $event)"
       @filter="handleFilter"
       @reset="resetQuery"
       @print-combined="printCombinedStatement"

@@ -5,6 +5,7 @@
 
         <product-search-filter
           :query="listQuery"
+          @update:query="(val) => Object.assign(listQuery, val)"
           :is-company-user="isCompanyUser"
           @filter="handleFilter"
           @reset="resetQuery"
