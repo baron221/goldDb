@@ -31,6 +31,11 @@ public static class ReceivableEndpoints
             return Results.Ok(await service.GetUserSummaryByIdAsync(userId));
         });
 
+        group.MapPost("/order-charge-summary", async (IReceivableService service, OrderIdsQueryDto request) =>
+        {
+            return Results.Ok(await service.GetReceivableChargeSummaryAsync(request.OrderIds));
+        });
+
         group.MapGet("/", async (IReceivableService service, [AsParameters] ReceivableQueryDto query) =>
         {
             return Results.Ok(await service.GetReceivablesAsync(query));

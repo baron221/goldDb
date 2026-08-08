@@ -239,6 +239,107 @@ export async function printWorkOrder(order: WorkOrderPrintData, items: any[], co
   win.document.close();
 }
 
+// One row per order (using its primary/first item), for a printable batch list of
+// currently factory-approved orders - a picking/production list, distinct from the
+// per-order 작업지시서 above.
+export function printApprovedOrdersList(orders: any[], codeMap: Record<string, string> = {}) {
+  const win = window.open('', '_blank');
+  if (!win) return;
+
+  const esc = (v: any) => String(v ?? '').replace(/[&<>"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string
+  ));
+  const codeName = (code: string) => (code && codeMap[code]) || code || '';
+
+  const formatOrderDate = (d?: string) => {
+    if (!d) return '-';
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const hours = date.getHours();
+    const ampm = hours < 12 ? '오전' : '오후';
+    const h12 = hours % 12 === 0 ? 12 : hours % 12;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${ampm} ${h12}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  };
+
+  const rowsHtml = orders.map((order) => {
+    const item = (order.orderItems || []).find((i: any) => !i.parentId) || (order.orderItems || [])[0] || {};
+    const name = item.productName || item.productSetTitle || '-';
+    const size = item.size && item.size !== 'EMPTY' ? item.size : '';
+    const weight = item.requestedWeight || item.actualWeight || 0;
+
+    return `
+      <tr>
+        <td class="c">${esc(order.orderNo || order.id || '-')}</td>
+        <td class="goods">
+          <img class="thumb" src="${esc(item.photoUrl || '/thumb_no_img.png')}" />
+          <div class="goods-text">
+            <div class="gname">${esc(name)}</div>
+            ${size ? `<div class="gsize">표준 사이즈 : ${esc(size)}</div>` : ''}
+          </div>
+        </td>
+        <td class="detail">
+          <div>주문정보(생산): ${esc(item.manufacturerName || '-')}</div>
+          <div>주문정보(물류): ${esc(order.logisticsCompanyName || '-')}</div>
+        </td>
+        <td class="c">${esc(codeName(item.purity) || '-')}</td>
+        <td class="c">${weight ? `${weight}g` : '-'}</td>
+        <td class="c">${esc(item.quantity ?? '-')}개</td>
+        <td class="c date">${esc(formatOrderDate(order.createdAt))}</td>
+      </tr>`;
+  }).join('');
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>주문 목록</title>
+        <style>
+          @page { size: A4; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { margin: 0; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; color: #1a1a1a; font-size: 12px; }
+          .doc-title { font-size: 22px; font-weight: 800; margin-bottom: 14px; }
+          table { width: 100%; border-collapse: collapse; }
+          thead th { background: #f2f0eb; border: 1px solid #b9b5ac; padding: 8px 6px; font-size: 11px; font-weight: 700; }
+          tbody td { border: 1px solid #cfccc4; padding: 8px; vertical-align: middle; }
+          td.c { text-align: center; }
+          td.date { font-size: 11px; color: #555; }
+          .goods { display: flex; align-items: center; gap: 8px; }
+          .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd; flex-shrink: 0; }
+          .gname { font-weight: 700; }
+          .gsize { color: #c0392b; font-size: 10.5px; margin-top: 2px; }
+          .detail { font-size: 10.5px; color: #555; }
+          .print-btn-row { text-align: center; margin-top: 20px; }
+          .print-btn { background: #6c3fc5; color: #fff; border: none; padding: 10px 22px; border-radius: 4px; font-size: 13px; font-weight: 700; cursor: pointer; }
+          @media print { .print-btn-row { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="doc-title">주문 목록</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 60px;">번호</th>
+              <th>주문내용</th>
+              <th style="width: 150px;">주문상세</th>
+              <th style="width: 50px;">함량</th>
+              <th style="width: 60px;">중량</th>
+              <th style="width: 60px;">주문수량</th>
+              <th style="width: 110px;">주문일자</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="7" class="c">공장승인된 주문이 없습니다.</td></tr>'}
+          </tbody>
+        </table>
+        <div class="print-btn-row">
+          <button class="print-btn" onclick="window.print()">프린트</button>
+        </div>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 // Small sticker label (per item) meant to be stuck on the product box.
 // One label per order item: 물류 / 주문일시 / 제품번호 / 옵션+중량+사이즈 / 메모.
 export function printWorkOrderSticker(order: WorkOrderPrintData, items: any[], codeMap: Record<string, string> = {}) {

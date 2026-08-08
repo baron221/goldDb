@@ -68,6 +68,7 @@ const onCompanyTypesLoaded = (options: any[]) => {
 };
 
 const onFilter = () => {
+  emit('update:query', localQuery);
   emit('filter');
 };
 </script>

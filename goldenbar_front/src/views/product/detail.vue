@@ -145,9 +145,18 @@ const selectedColor = ref('');
 const orderMemo = ref('');
 const orderSize = ref('');
 
+// 기본감량 (casting/finishing loss %) is deducted from the raw registered weight
+// before it's shown to buyers - the displayed weight reflects what's actually
+// delivered, not the pre-loss raw material weight.
+const applyBasicLoss = (rawWeight: number): number => {
+  const basicLoss = product.value?.basicLoss || 0;
+  if (basicLoss <= 0) return rawWeight;
+  return rawWeight * (1 - basicLoss / 100);
+};
+
 const activeWeight = computed(() => {
   if (!product.value || !selectedPurity.value) {
-    return product.value?.weight || 0;
+    return applyBasicLoss(product.value?.weight || 0);
   }
 
   if (product.value.optionWeights && product.value.optionWeights.length > 0) {
@@ -157,11 +166,11 @@ const activeWeight = computed(() => {
       return true;
     });
     if (matched) {
-      return matched.weight;
+      return applyBasicLoss(matched.weight);
     }
   }
 
-  return product.value.weight || 0;
+  return applyBasicLoss(product.value.weight || 0);
 });
 
 const hasOptionWeight = computed(() => {

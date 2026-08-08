@@ -96,6 +96,15 @@
       </el-col>
     </el-row>
 
+    <el-row v-if="localForm.category === 'RTL'" :gutter="20">
+      <el-col :xs="24" :sm="12">
+        <el-form-item label="가격 표시 숨김">
+          <el-switch v-model="localForm.hidePrice" active-text="숨김" inactive-text="표시" />
+          <div style="font-size: 0.8125rem; color: #909399; margin-top: 0.25rem;">켜면 이 소매점 계정에는 상품/장바구니/주문 내역에서 가격이 전혀 표시되지 않습니다.</div>
+        </el-form-item>
+      </el-col>
+    </el-row>
+
     <el-divider content-position="left">{{ $t('sys.company.labels.addressInfo') }}</el-divider>
     <el-form-item :label="$t('sys.company.labels.zipCode')">
       <el-input v-model="localForm.zipCode" style="width: 250px;" readonly>

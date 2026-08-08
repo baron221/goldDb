@@ -61,3 +61,18 @@ export function cancelPayable(id: number) {
     method: 'post'
   });
 }
+
+export function getOrderChargeSummary(orderIds: number[]) {
+  return request({
+    url: '/payables/order-charge-summary',
+    method: 'post',
+    data: { orderIds }
+  });
+}
+
+export function getPaymentApplications(paymentId: number) {
+  return request({
+    url: `/payables/${paymentId}/applications`,
+    method: 'get'
+  });
+}

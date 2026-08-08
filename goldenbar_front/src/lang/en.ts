@@ -777,7 +777,8 @@ export default {
         date: 'Date:',
         noMemo: 'No Memo',
         noLogisticsMemo: 'No logistics memo',
-        noWorkOrderMemo: 'No work order memo'
+        noWorkOrderMemo: 'No work order memo',
+        applyLoss: 'Deduct loss'
       },
       placeholders: {
         material: 'Material',

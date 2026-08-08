@@ -3,6 +3,7 @@ using System;
 using GoldbApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoldbApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807162540_AddPayableApplication")]
+    partial class AddPayableApplication
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -770,11 +773,6 @@ namespace GoldbApi.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by")
                         .HasComment("생성자 ID");
-
-                    b.Property<bool>("HidePrice")
-                        .HasColumnType("boolean")
-                        .HasColumnName("hide_price")
-                        .HasComment("소매점 가격 표시 숨김 여부");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
@@ -2253,11 +2251,6 @@ namespace GoldbApi.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("discount")
                         .HasComment("할인 금액");
-
-                    b.Property<decimal>("DiscountWeight")
-                        .HasColumnType("numeric")
-                        .HasColumnName("discount_weight")
-                        .HasComment("할인 순금 중량(g)");
 
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("boolean")

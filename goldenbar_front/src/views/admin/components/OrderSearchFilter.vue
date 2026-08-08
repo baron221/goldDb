@@ -104,7 +104,7 @@ watch(() => props.query, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:query', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const codeStore = useCodeStore();
 const userStore = useUserStore();

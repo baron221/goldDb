@@ -50,3 +50,30 @@
   display: flex;
   justify-content: center;
 }
+.product-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+}
+.product-spec {
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 0.125rem;
+}
+.product-more {
+  font-size: 0.75rem;
+  color: #409eff;
+}
+.batch-settle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 2px;
+  font-weight: 600;
+  color: #303133;
+}

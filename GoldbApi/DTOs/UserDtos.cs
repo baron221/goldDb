@@ -63,6 +63,8 @@ public class UserInfoResponse
 
     public int? LogisticsCompanyId { get; set; }
 
+    public bool CanViewPrice { get; set; } = true;
+
     public string? LastLoginIp { get; set; }
 
     public DateTime? LastLoginAt { get; set; }

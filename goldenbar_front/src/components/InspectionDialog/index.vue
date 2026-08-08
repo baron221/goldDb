@@ -160,7 +160,7 @@
           :excel-formatter="(row) => `${row.settlementRatio}%`"
         >
           <template #default="scope">
-            <div style="color: #909399; font-size: 0.8125rem; margin-bottom: 0.125rem;">+ (수공비 * 비율%)</div>
+            <div style="color: #909399; font-size: 0.8125rem; margin-bottom: 0.125rem;">+ (수공비 * 2 * 비율%)</div>
             <el-input-number
               v-model="scope.row.settlementRatio"
               :min="0"
@@ -262,7 +262,7 @@ const initializeForm = () => {
       laborCost: item.laborCost,
       settlementRatio: item.settlementRatio || 70,
       retailerConfirmMaterialCost: item.retailerConfirmMaterialCost > 0 ? item.retailerConfirmMaterialCost : (item.factoryInputMaterialCost || 0),
-      retailerConfirmLaborCost: (item.factoryInputLaborCost || 0) + Math.round((item.factoryInputLaborCost || 0) * ((item.settlementRatio || 70) / 100)),
+      retailerConfirmLaborCost: (item.factoryInputLaborCost || 0) + Math.round((item.factoryInputLaborCost || 0) * 2 * ((item.settlementRatio || 70) / 100)),
       factoryInputMaterialCost: item.factoryInputMaterialCost,
       factoryInputLaborCost: item.factoryInputLaborCost,
       size: item.size,
@@ -299,7 +299,7 @@ const initializeForm = () => {
           laborCost: child.laborCost,
           settlementRatio: child.settlementRatio || 70,
           retailerConfirmMaterialCost: child.retailerConfirmMaterialCost > 0 ? child.retailerConfirmMaterialCost : (child.factoryInputMaterialCost || 0),
-          retailerConfirmLaborCost: (child.factoryInputLaborCost || 0) + Math.round((child.factoryInputLaborCost || 0) * ((child.settlementRatio || 70) / 100)),
+          retailerConfirmLaborCost: (child.factoryInputLaborCost || 0) + Math.round((child.factoryInputLaborCost || 0) * 2 * ((child.settlementRatio || 70) / 100)),
           factoryInputMaterialCost: child.factoryInputMaterialCost,
           factoryInputLaborCost: child.factoryInputLaborCost,
           approvedWeight: child.approvedWeight,
@@ -329,7 +329,7 @@ const initializeForm = () => {
 const handleRatioChange = (row: any) => {
   const factoryLabor = row.factoryInputLaborCost || 0;
   const ratio = row.settlementRatio || 0;
-  row.retailerConfirmLaborCost = factoryLabor + Math.round(factoryLabor * (ratio / 100));
+  row.retailerConfirmLaborCost = factoryLabor + Math.round(factoryLabor * 2 * (ratio / 100));
 };
 
 const handleInspectionSubmit = async () => {

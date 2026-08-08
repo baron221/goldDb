@@ -234,7 +234,7 @@ watch(() => props.filters, (newVal) => {
 
 watch(localFilters, (newVal) => {
   emit('update:filters', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const prodLargeId = ref<number | null>(null);
 const prodMediumId = ref<number | null>(null);

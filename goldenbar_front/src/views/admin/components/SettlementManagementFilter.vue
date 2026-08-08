@@ -6,13 +6,23 @@
           <el-option v-for="c in linkedCompanies" :key="c.companyId" :label="c.companyName" :value="c.companyId" />
         </el-select>
       </el-form-item>
-      <el-form-item v-else-if="isDcc" label="공장">
-        <el-select v-model="localQuery.factoryCompanyId" placeholder="전체" clearable filterable style="width: 200px" @change="handleFilter">
-          <el-option v-for="c in linkedCompanies" :key="c.companyId" :label="c.companyName" :value="c.companyId" />
-        </el-select>
+      <el-form-item v-else-if="isDcc" label="소매">
+        <company-select v-model="localQuery.companyId" category="RTL" placeholder="전체" style="width: 200px" @change="handleFilter" />
       </el-form-item>
       <el-form-item v-else :label="$t('sys.company.labels.name')">
         <company-select v-model="localQuery.companyId" :placeholder="$t('marketplace.filters.search')" style="width: 200px" @change="handleFilter" />
+      </el-form-item>
+      <el-form-item label="조회기간">
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="~"
+          start-placeholder="시작일"
+          end-placeholder="종료일"
+          value-format="YYYY-MM-DD"
+          style="width: 260px"
+          @change="handleDateChange"
+        />
       </el-form-item>
       <el-form-item :label="$t('order.filters.title')">
         <el-select v-model="localQuery.status" :placeholder="$t('order.filters.searchPlaceholder')" clearable @change="handleFilter">
@@ -129,12 +139,29 @@ watch(() => props.query, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:query', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);
 const setLargeId = ref<number | null>(null);
 const setMediumId = ref<number | null>(null);
+
+const dateRange = ref<string[] | null>(localQuery.startDate ? [localQuery.startDate, localQuery.endDate] : null);
+
+watch(() => props.query, () => {
+  dateRange.value = localQuery.startDate ? [localQuery.startDate, localQuery.endDate] : null;
+});
+
+const handleDateChange = (val: string[] | null) => {
+  if (val && val.length === 2) {
+    localQuery.startDate = val[0];
+    localQuery.endDate = val[1];
+  } else {
+    localQuery.startDate = undefined;
+    localQuery.endDate = undefined;
+  }
+  handleFilter();
+};
 
 const handleLargeChange = (val: string, options: any) => {
   const selected = options.find((o: any) => o.code === val);
@@ -177,6 +204,7 @@ const resetQuery = () => {
   mediumId.value = null;
   setLargeId.value = null;
   setMediumId.value = null;
+  dateRange.value = null;
   emit('reset');
 };
 </script>

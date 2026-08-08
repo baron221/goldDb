@@ -97,6 +97,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Payable> Payables { get; set; }
 
+    public DbSet<PayableApplication> PayableApplications { get; set; }
+
     public DbSet<ProductOptionWeight> ProductOptionWeights { get; set; }
 
     public DbSet<OrderStatement> OrderStatements { get; set; }

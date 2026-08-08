@@ -136,7 +136,12 @@ const getCategoryParts = () => {
 const getPurityWeight = (purityCode: string): string | null => {
   const list = props.item.purityWeights || props.item.optionWeights;
   const match = list?.find((pw: any) => pw.purity === purityCode);
-  return match ? Number(match.weight).toFixed(2) : null;
+  if (!match) return null;
+
+  const basicLoss = props.item.basicLoss || 0;
+  const rawWeight = Number(match.weight);
+  const adjustedWeight = basicLoss > 0 ? rawWeight * (1 - basicLoss / 100) : rawWeight;
+  return adjustedWeight.toFixed(2);
 };
 </script>
 

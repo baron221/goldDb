@@ -31,6 +31,8 @@ export interface IUserState {
 
   logisticsCompanyId: number | null;
 
+  canViewPrice: boolean;
+
   lastLoginIp: string | null;
 
   lastLoginAt: string | null;
@@ -52,6 +54,7 @@ export default defineStore({
     companyType: null,
     companyName: null,
     logisticsCompanyId: null,
+    canViewPrice: true,
     lastLoginIp: null,
     lastLoginAt: null,
     loginCount: 0
@@ -82,7 +85,7 @@ export default defineStore({
             return reject('인증에 실패했습니다. 다시 로그인해 주세요.');
           }
 
-          const { roles, name, avatar, introduction, id, companyId, companyType, companyName, logisticsCompanyId, username, lastLoginIp, lastLoginAt, loginCount } = data;
+          const { roles, name, avatar, introduction, id, companyId, companyType, companyName, logisticsCompanyId, canViewPrice, username, lastLoginIp, lastLoginAt, loginCount } = data;
 
           if (!roles || roles.length <= 0) {
             return reject('getInfo: 권한 정보(roles)가 비어 있습니다.');
@@ -98,6 +101,7 @@ export default defineStore({
           this.companyType = companyType;
           this.companyName = companyName;
           this.logisticsCompanyId = logisticsCompanyId;
+          this.canViewPrice = canViewPrice !== false;
           this.lastLoginIp = lastLoginIp || null;
           this.lastLoginAt = lastLoginAt || null;
           this.loginCount = loginCount || 0;
@@ -172,6 +176,7 @@ export default defineStore({
       this.companyId = null;
       this.companyType = null;
       this.companyName = null;
+      this.canViewPrice = true;
       this.lastLoginIp = null;
       this.lastLoginAt = null;
       this.loginCount = 0;

@@ -45,11 +45,13 @@
         label="주문의 총금액"
         width="140"
         align="right"
-        :excel-formatter="(row) => `${getStatusLabel(row.status)} / ₩${formatPrice(getOrderTotal(row))}`"
+        :excel-formatter="(row) => canViewPrice ? `${getStatusLabel(row.status)} / ₩${formatPrice(getOrderTotal(row))}` : getStatusLabel(row.status)"
       >
         <template #default="{row}">
           <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag><br />
-          <span style="font-size: 0.8875rem; color: #909399; margin-right: 0.1875rem;">₩</span><span style="font-weight: bold; color: #f56c6c; font-size: 1.05rem;">{{ formatPrice(getOrderTotal(row)) }}</span>
+          <template v-if="canViewPrice">
+            <span style="font-size: 0.8875rem; color: #909399; margin-right: 0.1875rem;">₩</span><span style="font-weight: bold; color: #f56c6c; font-size: 1.05rem;">{{ formatPrice(getOrderTotal(row)) }}</span>
+          </template>
         </template>
       </el-table-column>
 
@@ -94,6 +96,9 @@ import { formatPrice } from '@/utils/format';
 import { isStatementVisibleStatus, isPostPendingStatus } from '@/utils/order';
 import BaseTable from '@/components/BaseTable/index.vue';
 import OrderGoodsCell from '@/components/OrderTableList/components/OrderGoodsCell.vue';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 
 const props = defineProps<{
   orders: any[];

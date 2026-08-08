@@ -1,150 +1,6 @@
 <template>
 <div class="payable-management-container app-container">
     <el-card shadow="never" class="filter-card">
-      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">
-        {{ isLogistics ? '정산처리 내역 (공장에 지급할 금액)' : '정산받은 내역 (물류로부터 받을 금액)' }}
-      </div>
-      <el-form :inline="true" :model="listQuery" class="demo-form-inline">
-        <el-form-item label="거래처 검색">
-          <el-input v-model="listQuery.search" placeholder="업체명" clearable @keyup.enter="handleFilter" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleFilter">검색</el-button>
-          <el-button :icon="Refresh" @click="resetQuery">초기화</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <el-card shadow="never" style="margin-top: 1.25rem;">
-      <base-table
-        v-loading="listLoading"
-        :data="list"
-        border
-        fit
-        highlight-current-row
-        style="width: 100%"
-        row-key="companyId"
-      >
-        <el-table-column type="expand">
-          <template #default="{row}">
-            <div class="history-detail-expand">
-              <div class="expand-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h4>[{{ row.companyName }}] 상세 거래 내역</h4>
-                <div style="display: flex; gap: 0.5rem;">
-                  <el-button size="small" type="success" @click="openPaymentDialog(row)">정산 처리</el-button>
-                  <el-button size="small" type="primary" plain @click="fetchHistory(row.companyId)">새로고침</el-button>
-                </div>
-              </div>
-              <base-table
-                v-loading="historyLoading[row.companyId]"
-                :data="(historyData[row.companyId] || []).filter(r => !r.isCancelled)"
-                border
-                size="small"
-                style="width: 100%; margin-top: 0.625rem;"
-              >
-                <el-table-column prop="createdAt" label="발생일시" width="160" align="center" :excel-formatter="(row) => formatDate(row.createdAt)">
-                  <template #default="item">
-                    <span>{{ formatDate(item.row.createdAt) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="type" label="구분" width="120" align="center">
-                  <template #default="item">
-                    <el-tag :type="item.row.type === 'CHARGE' ? 'danger' : (item.row.isCancelled ? 'info' : 'success')">
-                      {{ item.row.type === 'CHARGE' ? '청구' : '정산' }}
-                    </el-tag>
-                    <el-tag v-if="item.row.isCancelled" type="info" size="small" style="margin-left: 0.25rem;">취소됨</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="orderNo" label="주문번호" width="180" align="center">
-                  <template #default="item">
-                    <el-button v-if="item.row.orderNo" type="primary" link @click="goToOrder(item.row.orderNo)">
-                      {{ item.row.orderNo }}
-                    </el-button>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="amount" label="금액" width="130" align="right">
-                  <template #default="item">
-                    <span :style="{ color: item.row.type === 'CHARGE' ? '#f56c6c' : '#67c23a', fontWeight: 'bold' }">
-                      {{ item.row.type === 'CHARGE' ? '+' : '-' }} ₩ {{ formatPrice(item.row.amount) }}
-                    </span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="remainingAmount" label="남은 미지급" width="130" align="right">
-                  <template #default="item">
-                    <span v-if="item.row.type === 'CHARGE'" :style="{ color: item.row.remainingAmount > 0 ? '#f56c6c' : '#67c23a', fontWeight: 'bold' }">
-                      ₩ {{ formatPrice(item.row.remainingAmount) }}
-                    </span>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="memo" label="메모" min-width="200">
-                  <template #default="item">
-                    <span>{{ item.row.memo }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="작업" width="260" align="center" fixed="right">
-                  <template #default="item">
-                    <div v-if="item.row.type === 'PAYMENT'" style="display: flex; gap: 0.375rem; justify-content: center;">
-                      <el-button size="small" @click="handlePrintReceipt(item.row, row)">영수증 출력</el-button>
-                      <template v-if="!item.row.isCancelled">
-                        <el-button size="small" type="warning" @click="openEditDialog(item.row)">수정</el-button>
-                        <el-button size="small" type="danger" @click="handleCancelPayable(item.row, row.companyId)">정산취소</el-button>
-                      </template>
-                    </div>
-                    <div v-else-if="item.row.type === 'CHARGE'" style="display: flex; gap: 0.375rem; justify-content: center; align-items: center;">
-                      <el-button v-if="item.row.remainingAmount > 0 || item.row.remainingWeight > 0" size="small" type="success" @click="openOrderPaymentDialog(item.row, row)">주문 정산</el-button>
-                      <template v-else>
-                        <el-tag type="success" size="small">정산완료</el-tag>
-                        <el-button size="small" type="success" plain @click="openOrderPaymentDialog(item.row, row)">추가 정산</el-button>
-                      </template>
-                    </div>
-                  </template>
-                </el-table-column>
-              </base-table>
-
-              <div v-if="historyTotal[row.companyId] > historyQuery.pageSize" class="pagination-container" style="margin-top: 0.625rem;">
-                <el-pagination
-                  v-model:current-page="historyQuery.page"
-                  v-model:page-size="historyQuery.pageSize"
-                  :total="historyTotal[row.companyId] || 0"
-                  layout="total, prev, pager, next"
-                  @current-change="() => fetchHistory(row.companyId)"
-                />
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="거래처" prop="companyName" min-width="200" align="center" />
-        <el-table-column prop="totalOutstanding" label="총 미지급 잔액" width="200" align="right">
-          <template #default="{row}">
-            <span style="font-weight: bold; color: #f56c6c; font-size: 1rem;">
-              ₩ {{ formatPrice(row.totalOutstanding) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="isLogistics" :label="$t('common.action')" width="150" align="center" :fixed="!isMobile ? 'right' : false">
-          <template #default="{row}">
-            <el-button type="success" size="small" @click="openPaymentDialog(row)">정산 처리</el-button>
-          </template>
-        </el-table-column>
-      </base-table>
-
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="listQuery.page"
-          v-model:page-size="listQuery.pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 30, 50]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="getList"
-          @current-change="getList"
-        />
-      </div>
-    </el-card>
-
-    <el-card shadow="never" class="filter-card" style="margin-top: 1.25rem;">
       <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">정산 내역</div>
       <el-form :inline="true" :model="orderHistoryQuery" class="demo-form-inline">
         <el-form-item label="거래처">
@@ -196,31 +52,49 @@
         </tbody>
       </table>
 
+      <div v-if="!isLogistics && selectedOrderRows.length > 0" class="batch-settle-bar">
+        <span>{{ selectedOrderRows.length }}건 선택됨 · 청구 ₩{{ formatPrice(selectedTotalAmount) }} ({{ selectedTotalWeight.toFixed(2) }}g)</span>
+        <el-button type="primary" @click="openBatchSettleDialog">정산</el-button>
+      </div>
+
       <base-table
+        ref="orderHistoryTableRef"
         v-loading="orderHistoryLoading"
         :data="orderHistoryList"
         :total="orderHistoryTotal"
         v-model:page="orderHistoryQuery.page"
         v-model:page-size="orderHistoryQuery.pageSize"
         border
+        row-key="payableId"
         style="width: 100%; margin-top: 1.25rem;"
         @change="fetchOrderHistory"
+        @selection-change="handleOrderHistorySelectionChange"
       >
+        <el-table-column v-if="!isLogistics" type="selection" width="45" :selectable="isOrderRowSelectable" />
         <el-table-column label="주문번호" width="200" align="center">
           <template #default="{row}">
             <span class="order-link" @click="goToOrder(row.orderNo)">{{ row.orderNo }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="제품정보" min-width="220">
+        <el-table-column label="제품정보" min-width="280">
           <template #default="{row}">
-            <div v-if="row.productName" class="product-info-cell">
-              <el-image :src="row.productPhotoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 40px; height: 40px;" />
-              <div class="product-text">
-                <div class="product-name">
-                  {{ row.productName }}
-                  <el-tag v-if="row.productItemCount > 1" size="small" type="info" effect="plain" style="margin-left: 0.3125rem;">+{{ row.productItemCount - 1 }}</el-tag>
+            <div v-if="row.items && row.items.length > 0" class="product-info-list">
+              <div v-for="(item, idx) in row.items.slice(0, 3)" :key="idx" class="product-info-cell">
+                <el-image :src="item.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 36px; height: 36px;" />
+                <div class="product-text">
+                  <div class="product-name">
+                    {{ item.productName || '-' }}
+                    <span v-if="item.productNo" class="product-no-code">{{ item.productNo }}</span>
+                  </div>
+                  <div class="product-spec">
+                    함량: {{ item.purity || '-' }} / 수량: {{ item.quantity }}개
+                    <template v-if="item.color && item.color !== 'EMPTY'"> / 색상: {{ codeStore.codeMap[item.color] || item.color }}</template>
+                    <template v-if="item.size && item.size !== 'EMPTY'"> / 사이즈: {{ item.size }}</template>
+                  </div>
+                  <div v-if="item.memo" class="product-memo">메모: {{ item.memo }}</div>
                 </div>
               </div>
+              <div v-if="row.items.length > 3" class="product-more">+{{ row.items.length - 3 }}건 더</div>
             </div>
             <span v-else>-</span>
           </template>
@@ -250,21 +124,19 @@
             <el-button size="small" @click="handlePrintOrderReceipt(row)">출력</el-button>
           </template>
         </el-table-column>
+        <el-table-column v-if="!isLogistics" label="정산처리" width="110" align="center">
+          <template #default="{row}">
+            <el-button v-if="row.remainingAmount > 0 || row.remainingWeight > 0" type="primary" size="small" @click="openSingleSettleDialog(row)">정산처리</el-button>
+          </template>
+        </el-table-column>
       </base-table>
     </el-card>
 
-    <payment-dialog
-      v-model="paymentDialogVisible"
-      :company="currentCompany"
-      :order-id="selectedOrderId"
-      :order-no="selectedOrderNo"
-      @saved="onPaymentSaved"
-    />
-
-    <payable-edit-dialog
-      v-model="editDialogVisible"
-      :record="editingRecord"
-      @saved="onEditSaved"
+    <batch-settle-dialog
+      v-model="batchSettleDialogVisible"
+      :order-ids="dialogOrderIds"
+      :single-mode="!!singleSettleRow"
+      @saved="onBatchSettleSaved"
     />
   </div>
 </template>
@@ -273,18 +145,19 @@
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getCompanySummaries, getPayables, cancelPayable, getPayableOrderHistory, getPayableOrderHistorySummary } from '@/api/payable';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { getCompanySummaries, getPayableOrderHistory, getPayableOrderHistorySummary } from '@/api/payable';
+import { ElMessage } from 'element-plus';
 import { Search, Refresh } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
-import PaymentDialog from './components/PaymentDialog.vue';
-import PayableEditDialog from './components/PayableEditDialog.vue';
+import BatchSettleDialog from './components/BatchSettleDialog.vue';
 import useUserStore from '@/store/modules/user';
+import useCodeStore from '@/store/modules/code';
 
 const { isMobile } = useMobile();
 const userStore = useUserStore();
+const codeStore = useCodeStore();
 const router = useRouter();
 const defaultImage = '/thumb_no_img.png';
 
@@ -299,37 +172,6 @@ const listQuery = reactive({
   pageSize: 20,
   search: ''
 });
-
-const historyData = reactive<Record<number, any[]>>({});
-const historyLoading = reactive<Record<number, boolean>>({});
-const historyTotal = reactive<Record<number, number>>({});
-const historyQuery = reactive({
-  page: 1,
-  pageSize: 10
-});
-
-const paymentDialogVisible = ref(false);
-const currentCompany = ref<any>(null);
-const selectedOrderId = ref<number | undefined>(undefined);
-const selectedOrderNo = ref<string | undefined>(undefined);
-
-const openOrderPaymentDialog = (chargeRecord: any, companyRow: any) => {
-  currentCompany.value = {
-    ...companyRow,
-    totalOutstanding: chargeRecord.remainingAmount,
-    totalOutstandingWeight: chargeRecord.remainingWeight
-  };
-  selectedOrderId.value = chargeRecord.orderId;
-  selectedOrderNo.value = chargeRecord.orderNo;
-  paymentDialogVisible.value = true;
-};
-
-const openPaymentDialog = (row: any) => {
-  currentCompany.value = row;
-  selectedOrderId.value = undefined;
-  selectedOrderNo.value = undefined;
-  paymentDialogVisible.value = true;
-};
 
 const orderHistoryLoading = ref(false);
 const orderHistorySummaryLoading = ref(false);
@@ -356,6 +198,60 @@ watch(orderHistoryDateRange, (val) => {
   orderHistoryQuery.endDate = val ? val[1] : undefined;
 });
 
+const orderHistoryTableRef = ref<any>(null);
+const selectedOrderRows = ref<any[]>([]);
+
+const selectedTotalAmount = computed(() => selectedOrderRows.value.reduce((sum, r) => sum + (r.remainingAmount || 0), 0));
+const selectedTotalWeight = computed(() => selectedOrderRows.value.reduce((sum, r) => sum + (r.remainingWeight || 0), 0));
+
+const handleOrderHistorySelectionChange = (rows: any[]) => {
+  selectedOrderRows.value = rows;
+};
+
+// A batch settlement is scoped to a single counterparty, so once one row is picked,
+// only rows from that same company remain selectable - prevents silently mixing
+// orders from different DCC partners into one ledger.
+const isOrderRowSelectable = (row: any) => {
+  if (row.remainingAmount <= 0 && row.remainingWeight <= 0) return false;
+  if (selectedOrderRows.value.length === 0) return true;
+  return row.logisticsCompanyId === selectedOrderRows.value[0].logisticsCompanyId;
+};
+
+const batchSettleDialogVisible = ref(false);
+const singleSettleRow = ref<any>(null);
+
+// Two entry points share one dialog: the checkbox+bar flow (multiple orders) and the
+// per-row 정산처리 button (single order). singleSettleRow, when set, takes priority so
+// the two flows never bleed into each other.
+const dialogOrderIds = computed(() => {
+  if (singleSettleRow.value) return [singleSettleRow.value.orderId];
+  return selectedOrderRows.value.map((r) => r.orderId);
+});
+
+watch(batchSettleDialogVisible, (val) => {
+  if (!val) singleSettleRow.value = null;
+});
+
+const openBatchSettleDialog = () => {
+  if (selectedOrderRows.value.length === 0) return;
+  singleSettleRow.value = null;
+  batchSettleDialogVisible.value = true;
+};
+
+const openSingleSettleDialog = (row: any) => {
+  singleSettleRow.value = row;
+  batchSettleDialogVisible.value = true;
+};
+
+const onBatchSettleSaved = () => {
+  selectedOrderRows.value = [];
+  singleSettleRow.value = null;
+  orderHistoryTableRef.value?.clearSelection?.();
+  getList();
+  fetchOrderHistory();
+  fetchOrderHistorySummary();
+};
+
 const goToOrder = (orderNo: string) => {
   router.push({ path: '/order/order-tracking', query: { orderNo } });
 };
@@ -376,149 +272,6 @@ const getList = async () => {
   } finally {
     listLoading.value = false;
   }
-};
-
-const handleFilter = () => {
-  listQuery.page = 1;
-  getList();
-};
-
-const resetQuery = () => {
-  listQuery.search = '';
-  handleFilter();
-};
-
-const fetchHistory = async (companyId: number) => {
-  historyLoading[companyId] = true;
-  try {
-    const res = await getPayables({
-      companyId,
-      page: historyQuery.page,
-      pageSize: historyQuery.pageSize
-    });
-    historyData[companyId] = res.data.items;
-    historyTotal[companyId] = res.data.totalCount;
-  } catch (error) {
-    console.error('Failed to fetch history:', error);
-  } finally {
-    historyLoading[companyId] = false;
-  }
-};
-
-
-const onPaymentSaved = () => {
-  getList();
-  if (currentCompany.value && historyData[currentCompany.value.companyId]) {
-    fetchHistory(currentCompany.value.companyId);
-  }
-};
-
-const editDialogVisible = ref(false);
-const editingRecord = ref<any>(null);
-const editingCompanyId = ref<number | null>(null);
-
-const openEditDialog = (record: any) => {
-  editingRecord.value = record;
-  editingCompanyId.value = record.manufacturerCompanyId;
-  editDialogVisible.value = true;
-};
-
-const onEditSaved = () => {
-  getList();
-  if (editingCompanyId.value && historyData[editingCompanyId.value]) {
-    fetchHistory(editingCompanyId.value);
-  }
-};
-
-const handleCancelPayable = (record: any, companyId: number) => {
-  ElMessageBox.confirm('이 정산 내역을 취소하시겠습니까? 관련 미지급액이 다시 복구됩니다.', '정산 취소', {
-    confirmButtonText: '취소 처리',
-    cancelButtonText: '닫기',
-    type: 'warning'
-  }).then(async () => {
-    try {
-      await cancelPayable(record.id);
-      ElMessage.success('정산이 취소되었습니다.');
-      getList();
-      fetchHistory(companyId);
-    } catch (error) {
-      console.error('Failed to cancel payable:', error);
-      ElMessage.error('취소에 실패했습니다.');
-    }
-  }).catch(() => {});
-};
-
-const handlePrintReceipt = (record: any, company: any) => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-
-  // The payable record itself has no stored before/after snapshot (it's applied across
-  // however many outstanding charges it covers), so this shows the company's current
-  // outstanding balance as the "after" figure - accurate as of now.
-  const afterAmount = company.totalOutstanding || 0;
-  const afterWeight = company.totalOutstandingWeight || 0;
-  const beforeAmount = afterAmount + (record.amount || 0) + (record.discount || 0);
-  const beforeWeight = afterWeight + (record.weight || 0);
-
-  // 공급자 is always the manufacturer regardless of which side is viewing.
-  const supplierName = isLogistics.value ? company.companyName : userStore.companyName || '-';
-  const payerName = isLogistics.value ? userStore.companyName || '-' : company.companyName;
-
-  const ledgerRows = `
-    <tr><td class="label">최근결제</td><td>${company.lastPaymentDate ? formatDate(company.lastPaymentDate) : '-'}</td><td></td><td></td></tr>
-    <tr><td class="label">거래 전 미지급(A)</td><td>${beforeWeight.toFixed(2)}</td><td>${formatPrice(beforeAmount)}</td><td></td></tr>
-    <tr><td class="label">청구(B)</td><td>0.00</td><td>0</td><td></td></tr>
-    <tr><td class="label">결제(C)</td><td>${(record.weight || 0).toFixed(2)}</td><td>${formatPrice(record.amount || 0)}</td><td></td></tr>
-    <tr><td class="label">할인(D)</td><td>0.00</td><td>${formatPrice(record.discount || 0)}</td><td></td></tr>
-    <tr><td class="label"><strong>거래 후 미지급(A+B-C-D)</strong></td><td><strong>${afterWeight.toFixed(2)}</strong></td><td><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
-  `;
-
-  const statementBlock = (copyLabel: string) => `
-    <div class="statement-copy">
-      <div class="statement-title">[${payerName}] 정산 명세서(${copyLabel})</div>
-      <div class="statement-meta">
-        <span>공급자: ${supplierName}</span>
-        <span>일자: ${formatDate(record.createdAt)}</span>
-        <span>거래No: ${record.id}</span>
-      </div>
-      <table>
-        <thead><tr><th></th><th>순금(g)</th><th>공임 및 현금</th><th>금액 합계</th></tr></thead>
-        <tbody>${ledgerRows}</tbody>
-      </table>
-    </div>
-  `;
-
-  const html = `
-    <html>
-      <head>
-        <title>정산 명세서 - ${payerName}</title>
-        <style>
-          body { font-family: 'Malgun Gothic', sans-serif; padding: 10mm; }
-          .statements-row { display: flex; gap: 10mm; }
-          .statement-copy { flex: 1; min-width: 0; }
-          .statement-title { font-weight: bold; font-size: 1rem; margin-bottom: 8px; }
-          .statement-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: #333; margin-bottom: 8px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #333; padding: 6px; text-align: center; font-size: 0.85rem; }
-          th { background: #f5f5f5; }
-          td.label { text-align: left; background: #fafafa; font-weight: 600; }
-          .footer-note { margin-top: 16px; text-align: center; font-size: 0.85rem; color: #333; }
-        </style>
-      </head>
-      <body>
-        <div class="statements-row">
-          ${statementBlock('공급자용')}
-          ${statementBlock('보관용')}
-        </div>
-        <p class="footer-note">상기 대여 및 영수(미수는 대여로 함)합니다. (VAT 별도)</p>
-        <p style="margin-top: 10px; font-size: 0.85rem;">메모: ${record.memo || '-'}</p>
-        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>
-      </body>
-    </html>
-  `;
-
-  printWindow.document.write(html);
-  printWindow.document.close();
 };
 
 const fetchOrderHistory = async () => {
@@ -594,48 +347,8 @@ const handlePrintOrderReceipt = (row: any) => {
   printWindow.document.close();
 };
 
-const handlePrintChargeReceipt = (charge: any, company: any) => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-
-  const counterpartyLabel = isLogistics.value ? '공장' : '물류';
-  const counterpartyName = company.companyName;
-
-  const html = `
-    <html>
-      <head>
-        <title>정산 영수증 - ${charge.orderNo || charge.id}</title>
-        <style>
-          body { font-family: 'Malgun Gothic', sans-serif; padding: 10mm; }
-          .statement-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 12px; text-align: center; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #333; padding: 8px; text-align: center; font-size: 0.9rem; }
-          th { background: #f5f5f5; }
-          td.label { text-align: left; background: #fafafa; font-weight: 600; }
-        </style>
-      </head>
-      <body>
-        <div class="statement-title">정산 영수증</div>
-        <table>
-          <tbody>
-            <tr><td class="label">주문번호</td><td>${charge.orderNo || '-'}</td></tr>
-            <tr><td class="label">${counterpartyLabel}</td><td>${counterpartyName || '-'}</td></tr>
-            <tr><td class="label">발생일시</td><td>${formatDate(charge.createdAt)}</td></tr>
-            <tr><td class="label">청구 금액</td><td>₩ ${formatPrice(charge.amount)} (${(charge.weight || 0).toFixed(2)}g)</td></tr>
-            <tr><td class="label">남은 미지급</td><td>₩ ${formatPrice(charge.remainingAmount)} (${(charge.remainingWeight || 0).toFixed(2)}g)</td></tr>
-            <tr><td class="label">메모</td><td>${charge.memo || '-'}</td></tr>
-          </tbody>
-        </table>
-        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>
-      </body>
-    </html>
-  `;
-
-  printWindow.document.write(html);
-  printWindow.document.close();
-};
-
 onMounted(() => {
+  codeStore.fetchCodes();
   getList();
   fetchOrderHistory();
   fetchOrderHistorySummary();
@@ -645,22 +358,6 @@ onMounted(() => {
 <style lang="scss" scoped>
 .filter-card {
   margin-bottom: 1.25rem;
-}
-.history-detail-expand {
-  padding: 0.9375rem 1.875rem;
-  background-color: #fafafa;
-  border-radius: 2px;
-
-  .expand-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    h4 {
-      margin: 0;
-      color: #333;
-    }
-  }
 }
 .pagination-container {
   margin-top: 1.25rem;
@@ -695,6 +392,12 @@ onMounted(() => {
 .order-link:hover {
   text-decoration: underline;
 }
+.product-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+}
 .product-info-cell {
   display: flex;
   align-items: center;
@@ -710,5 +413,36 @@ onMounted(() => {
 }
 .product-name {
   font-weight: 600;
+}
+.product-no-code {
+  color: #409eff;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+.product-memo {
+  font-size: 0.75rem;
+  color: #e6a23c;
+  margin-top: 0.125rem;
+}
+.product-spec {
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 0.125rem;
+}
+.product-more {
+  font-size: 0.75rem;
+  color: #409eff;
+}
+.batch-settle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 2px;
+  font-weight: 600;
+  color: #303133;
 }
 </style>

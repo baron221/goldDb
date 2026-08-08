@@ -146,6 +146,20 @@
       </el-table-column>
 
       <el-table-column
+        v-if="props.userCategory === 'DCC'"
+        label="정산"
+        width="100"
+        align="center"
+        :excel-formatter="(row) => row.isPayableSettled ? '정산완료' : '정산대기'"
+      >
+        <template #default="{row}">
+          <el-tag :type="row.isPayableSettled ? 'success' : 'warning'" size="small">
+            {{ row.isPayableSettled ? '정산완료' : '정산대기' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column
         prop="totalAmount"
         label="주문의 총금액"
         width="130"
@@ -166,7 +180,6 @@
             :user-category="props.userCategory"
             @factory-request="(r) => $emit('factory-request', r)"
             @factory-approve="(r) => $emit('factory-approve', r)"
-            @factory-reject="(r) => $emit('factory-reject', r)"
             @inspection="(r) => $emit('inspection', r)"
             @inspection-request="(r) => $emit('inspection-request', r)"
             @settlement-confirm="(r) => $emit('settlement-confirm', r)"
@@ -238,7 +251,6 @@ const emit = defineEmits([
   'order-no-click',
   'factory-request',
   'factory-approve',
-  'factory-reject',
   'inspection',
   'inspection-request',
   'settlement-confirm',

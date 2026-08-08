@@ -159,6 +159,7 @@ const listQuery = reactive({
   excludeCancelled: true,
   excludeCompleted: false,
   isAsOnly: false,
+  isPayableSettled: undefined as boolean | undefined,
   categoryLarge: '',
   categoryMedium: '',
   categorySmall: '',
@@ -241,6 +242,7 @@ const resetQuery = () => {
   listQuery.excludeCancelled = false;
   listQuery.excludeCompleted = false;
   listQuery.isAsOnly = false;
+  listQuery.isPayableSettled = undefined;
   listQuery.categoryLarge = '';
   listQuery.categoryMedium = '';
   listQuery.categorySmall = '';

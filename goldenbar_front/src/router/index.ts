@@ -188,7 +188,7 @@ export const asyncRoutes:RouteRecordRaw[] = [
         path: 'payable',
         component: () => import('@/views/admin/payable-management.vue'),
         name: 'PayableManagement',
-        meta: { title: '정산처리/정산받은 내역', icon: 'Money' },
+        meta: { title: '정산처리', icon: 'Money' },
         alias: 'payable-management'
       },
       {
@@ -208,7 +208,7 @@ export const asyncRoutes:RouteRecordRaw[] = [
         path: 'settlement-management',
         component: () => import('@/views/admin/settlement-management.vue'),
         name: 'SettlementManagement',
-        meta: { title: '정산 대상 관리', icon: 'Money' }
+        meta: { title: '정산처리', icon: 'Money' }
       },
       {
         path: 'settlement-history',

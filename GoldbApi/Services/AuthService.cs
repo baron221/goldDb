@@ -215,10 +215,10 @@ public class AuthService : IAuthService
 
         string assignedRoleKey = request.UserType switch
         {
-            "RETAIL" => "editor",
+            "RETAIL" => "retail",
             "LOGISTICS" => "dcc",
-            "MANUFACTURER" => "mfg",
-            _ => "editor"
+            "MANUFACTURER" => "manufacturer",
+            _ => "retail"
         };
         var assignedRole = await _roleRepository.GetQueryable().FirstOrDefaultAsync(r => r.Key == assignedRoleKey);
         if (assignedRole != null)
@@ -356,6 +356,7 @@ public class AuthService : IAuthService
             CompanyType = userCompany?.Company?.Category,
             CompanyName = userCompany?.Company?.Name,
             LogisticsCompanyId = userCompany?.Company?.LogisticsCompanyId,
+            CanViewPrice = userCompany?.Company?.HidePrice != true,
             LastLoginIp = user.LastLoginIp,
             LastLoginAt = user.LastLoginAt,
             LoginCount = user.LoginCount
@@ -416,15 +417,18 @@ public class AuthService : IAuthService
             bool isLogistics = roles.Any(r => r == "dcc" || r == "dc" || r == "logistics" || r == "market");
             bool isRetailer = roles.Any(r => r == "editor" || r == "retail");
 
+            // These exclusions target users who are ONLY logistics/retailer - a user who also
+            // holds the factory role (e.g. a dual manufacturer+retail test account) must keep
+            // seeing menu 131 (공장의뢰내역), since that's their own factory's request queue.
             if (isFactory)
             {
                 filteredMenus = filteredMenus.Where(m => m.Id != 139).ToList();
             }
-            if (isLogistics)
+            if (isLogistics && !isFactory)
             {
                 filteredMenus = filteredMenus.Where(m => m.Id != 131).ToList();
             }
-            if (isRetailer)
+            if (isRetailer && !isFactory)
             {
                 filteredMenus = filteredMenus.Where(m => m.Id != 131 && m.Id != 139).ToList();
             }

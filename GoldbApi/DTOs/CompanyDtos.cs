@@ -75,6 +75,8 @@ public class CompanyDto
 
     public string Category { get; set; } = string.Empty;
 
+    public bool HidePrice { get; set; }
+
     public string? BankName { get; set; }
 
     public string? BankAccount { get; set; }
@@ -116,6 +118,8 @@ public class CompanyCreateRequest
     public bool IsDirectManagement { get; set; } = false;
 
     public string Category { get; set; } = "RTL";
+
+    public bool HidePrice { get; set; } = false;
 
     public int? LogisticsCompanyId { get; set; }
 

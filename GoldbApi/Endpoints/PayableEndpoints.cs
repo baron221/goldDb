@@ -41,6 +41,16 @@ public static class PayableEndpoints
             return Results.Ok(await service.ProcessPaymentAsync(request));
         });
 
+        group.MapPost("/order-charge-summary", async (IPayableService service, OrderIdsQueryDto request) =>
+        {
+            return Results.Ok(await service.GetOrderChargeSummaryAsync(request.OrderIds));
+        });
+
+        group.MapGet("/{id:int}/applications", async (IPayableService service, int id) =>
+        {
+            return Results.Ok(await service.GetPaymentApplicationsAsync(id));
+        });
+
         group.MapPut("/{id:int}", async (IPayableService service, int id, UpdatePaymentDto request) =>
         {
             return Results.Ok(await service.UpdatePaymentAsync(id, request));
@@ -49,6 +59,11 @@ public static class PayableEndpoints
         group.MapPost("/{id:int}/cancel", async (IPayableService service, int id) =>
         {
             return Results.Ok(await service.CancelPaymentAsync(id));
+        });
+
+        group.MapPost("/{id:int}/mfg-process", async (IPayableService service, int id, MfgProcessDto request) =>
+        {
+            return Results.Ok(await service.MarkMfgProcessedAsync(id, request));
         });
     }
 }

@@ -71,6 +71,8 @@ public class MarketItemDto
 
     public List<MarketItemPurityWeightDto> PurityWeights { get; set; } = new();
 
+    public decimal BasicLoss { get; set; }
+
     public string? PhotoUrl { get; set; }
 
     public decimal Price { get; set; }

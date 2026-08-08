@@ -496,11 +496,14 @@ public class OrderService : IOrderService
                 await _stockService.AddOrderItemsToStockAsync(id);
             }
 
-            if (oldStatus != request.Status && (request.Status == "PENDING" || request.Status == "InspectedRequested"))
+            if (oldStatus != request.Status && (request.Status == "PENDING" || request.Status == "InspectedRequested" || request.Status == "SETTLED"))
             {
                 // Bills the retailer and records what's owed to each manufacturer; shared
                 // with StockService's "fulfil from existing stock" shortcut so both paths
-                // settle immediately upon dispatch or approval.
+                // settle immediately upon dispatch or approval. Re-running this on the
+                // SETTLED transition lets 정산처리 (SettlementDialog) correct the retailer's
+                // charge using the DCC-confirmed per-item SettlementAmount, since the
+                // 물류도착 draft charge may no longer match what was actually confirmed.
                 await _receivableService.CreateOrderSettlementChargesAsync(order.Id);
             }
 

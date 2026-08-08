@@ -81,7 +81,7 @@ watch(() => props.query, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:query', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);

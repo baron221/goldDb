@@ -120,6 +120,19 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             ));
         }
 
+        if (query.IsPayableSettled.HasValue)
+        {
+            if (query.IsPayableSettled.Value)
+            {
+                dbQuery = dbQuery.Where(o => Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE")
+                    && !Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0)));
+            }
+            else
+            {
+                dbQuery = dbQuery.Where(o => Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0)));
+            }
+        }
+
         dbQuery = ApplySorting(dbQuery, query);
 
         var totalCount = await dbQuery.CountAsync();
@@ -601,6 +614,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             CompanyBusinessType = o.User != null && o.User.UserCompanies.Any() ? o.User.UserCompanies.First().Company!.BusinessType : null,
             CompanyBusinessCategory = o.User != null && o.User.UserCompanies.Any() ? o.User.UserCompanies.First().Company!.BusinessCategory : null,
             HasStatement = Context.OrderStatements.Any(os => os.OrderId == o.Id),
+            IsPayableSettled = Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE")
+                && !Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0)),
             CreatedAt = o.CreatedAt,
             UpdatedAt = o.UpdatedAt,
             OrderItems = o.OrderItems.Where(oi => oi.ParentId == null).Select(oi => new OrderItemDto
@@ -652,6 +667,7 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                 CategoryLarge = oi.Product != null ? oi.Product.CategoryLarge : (oi.ProductSet != null ? oi.ProductSet.CategoryLarge : null),
                 CategoryMedium = oi.Product != null ? oi.Product.CategoryMedium : (oi.ProductSet != null ? oi.ProductSet.CategoryMedium : null),
                 CategorySmall = oi.Product != null ? oi.Product.CategorySmall : (oi.ProductSet != null ? oi.ProductSet.CategorySmall : null),
+                BasicLoss = oi.Product != null ? oi.Product.BasicLoss : 0,
                 Children = oi.Children.Select(c => new OrderItemDto
                 {
                     Id = c.Id,
@@ -691,7 +707,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                     StockNo = c.ExhaustedStocks.Select(s => s.StockNo).FirstOrDefault(),
                     CategoryLarge = c.Product != null ? c.Product.CategoryLarge : null,
                     CategoryMedium = c.Product != null ? c.Product.CategoryMedium : null,
-                    CategorySmall = c.Product != null ? c.Product.CategorySmall : null
+                    CategorySmall = c.Product != null ? c.Product.CategorySmall : null,
+                    BasicLoss = c.Product != null ? c.Product.BasicLoss : 0
                 }).ToList()
             }).ToList(),
             StatusHistory = o.StatusHistories.Select(h => new OrderStatusHistoryDto

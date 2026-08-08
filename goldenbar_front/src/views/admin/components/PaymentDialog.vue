@@ -39,7 +39,9 @@
         </tr>
         <tr>
           <td class="ledger-label">할인(D)</td>
-          <td class="ledger-readonly">-</td>
+          <td>
+            <el-input-number v-model="paymentForm.discountWeight" :min="0" :precision="2" :step="0.1" size="small" style="width: 100%;" />
+          </td>
           <td>
             <el-input-number v-model="paymentForm.discount" :min="0" :step="1000" size="small" style="width: 100%;" />
           </td>
@@ -97,6 +99,7 @@ const paymentForm = reactive({
   amount: 0,
   weight: 0,
   discount: 0,
+  discountWeight: 0,
   memo: ''
 });
 
@@ -107,7 +110,7 @@ const afterAmount = computed(() => {
 
 const afterWeight = computed(() => {
   const a = props.company?.totalOutstandingWeight || 0;
-  return a - (paymentForm.weight || 0);
+  return a - (paymentForm.weight || 0) - (paymentForm.discountWeight || 0);
 });
 
 const formatDate = (dateStr: string) => {
@@ -121,6 +124,7 @@ watch(() => props.modelValue, (val) => {
     paymentForm.amount = 0;
     paymentForm.weight = 0;
     paymentForm.discount = 0;
+    paymentForm.discountWeight = 0;
     paymentForm.memo = '';
   }
 });
@@ -134,7 +138,7 @@ const handleClose = () => {
 };
 
 const handleSubmit = () => {
-  if (paymentForm.amount <= 0 && paymentForm.weight <= 0 && paymentForm.discount <= 0) {
+  if (paymentForm.amount <= 0 && paymentForm.weight <= 0 && paymentForm.discount <= 0 && paymentForm.discountWeight <= 0) {
     ElMessage.error('결제액, 할인액 또는 중량 중 하나는 0보다 커야 합니다.');
     return;
   }
@@ -152,6 +156,7 @@ const handleSubmit = () => {
         amount: paymentForm.amount,
         weight: paymentForm.weight,
         discount: paymentForm.discount,
+        discountWeight: paymentForm.discountWeight,
         memo: paymentForm.memo
       });
       ElMessage.success('정산 처리되었습니다.');

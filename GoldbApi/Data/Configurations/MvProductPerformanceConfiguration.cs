@@ -9,6 +9,6 @@ public class MvProductPerformanceConfiguration : IEntityTypeConfiguration<MvProd
 
     public void Configure(EntityTypeBuilder<MvProductPerformance> builder)
     {
-        builder.HasNoKey().ToView("mv_product_performance");
+        builder.HasNoKey().ToView("mv_product_performances");
     }
 }

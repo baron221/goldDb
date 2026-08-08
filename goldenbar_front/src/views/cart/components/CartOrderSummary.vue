@@ -28,12 +28,12 @@
       </div>
       <div class="total-row">
         <span class="label">{{ $t('cart.orderSummary.totals.subtotal') }}</span>
-        <span class="value">₩ {{ formatPrice(totalPrice) }}</span>
+        <span class="value">{{ canViewPrice ? `₩ ${formatPrice(totalPrice)}` : '-' }}</span>
       </div>
       <div class="grand-total-divider"></div>
       <div class="total-row highlight">
         <span class="label">{{ $t('cart.orderSummary.totals.estimatedTotal') }}</span>
-        <span class="value">₩ {{ formatPrice(totalPrice) }}</span>
+        <span class="value">{{ canViewPrice ? `₩ ${formatPrice(totalPrice)}` : '-' }}</span>
       </div>
 
       <div class="checkout-actions d-none-mobile">
@@ -54,6 +54,9 @@
 <script setup lang="ts">
 import { Close } from '@element-plus/icons-vue';
 import { formatPrice } from '@/utils/format';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 
 defineProps({
   selectedItems: {

@@ -5,6 +5,7 @@
 
         <product-set-filter
           :list-query="listQuery"
+          @update:list-query="(val) => Object.assign(listQuery, val)"
           @filter="handleFilter"
           @reset="resetQuery"
           @create="handleCreate"

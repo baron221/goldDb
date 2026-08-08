@@ -33,7 +33,7 @@
       </div>
     </div>
 
-    <div class="price-section">
+    <div v-if="canViewPrice" class="price-section">
       <div class="price-value">
         <span class="currency-symbol">₩</span>
         <span class="price-amount">{{ formatPrice((productSet.factoryPrice || 0) + (productSet.laborCost || 0)) }}</span>
@@ -118,6 +118,9 @@
 <script setup lang="ts">
 import { Edit, Star, StarFilled, InfoFilled } from '@element-plus/icons-vue';
 import { formatPrice } from '@/utils/format';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 
 defineProps({
   productSet: {

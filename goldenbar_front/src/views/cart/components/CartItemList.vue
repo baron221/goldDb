@@ -78,19 +78,21 @@
         align="right"
         header-align="center"
         :excel-formatter="(row) => {
+          if (userStore.companyType === 'RTL' && !canViewPrice) return '-';
           const base = row.customFactoryPrice || row.factoryPrice || 0;
           const labor = row.customLaborCost || row.laborCost || 0;
           return `기본: ₩${formatPrice(base)}\n수공비: ₩${formatPrice(labor)}\n합계: ₩${formatPrice(base + labor)}`;
         }"
       >
         <template #default="{row}">
-          <div v-if="userStore.companyType === 'RTL'" class="price-static-view">
+          <div v-if="userStore.companyType === 'RTL' && canViewPrice" class="price-static-view">
             <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice(row.customFactoryPrice || row.factoryPrice) }}</div>
             <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice(row.customLaborCost || row.laborCost) }}</div>
             <div class="price-total-line">
               {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) }}
             </div>
           </div>
+          <span v-else-if="userStore.companyType === 'RTL'">-</span>
           <div v-else class="price-edit-cell">
             <div class="price-input-row">
               <span class="mini-label">{{ $t('cart.itemList.labels.base') }}</span>
@@ -139,10 +141,11 @@
         width="160"
         header-align="center"
         align="right"
-        :excel-formatter="(row) => `₩${formatPrice(row.price * row.quantity)}`"
+        :excel-formatter="(row) => (userStore.companyType === 'RTL' && !canViewPrice) ? '-' : `₩${formatPrice(row.price * row.quantity)}`"
       >
         <template #default="{row}">
-          <span class="row-total-price">₩ {{ formatPrice(row.price * row.quantity) }}</span>
+          <span v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">₩ {{ formatPrice(row.price * row.quantity) }}</span>
+          <span v-else>-</span>
         </template>
       </el-table-column>
 
@@ -201,13 +204,14 @@
         </div>
 
         <div class="mobile-card-prices">
-          <div v-if="userStore.companyType === 'RTL'" class="price-static-view">
+          <div v-if="userStore.companyType === 'RTL' && canViewPrice" class="price-static-view">
             <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice(row.customFactoryPrice || row.factoryPrice) }}</div>
             <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice(row.customLaborCost || row.laborCost) }}</div>
             <div class="price-total-line">
               {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) }}
             </div>
           </div>
+          <span v-else-if="userStore.companyType === 'RTL'">-</span>
           <div v-else class="price-edit-cell">
             <div class="price-input-row">
               <span class="mini-label">{{ $t('cart.itemList.labels.base') }}</span>
@@ -235,7 +239,8 @@
               @change="(val) => handleQuantityChange(row, val)"
             />
           </div>
-          <div class="row-total-price">합계: ₩ {{ formatPrice(row.price * row.quantity) }}</div>
+          <div v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">합계: ₩ {{ formatPrice(row.price * row.quantity) }}</div>
+          <div v-else class="row-total-price">합계: -</div>
         </div>
       </div>
     </div>
@@ -255,6 +260,9 @@ import { Delete } from '@element-plus/icons-vue';
 import { getThumbnailUrl } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 
 const props = defineProps({
   cartItems: {

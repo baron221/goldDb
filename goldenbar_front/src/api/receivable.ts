@@ -46,6 +46,14 @@ export function getUserSummaryById(userId: number) {
   });
 }
 
+export function getReceivableChargeSummary(orderIds: number[]) {
+  return request({
+    url: '/receivables/order-charge-summary',
+    method: 'post',
+    data: { orderIds }
+  });
+}
+
 export function updateReceivable(id: number, data: any) {
   return request({
     url: `/receivables/${id}`,

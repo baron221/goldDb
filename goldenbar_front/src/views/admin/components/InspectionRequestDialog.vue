@@ -69,13 +69,21 @@
 
             <br />
             <el-input-number
-              v-model="scope.row.actualWeight"
+              v-model="scope.row.rawWeight"
               :precision="2"
               :step="0.1"
               :min="0"
               style="width: 110px"
+              @change="recalcWeight(scope.row)"
             />
-
+            <div v-if="scope.row.basicLoss > 0" class="loss-checkbox-row">
+              <el-checkbox v-model="scope.row.applyLoss" @change="recalcWeight(scope.row)">
+                {{ $t('admin.inspectionRequest.labels.applyLoss') }} ({{ scope.row.basicLoss }}%)
+              </el-checkbox>
+              <div v-if="scope.row.applyLoss" class="loss-result">
+                → {{ scope.row.actualWeight.toFixed(2) }}g
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column
@@ -189,7 +197,10 @@ const initializeForm = () => {
       approvedMemo: item.approvedMemo || '',
       requestedWeight: item.requestedWeight || 0,
       requestedMemo: item.requestedMemo || '',
+      rawWeight: item.actualWeight || item.requestedWeight || 0,
       actualWeight: item.actualWeight || item.requestedWeight || 0,
+      basicLoss: item.basicLoss || 0,
+      applyLoss: false,
       inspectionMemo: item.inspectionMemo || '',
       isSet: !!item.productSetId,
       manufacturerName: item.manufacturerName,
@@ -217,7 +228,10 @@ const initializeForm = () => {
           approvedMemo: child.approvedMemo || '',
           requestedWeight: child.requestedWeight || 0,
           requestedMemo: child.requestedMemo || '',
+          rawWeight: child.actualWeight || child.requestedWeight || 0,
           actualWeight: child.actualWeight || child.requestedWeight || 0,
+          basicLoss: child.basicLoss || 0,
+          applyLoss: false,
           inspectionMemo: child.inspectionMemo || '',
           manufacturerName: child.manufacturerName,
           isChild: true,
@@ -237,6 +251,18 @@ const handleClose = () => {
   completeForm.items = [];
   completeForm.factoryRemarks = '';
   completeForm.inspectionRemarks = '';
+};
+
+// 실중량 is whatever the factory measures on the scale (rawWeight). When the product
+// has a registered 기본감량(basicLoss)% - the casting/stone loss the factory declared
+// at product registration - the checkbox lets them subtract it right here instead of
+// doing the math by hand; unchecked, the typed number is used as-is.
+const recalcWeight = (row: any) => {
+  const raw = row.rawWeight || 0;
+  const loss = row.basicLoss || 0;
+  row.actualWeight = row.applyLoss && loss > 0
+    ? Math.round(raw * (1 - loss / 100) * 100) / 100
+    : raw;
 };
 
 const tableRowClassName = ({ row }: { row: any }) => {

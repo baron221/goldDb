@@ -37,7 +37,15 @@ public class PayableDto
 
     public decimal Discount { get; set; }
 
+    public decimal DiscountWeight { get; set; }
+
     public bool IsCancelled { get; set; }
+
+    public bool IsMfgProcessed { get; set; }
+
+    public DateTime? MfgProcessedAt { get; set; }
+
+    public int OrderCount { get; set; }
 
     public DateTime CreatedAt { get; set; }
 }
@@ -97,6 +105,8 @@ public class PayableOrderRowDto
 
     public int ProductItemCount { get; set; }
 
+    public List<PayableOrderItemSummaryDto> Items { get; set; } = new();
+
     public int LogisticsCompanyId { get; set; }
 
     public string? LogisticsCompanyName { get; set; }
@@ -120,6 +130,48 @@ public class PayableOrderRowDto
     public decimal RemainingWeight { get; set; }
 }
 
+public class PayableOrderItemSummaryDto
+{
+
+    public string? ProductName { get; set; }
+
+    public string? ProductNo { get; set; }
+
+    public string? PhotoUrl { get; set; }
+
+    public string? Purity { get; set; }
+
+    public string? Color { get; set; }
+
+    public string? Size { get; set; }
+
+    public string? Memo { get; set; }
+
+    public int Quantity { get; set; }
+}
+
+public class PaymentApplicationDetailDto
+{
+
+    public int ChargeId { get; set; }
+
+    public int? OrderId { get; set; }
+
+    public string? OrderNo { get; set; }
+
+    public string? ProductName { get; set; }
+
+    public string? ProductPhotoUrl { get; set; }
+
+    public int ProductItemCount { get; set; }
+
+    public List<PayableOrderItemSummaryDto> Items { get; set; } = new();
+
+    public decimal AppliedAmount { get; set; }
+
+    public decimal AppliedWeight { get; set; }
+}
+
 public class PayableOrderHistorySummaryDto
 {
 
@@ -139,15 +191,61 @@ public class CreatePaymentDto
 
     public int? OrderId { get; set; }
 
+    public List<int>? OrderIds { get; set; }
+
     public decimal Amount { get; set; }
 
     public decimal? Weight { get; set; }
 
     public decimal? Discount { get; set; }
 
+    public decimal? DiscountWeight { get; set; }
+
     public string? Memo { get; set; }
 
     public string? SettlementMethod { get; set; }
+}
+
+public class MfgProcessDto
+{
+
+    public string? Memo { get; set; }
+}
+
+public class PurityBreakdownDto
+{
+
+    public string Purity { get; set; } = string.Empty;
+
+    public decimal Weight { get; set; }
+
+    public decimal Amount { get; set; }
+}
+
+public class OrderChargeSummaryDto
+{
+
+    public int CompanyId { get; set; }
+
+    public string? CompanyName { get; set; }
+
+    public decimal TotalOutstanding { get; set; }
+
+    public decimal TotalOutstandingWeight { get; set; }
+
+    public DateTime? LastPaymentDate { get; set; }
+
+    public decimal SaleAmount { get; set; }
+
+    public decimal SaleWeight { get; set; }
+
+    public List<PurityBreakdownDto> PurityBreakdown { get; set; } = new();
+}
+
+public class OrderIdsQueryDto
+{
+
+    public List<int> OrderIds { get; set; } = new();
 }
 
 public class UpdatePaymentDto
@@ -158,6 +256,8 @@ public class UpdatePaymentDto
     public decimal? Weight { get; set; }
 
     public decimal? Discount { get; set; }
+
+    public decimal? DiscountWeight { get; set; }
 
     public string? Memo { get; set; }
 

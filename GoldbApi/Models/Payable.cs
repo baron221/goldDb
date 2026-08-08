@@ -52,6 +52,15 @@ public class Payable : BaseModel
     [Description("할인 금액")]
     public decimal Discount { get; set; } = 0;
 
+    [Description("할인 순금 중량(g)")]
+    public decimal DiscountWeight { get; set; } = 0;
+
     [Description("취소 여부")]
     public bool IsCancelled { get; set; } = false;
+
+    [Description("공장 정산 처리 여부 (실제 입금 확인이 아닌 공장측 확인 표시)")]
+    public bool IsMfgProcessed { get; set; } = false;
+
+    [Description("공장 정산 처리 일시")]
+    public DateTime? MfgProcessedAt { get; set; }
 }

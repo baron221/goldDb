@@ -215,6 +215,7 @@ public class SearchService : ISearchService
                     CompanyName = p.Company != null ? p.Company.Name : null,
                     Purity = p.Purity,
                     PurityWeights = p.OptionWeights.Select(ow => new MarketItemPurityWeightDto { Purity = ow.Purity, Weight = ow.Weight }).ToList(),
+                    BasicLoss = p.BasicLoss,
                     PhotoUrl = p.ProductPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
                     Price = p.FactoryPrice
                 }).ToListAsync();
@@ -258,6 +259,7 @@ public class SearchService : ISearchService
                 CompanyName = p.Company != null ? p.Company.Name : null,
                 Purity = p.Purity,
                 PurityWeights = p.OptionWeights.Select(ow => new MarketItemPurityWeightDto { Purity = ow.Purity, Weight = ow.Weight }).ToList(),
+                BasicLoss = p.BasicLoss,
                 PhotoUrl = p.ProductPhotos.OrderByDescending(ph => ph.IsMain).ThenBy(ph => ph.SortOrder).Select(ph => ph.PhotoUrl).FirstOrDefault(),
                 Price = p.FactoryPrice
             }).ToListAsync();

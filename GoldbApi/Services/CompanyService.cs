@@ -117,20 +117,13 @@ public class CompanyService : ICompanyService
                     }
                     else if (myCompany.Category == "MFG")
                     {
+                        // MFG only ever deals directly with its logistics (DCC) partners -
+                        // retailers are DCC's customers, not visible to the factory.
                         var dccIds = await _manufacturerLogisticsRepository.GetQueryable()
                             .Where(ml => ml.ManufacturerId == myCompanyId)
                             .Select(ml => ml.LogisticsId)
                             .ToListAsync();
                         foreach (var id in dccIds) allowedIds.Add(id);
-
-                        if (dccIds.Any())
-                        {
-                            var retailerIds = await _companyRepository.GetQueryable()
-                                .Where(c => c.Category == "RTL" && c.LogisticsCompanyId.HasValue && dccIds.Contains(c.LogisticsCompanyId.Value))
-                                .Select(c => c.Id)
-                                .ToListAsync();
-                            foreach (var id in retailerIds) allowedIds.Add(id);
-                        }
                     }
                     else if (myCompany.Category == "RTL")
                     {

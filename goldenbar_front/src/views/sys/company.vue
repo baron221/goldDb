@@ -7,6 +7,7 @@
         <company-list-pane
           :company-list="companyList"
           :list-query="listQuery"
+          @update:list-query="(val) => Object.assign(listQuery, val)"
           :total="total"
           :is-mobile="false"
           @create="handleCreate"
@@ -70,6 +71,7 @@
         <company-list-pane
           :company-list="companyList"
           :list-query="listQuery"
+          @update:list-query="(val) => Object.assign(listQuery, val)"
           :total="total"
           :is-mobile="true"
           @create="handleCreate"
@@ -176,6 +178,7 @@ const companyDetail = reactive({
   logisticsCode: '',
   centerNumber: '',
   isDirectManagement: false,
+  hidePrice: false,
   logisticsCompanyId: null,
   logisticsCompanyName: '',
   category: 'RTL',
@@ -254,6 +257,7 @@ const handleCreate = () => {
     logisticsCode: '',
     centerNumber: '',
     isDirectManagement: false,
+    hidePrice: false,
     logisticsCompanyId: null,
     logisticsCompanyName: '',
     category: 'RTL',

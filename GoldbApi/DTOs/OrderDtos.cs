@@ -83,6 +83,8 @@ public class OrderDto
 
     public bool HasStatement { get; set; }
 
+    public bool IsPayableSettled { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
@@ -175,6 +177,8 @@ public class OrderItemDto
 
     public string? CategorySmall { get; set; }
 
+    public decimal BasicLoss { get; set; }
+
     public List<OrderItemDto> Children { get; set; } = new();
 }
 
@@ -250,6 +254,8 @@ public class OrderQueryDto
     public bool? ExcludeCompleted { get; set; }
 
     public bool? IsAsOnly { get; set; }
+
+    public bool? IsPayableSettled { get; set; }
 
     public string? CategoryLarge { get; set; }
 

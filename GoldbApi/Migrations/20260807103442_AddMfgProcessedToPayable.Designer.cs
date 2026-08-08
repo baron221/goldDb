@@ -3,6 +3,7 @@ using System;
 using GoldbApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoldbApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807103442_AddMfgProcessedToPayable")]
+    partial class AddMfgProcessedToPayable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -770,11 +773,6 @@ namespace GoldbApi.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by")
                         .HasComment("생성자 ID");
-
-                    b.Property<bool>("HidePrice")
-                        .HasColumnType("boolean")
-                        .HasColumnName("hide_price")
-                        .HasComment("소매점 가격 표시 숨김 여부");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
@@ -2254,11 +2252,6 @@ namespace GoldbApi.Migrations
                         .HasColumnName("discount")
                         .HasComment("할인 금액");
 
-                    b.Property<decimal>("DiscountWeight")
-                        .HasColumnType("numeric")
-                        .HasColumnName("discount_weight")
-                        .HasComment("할인 순금 중량(g)");
-
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("boolean")
                         .HasColumnName("is_cancelled")
@@ -2346,72 +2339,6 @@ namespace GoldbApi.Migrations
                     b.ToTable("payables", "goldb", t =>
                         {
                             t.HasComment("물류-공장 정산 내역 (물류가 공장에 지급해야 할 금액)");
-                        });
-                });
-
-            modelBuilder.Entity("GoldbApi.Models.PayableApplication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("AppliedAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("applied_amount");
-
-                    b.Property<decimal>("AppliedWeight")
-                        .HasColumnType("numeric")
-                        .HasColumnName("applied_weight")
-                        .HasComment("적용된 순금 중량(g)");
-
-                    b.Property<int>("ChargeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("charge_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("created_at")
-                        .HasComment("생성 일시");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by")
-                        .HasComment("생성자 ID");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted")
-                        .HasComment("삭제 여부");
-
-                    b.Property<int>("PaymentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("payment_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("updated_at")
-                        .HasComment("수정 일시");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by")
-                        .HasComment("수정자 ID");
-
-                    b.HasKey("Id")
-                        .HasName("pk_payable_applications");
-
-                    b.HasIndex("ChargeId")
-                        .HasDatabaseName("ix_payable_applications_charge_id");
-
-                    b.HasIndex("PaymentId")
-                        .HasDatabaseName("ix_payable_applications_payment_id");
-
-                    b.ToTable("payable_applications", "goldb", t =>
-                        {
-                            t.HasComment("정산 처리가 어느 청구건에 얼마나 적용됐는지 기록 (정산 내역 추적용)");
                         });
                 });
 
@@ -4353,7 +4280,7 @@ namespace GoldbApi.Migrations
 
                     b.ToTable("mv_product_performances", "goldb");
 
-                    b.ToView("mv_product_performances", "goldb");
+                    b.ToView("mv_product_performance", "goldb");
                 });
 
             modelBuilder.Entity("GoldbApi.Models.Attachment", b =>
@@ -4680,27 +4607,6 @@ namespace GoldbApi.Migrations
                     b.Navigation("ManufacturerCompany");
 
                     b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("GoldbApi.Models.PayableApplication", b =>
-                {
-                    b.HasOne("GoldbApi.Models.Payable", "Charge")
-                        .WithMany()
-                        .HasForeignKey("ChargeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_payable_applications_payables_charge_id");
-
-                    b.HasOne("GoldbApi.Models.Payable", "Payment")
-                        .WithMany()
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_payable_applications_payables_payment_id");
-
-                    b.Navigation("Charge");
-
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("GoldbApi.Models.PlasterOrder", b =>

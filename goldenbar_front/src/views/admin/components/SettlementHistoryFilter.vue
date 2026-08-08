@@ -24,14 +24,14 @@
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="handleFilter">{{ $t('common.search') }}</el-button>
         <el-button :icon="Refresh" @click="resetQuery">{{ $t('common.reset') }}</el-button>
-        <el-button type="success" :icon="Printer" @click="$emit('print-combined')">일괄 거래명세서</el-button>
+        <el-button v-if="showCombinedPrint" type="success" :icon="Printer" @click="$emit('print-combined')">일괄 거래명세서</el-button>
       </el-form-item>
     </el-form>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue';
+import { ref, watch, reactive, computed } from 'vue';
 import { Search, Refresh, Printer } from '@element-plus/icons-vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
@@ -39,7 +39,10 @@ import CommonSelect from '@/components/CommonSelect/index.vue';
 const props = defineProps<{
   query: any;
   isMobile: boolean;
+  showCombinedPrint?: boolean;
 }>();
+
+const showCombinedPrint = computed(() => props.showCombinedPrint !== false);
 
 const emit = defineEmits<{
   (_e: 'filter'): void;
@@ -56,7 +59,7 @@ watch(() => props.query, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:query', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);

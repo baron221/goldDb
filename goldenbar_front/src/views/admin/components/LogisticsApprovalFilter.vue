@@ -116,6 +116,7 @@
         <el-checkbox v-model="localListQuery.isAsOnly" @change="$emit('filter')" class="as-only-checkbox">
           <span class="as-label">AS주문건만</span>
         </el-checkbox>
+        <el-checkbox v-model="localListQuery.isPayableSettled" @change="$emit('filter')">정산완료만 보기</el-checkbox>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="$emit('filter')">{{ $t('common.search') }}</el-button>
@@ -180,7 +181,7 @@ watch(() => props.listQuery, (newVal) => {
 
 watch(localListQuery, (newVal) => {
   emit('update:listQuery', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const handleLargeChange = (val: string, options: any) => {
   const selected = options.find((o: any) => o.code === val);

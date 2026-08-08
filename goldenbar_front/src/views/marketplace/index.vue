@@ -16,6 +16,7 @@
           :filters="filters"
           :manufacturers="manufacturers"
           :active-tab="activeTab"
+          @update:filters="(val) => Object.assign(filters, val)"
           @filter="handleFilter"
           @reset="resetQuery"
         />

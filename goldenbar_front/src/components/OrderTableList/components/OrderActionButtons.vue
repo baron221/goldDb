@@ -2,24 +2,16 @@
 <div class="action-buttons-container">
 
     <template v-if="userCategory === 'MFG'">
-      <template v-if="row.status === 'LogisticsApproved' || row.status === 'FactoryRequested'">
-        <el-button
-          type="success"
-          size="small"
-          @click="$emit('factory-approve', row)"
-        >
-          공장승인
-        </el-button>
-        <el-button
-          type="danger"
-          size="small"
-          @click="$emit('factory-reject', row)"
-        >
-          공장거절
-        </el-button>
-      </template>
       <el-button
-        v-if="row.status === 'FactoryApproved' || row.status === 'WorkOrderCreated' || row.status === 'FactoryRequested'"
+        v-if="row.status === 'LogisticsApproved' || row.status === 'FactoryRequested'"
+        type="success"
+        size="small"
+        @click="$emit('factory-approve', row)"
+      >
+        발주 확인
+      </el-button>
+      <el-button
+        v-else-if="row.status === 'FactoryApproved' || row.status === 'WorkOrderCreated'"
         type="primary"
         size="small"
         @click="$emit('inspection-request', row)"
@@ -98,7 +90,6 @@ const props = defineProps<{
 defineEmits([
   'factory-request',
   'factory-approve',
-  'factory-reject',
   'inspection',
   'inspection-request',
   'settlement-confirm',
@@ -121,4 +112,17 @@ const isActionEnabled = (row: any) => {
   return false;
 };
 </script>
+
+<style scoped>
+.action-buttons-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.375rem;
+}
+.action-buttons-container .el-button {
+  width: 100%;
+  margin-left: 0 !important;
+}
+</style>
 

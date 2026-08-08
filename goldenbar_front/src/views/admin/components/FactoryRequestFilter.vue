@@ -222,6 +222,7 @@ const handleSetMediumChange = (val: string, options: any) => {
 };
 
 const handleFilter = () => {
+  emit('update:listQuery', localQuery);
   emit('filter');
 };
 

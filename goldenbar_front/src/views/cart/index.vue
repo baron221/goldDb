@@ -63,7 +63,7 @@
   <div v-if="cartItems.length > 0" class="mobile-floating-checkout d-none-desktop">
     <div class="floating-totals">
       <div class="floating-label">총 <span class="highlight-text">{{ selectedItems.length }}</span>건 결제금액</div>
-      <div class="floating-value">₩ {{ formatPrice(totalPrice) }}</div>
+      <div class="floating-value">{{ canViewPrice ? `₩ ${formatPrice(totalPrice)}` : '-' }}</div>
     </div>
     <el-button
       type="primary"
@@ -97,6 +97,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
 import useUserStore from '@/store/modules/user';
 import useCodeStore from '@/store/modules/code';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 import CustomerSelectDialog from '@/views/sys/components/CustomerSelectDialog.vue';
 import CartItemList from './components/CartItemList.vue';
 import CartOrderSummary from './components/CartOrderSummary.vue';

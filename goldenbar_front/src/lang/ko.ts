@@ -777,7 +777,8 @@ export default {
         date: '일시:',
         noMemo: '메모 없음',
         noLogisticsMemo: '물류에서 전달한 메모가 없습니다',
-        noWorkOrderMemo: '작성된 작업서 메모가 없습니다'
+        noWorkOrderMemo: '작성된 작업서 메모가 없습니다',
+        applyLoss: '감량 차감'
       },
       placeholders: {
         material: '재료비',

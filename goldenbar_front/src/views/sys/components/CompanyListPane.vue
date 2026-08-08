@@ -139,7 +139,7 @@ watch(() => props.listQuery, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:listQuery', { ...newVal });
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 onMounted(async () => {
   try {

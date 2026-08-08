@@ -139,7 +139,7 @@ watch(() => props.modelValue, (newVal) => {
 
 watch(localQuery, (newVal) => {
   emit('update:modelValue', newVal);
-}, { deep: true });
+}, { deep: true, flush: 'sync' });
 
 const largeId = ref<number | null>(null);
 const mediumId = ref<number | null>(null);

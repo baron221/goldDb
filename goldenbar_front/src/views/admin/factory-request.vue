@@ -5,10 +5,15 @@
       :date-range="dateRange"
       :order-status-codes="orderStatusCodes"
       :is-admin="isAdmin"
+      @update:list-query="(val) => Object.assign(listQuery, val)"
       @filter="handleFilter"
       @reset="resetQuery"
       @date-change="handleDateChange"
     />
+
+    <div v-if="!isAdmin" class="print-approved-row" style="display: flex; justify-content: flex-end; margin-bottom: 0.625rem;">
+      <el-button type="success" :icon="Printer" @click="handlePrintApprovedList">공장승인 목록 인쇄</el-button>
+    </div>
 
     <order-table-list
       :loading="listLoading"
@@ -23,7 +28,6 @@
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
       @factory-approve="handleFactoryApprove"
-      @factory-reject="handleFactoryReject"
       @inspection-request="openCompleteDialog"
       @close-by-agreement="handleCloseByAgreement"
       @show-history="openHistoryDialog"
@@ -51,8 +55,10 @@ import { getAllOrders, updateOrderStatus } from '@/api/order';
 import { getCompanies } from '@/api/company';
 import useCodeStore from '@/store/modules/code';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Printer } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import store from '@/store';
+import { printApprovedOrdersList } from './utils/workOrderPrint';
 import OrderStatusHistoryDialog from '@/components/OrderStatusHistoryDialog/index.vue';
 import InspectionRequestDialog from './components/InspectionRequestDialog.vue';
 import FactoryRequestFilter from './components/FactoryRequestFilter.vue';
@@ -208,6 +214,26 @@ const handleFilter = () => {
   getList();
 };
 
+const handlePrintApprovedList = async () => {
+  try {
+    const res = await getAllOrders({
+      status: 'FactoryApproved',
+      page: 1,
+      pageSize: 1000,
+      factoryCompanyId: isAdmin.value ? undefined : store.user().companyId
+    });
+    const approvedOrders = res.data.items || [];
+    if (approvedOrders.length === 0) {
+      ElMessage.warning('공장승인된 주문이 없습니다.');
+      return;
+    }
+    printApprovedOrdersList(approvedOrders, codeMap.value);
+  } catch (error) {
+    console.error('Failed to fetch approved orders for printing:', error);
+    ElMessage.error('목록을 불러오는 중 오류가 발생했습니다.');
+  }
+};
+
 const handleOrderNoClick = (orderNo: string) => {
   listQuery.orderNo = orderNo;
   handleFilter();
@@ -249,8 +275,8 @@ const openCompleteDialog = (row: any) => {
 };
 
 const handleFactoryApprove = (order: any) => {
-  ElMessageBox.confirm(`[${order.orderNo}] 주문을 공장승인 하시겠습니까?`, '공장승인 확인', {
-    confirmButtonText: '승인',
+  ElMessageBox.confirm(`[${order.orderNo}] 주문을 발주 확인 하시겠습니까?`, '발주 확인', {
+    confirmButtonText: '확인',
     cancelButtonText: '취소',
     type: 'success'
   }).then(async () => {
@@ -258,36 +284,10 @@ const handleFactoryApprove = (order: any) => {
       await updateOrderStatus(order.id, {
         status: 'FactoryApproved'
       });
-      ElMessage.success('공장승인이 완료되었습니다.');
+      ElMessage.success('발주 확인이 완료되었습니다.');
       getList();
     } catch (error) {
-      ElMessage.error('공장승인 처리 중 오류가 발생했습니다.');
-    }
-  }).catch(() => {});
-};
-
-const handleFactoryReject = (order: any) => {
-  ElMessageBox.prompt(`[${order.orderNo}] 주문을 거절하는 사유를 입력해주세요.`, '공장거절 (사유 입력)', {
-    confirmButtonText: '거절 제출',
-    cancelButtonText: '취소',
-    inputType: 'textarea',
-    inputPlaceholder: '거절 사유를 입력하세요 (예: 자재 부족, 규격 불가 등)',
-    inputValidator: (val) => {
-      if (!val || !val.trim()) {
-        return '거절 사유를 입력해야 합니다.';
-      }
-      return true;
-    }
-  }).then(async ({ value }) => {
-    try {
-      await updateOrderStatus(order.id, {
-        status: 'FactoryRejected',
-        factoryRemarks: value.trim()
-      });
-      ElMessage.warning('공장거절 처리가 완료되었습니다.');
-      getList();
-    } catch (error) {
-      ElMessage.error('공장거절 처리 중 오류가 발생했습니다.');
+      ElMessage.error('발주 확인 처리 중 오류가 발생했습니다.');
     }
   }).catch(() => {});
 };

@@ -1,6 +1,6 @@
 <template>
 <base-popup v-model="visible" :title="$t('admin.settlementDialog.title')" width="95%" style="max-width: 1600px;" @close="handleClose">
-    <div v-if="order" v-loading="receivableSummaryLoading" style="margin-bottom: 1.25rem;">
+    <div v-if="orders && orders.length > 0" v-loading="receivableSummaryLoading" style="margin-bottom: 1.25rem;">
       <table class="retailer-summary-table">
         <thead>
           <tr>
@@ -35,6 +35,7 @@
 
     <el-form :model="settlementForm" label-position="top">
       <base-table :data="settlementForm.items" border style="width: 100%; margin-bottom: 1.25rem;" :row-class-name="tableRowClassName">
+        <el-table-column v-if="orders && orders.length > 1" label="주문번호" width="180" align="center" prop="orderNo" />
         <el-table-column :label="$t('admin.settlementDialog.headers.productInfo')" min-width="200" :fixed="!isMobile ? 'left' : false" prop="productName" :excel-formatter="productInfoFormatter">
           <template #default="scope">
             <div class="product-info-cell" :style="{ paddingLeft: scope.row.depth * 20 + 'px' }">
@@ -112,7 +113,7 @@ import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { updateOrderStatus } from '@/api/order';
-import { getUserSummaryById } from '@/api/receivable';
+import { getReceivableChargeSummary } from '@/api/receivable';
 import { ElMessage } from 'element-plus';
 import { BottomLeft } from '@element-plus/icons-vue';
 import BasePopup from '@/components/BasePopup/index.vue';
@@ -124,9 +125,9 @@ const { t } = useI18n();
 
 const props = defineProps({
   modelValue: Boolean,
-  order: {
-    type: Object,
-    default: () => null
+  orders: {
+    type: Array as () => any[],
+    default: () => []
   }
 });
 
@@ -144,13 +145,13 @@ const receivableSummary = ref<any>(null);
 const receivableSummaryLoading = ref(false);
 
 const loadReceivableSummary = async () => {
-  if (!props.order?.userId) {
+  if (!props.orders || props.orders.length === 0) {
     receivableSummary.value = null;
     return;
   }
   receivableSummaryLoading.value = true;
   try {
-    const res: any = await getUserSummaryById(props.order.userId);
+    const res: any = await getReceivableChargeSummary(props.orders.map((o) => o.id));
     receivableSummary.value = res.data;
   } catch (error) {
     console.error('Failed to load receivable summary:', error);
@@ -166,7 +167,7 @@ const totalSettlementAmount = computed(() => {
 
 watch(() => props.modelValue, (val) => {
   visible.value = val;
-  if (val && props.order) {
+  if (val && props.orders && props.orders.length > 0) {
     initializeForm();
     loadReceivableSummary();
   }
@@ -178,48 +179,54 @@ watch(visible, (val) => {
 
 const initializeForm = () => {
   const items: any[] = [];
-  props.order.orderItems.forEach((item: any) => {
-    const defaultRatio = item.settlementRatio || 70;
-    const amount = item.settlementAmount || 0;
+  props.orders.forEach((order: any) => {
+    (order.orderItems || []).forEach((item: any) => {
+      const defaultRatio = item.settlementRatio || 70;
+      const amount = item.settlementAmount || 0;
 
-    items.push({
-      orderItemId: item.id,
-      productName: item.productName,
-      productSetTitle: item.productSetTitle,
-      productNo: item.productNo,
-      photoUrl: item.photoUrl,
-      quantity: item.quantity,
-      weight: item.weight,
-      confirmedWeight: item.confirmedWeight || item.actualWeight || 0,
-      settlementRatio: defaultRatio,
-      settlementAmount: amount,
-      settlementMemo: item.settlementMemo || '',
-      isSet: !!item.productSetId,
-      depth: 0
-    });
-
-    if (item.children && item.children.length > 0) {
-      item.children.forEach((child: any) => {
-        const childRatio = child.settlementRatio || 70;
-        const childAmount = child.settlementAmount || 0;
-
-        items.push({
-          orderItemId: child.id,
-          productName: child.productName,
-          productSetTitle: child.productSetTitle,
-          productNo: child.productNo,
-          photoUrl: child.photoUrl,
-          quantity: child.quantity,
-          weight: child.weight,
-          confirmedWeight: child.confirmedWeight || child.actualWeight || 0,
-          settlementRatio: childRatio,
-          settlementAmount: childAmount,
-          settlementMemo: child.settlementMemo || '',
-          isChild: true,
-          depth: 1
-        });
+      items.push({
+        orderId: order.id,
+        orderNo: order.orderNo,
+        orderItemId: item.id,
+        productName: item.productName,
+        productSetTitle: item.productSetTitle,
+        productNo: item.productNo,
+        photoUrl: item.photoUrl,
+        quantity: item.quantity,
+        weight: item.weight,
+        confirmedWeight: item.confirmedWeight || item.actualWeight || 0,
+        settlementRatio: defaultRatio,
+        settlementAmount: amount,
+        settlementMemo: item.settlementMemo || '',
+        isSet: !!item.productSetId,
+        depth: 0
       });
-    }
+
+      if (item.children && item.children.length > 0) {
+        item.children.forEach((child: any) => {
+          const childRatio = child.settlementRatio || 70;
+          const childAmount = child.settlementAmount || 0;
+
+          items.push({
+            orderId: order.id,
+            orderNo: order.orderNo,
+            orderItemId: child.id,
+            productName: child.productName,
+            productSetTitle: child.productSetTitle,
+            productNo: child.productNo,
+            photoUrl: child.photoUrl,
+            quantity: child.quantity,
+            weight: child.weight,
+            confirmedWeight: child.confirmedWeight || child.actualWeight || 0,
+            settlementRatio: childRatio,
+            settlementAmount: childAmount,
+            settlementMemo: child.settlementMemo || '',
+            isChild: true,
+            depth: 1
+          });
+        });
+      }
+    });
   });
 
   settlementForm.items = items;
@@ -248,21 +255,27 @@ const tableRowClassName = ({ row }: { row: any }) => {
 };
 
 const handleSettlementSubmit = async () => {
-  if (!props.order) return;
+  if (!props.orders || props.orders.length === 0) return;
 
   submitting.value = true;
   try {
-    const data = {
-      status: 'SETTLED',
-      itemWeights: settlementForm.items.map(item => ({
+    const byOrder = new Map<number, any[]>();
+    settlementForm.items.forEach((item) => {
+      if (!byOrder.has(item.orderId)) byOrder.set(item.orderId, []);
+      byOrder.get(item.orderId)!.push({
         orderItemId: item.orderItemId,
         settlementRatio: item.settlementRatio,
         settlementAmount: item.settlementAmount,
         settlementMemo: item.settlementMemo
-      }))
-    };
+      });
+    });
 
-    await updateOrderStatus(props.order.id, data);
+    await Promise.all(
+      Array.from(byOrder.entries()).map(([orderId, itemWeights]) =>
+        updateOrderStatus(orderId, { status: 'SETTLED', itemWeights })
+      )
+    );
+
     ElMessage.success(t('admin.deposit.messages.success'));
     visible.value = false;
     emit('saved');

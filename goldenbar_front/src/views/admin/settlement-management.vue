@@ -8,8 +8,14 @@
       @reset="resetQuery"
     />
 
+    <div v-if="selectedRows.length > 0" class="batch-settle-bar">
+      <span>{{ selectedRows.length }}건 선택됨 · 총 {{ formatPrice(selectedTotalAmount) }}원 ({{ selectedTotalWeight.toFixed(2) }}g)</span>
+      <el-button type="primary" @click="openBatchSettlementDialog">선택 항목 일괄 정산</el-button>
+    </div>
+
     <el-card shadow="never" style="margin-top: 1.25rem;">
       <base-table
+        ref="tableRef"
         v-loading="listLoading"
         :data="list"
         border
@@ -17,7 +23,9 @@
         highlight-current-row
         style="width: 100%"
         row-key="id"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="45" :selectable="isRowSelectable" />
         <el-table-column type="expand">
           <template #default="{row}">
             <div class="order-detail-expand">
@@ -65,6 +73,21 @@
         </el-table-column>
 
         <el-table-column :label="$t('order.filters.orderNo')" prop="orderNo" width="200" align="center" />
+        <el-table-column label="제품정보" min-width="280">
+          <template #default="{row}">
+            <div v-if="topLevelItems(row).length > 0" class="product-info-list">
+              <div v-for="(item, idx) in topLevelItems(row).slice(0, 3)" :key="idx" class="product-info-cell">
+                <el-image :src="item.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 36px; height: 36px;" />
+                <div class="product-text">
+                  <div class="product-name">{{ item.productName || item.productSetTitle || '-' }}</div>
+                  <div class="product-spec">함량: {{ codeMap[item.purity] || item.purity || '-' }} / 수량: {{ item.quantity }}개</div>
+                </div>
+              </div>
+              <div v-if="topLevelItems(row).length > 3" class="product-more">+{{ topLevelItems(row).length - 3 }}건 더</div>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="userDisplayName" :label="$t('sys.company.labels.name')" width="180" align="center" :excel-formatter="userFormatter">
           <template #default="{row}">
             <span>{{ row.userDisplayName }} ({{ row.userName }})</span>
@@ -124,8 +147,8 @@
 
     <settlement-dialog
       v-model="settlementDialogVisible"
-      :order="currentOrder"
-      @saved="getList"
+      :orders="currentOrders"
+      @saved="onSettlementSaved"
     />
   </div>
 </template>
@@ -156,7 +179,9 @@ const codeMap = computed(() => codeStore.codeMap);
 const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
 
 const settlementDialogVisible = ref(false);
-const currentOrder = ref<any>(null);
+const currentOrders = ref<any[]>([]);
+const tableRef = ref<any>(null);
+const selectedRows = ref<any[]>([]);
 
 const listQuery = reactive({
   page: 1,
@@ -172,7 +197,9 @@ const listQuery = reactive({
   categorySmall: '',
   setCategoryLarge: '',
   setCategoryMedium: '',
-  setCategorySmall: ''
+  setCategorySmall: '',
+  startDate: undefined as string | undefined,
+  endDate: undefined as string | undefined
 });
 
 const formatDate = (dateStr: string) => {
@@ -230,12 +257,48 @@ const resetQuery = () => {
   listQuery.setCategoryLarge = '';
   listQuery.setCategoryMedium = '';
   listQuery.setCategorySmall = '';
+  listQuery.startDate = undefined;
+  listQuery.endDate = undefined;
   handleFilter();
 };
 
 const openSettlementDialog = (row: any) => {
-  currentOrder.value = row;
+  currentOrders.value = [row];
   settlementDialogVisible.value = true;
+};
+
+const topLevelItems = (row: any) => {
+  return (row.orderItems || []).filter((item: any) => !item.parentId);
+};
+
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows;
+};
+
+// A batch settlement is scoped to a single retailer, so once one row is picked,
+// only rows from that same retailer remain selectable - mirrors the same guard
+// used for the payable-side batch settle to avoid mixing accounts into one ledger.
+const isRowSelectable = (row: any) => {
+  if (row.status !== 'PENDING' && row.status !== 'PROCESSING') return false;
+  if (selectedRows.value.length === 0) return true;
+  return row.userId === selectedRows.value[0].userId;
+};
+
+const selectedTotalAmount = computed(() => selectedRows.value.reduce((sum, row) => sum + getOrderTotalAmount(row), 0));
+const selectedTotalWeight = computed(() => selectedRows.value.reduce((sum, row) => {
+  return sum + topLevelItems(row).reduce((s: number, item: any) => s + (item.confirmedWeight || item.actualWeight || item.weight || 0) * (item.quantity || 1), 0);
+}, 0));
+
+const openBatchSettlementDialog = () => {
+  if (selectedRows.value.length === 0) return;
+  currentOrders.value = [...selectedRows.value];
+  settlementDialogVisible.value = true;
+};
+
+const onSettlementSaved = () => {
+  selectedRows.value = [];
+  tableRef.value?.clearSelection?.();
+  getList();
 };
 
 const getOrderTotalAmount = (order: any) => {

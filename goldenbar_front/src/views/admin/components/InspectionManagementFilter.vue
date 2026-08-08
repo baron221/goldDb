@@ -162,6 +162,7 @@ const handleDateChange = (val: string[] | null) => {
 };
 
 const handleFilter = () => {
+  emit('update:query', localQuery);
   emit('filter');
 };
 

@@ -15,6 +15,8 @@ public interface IReceivableService
 
     Task<ApiResponse<UserReceivableSummaryDto?>> GetUserSummaryByIdAsync(int userId);
 
+    Task<ApiResponse<UserReceivableSummaryDto?>> GetReceivableChargeSummaryAsync(List<int> orderIds);
+
     Task<ApiResponse<PagedResult<ReceivableDto>>> GetReceivablesAsync(ReceivableQueryDto query);
 
     Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request);
@@ -71,9 +73,13 @@ public class ReceivableService : IReceivableService
             .Where(oi => oi.OrderId == orderId && oi.ParentId == null)
             .ToListAsync();
 
+        // A DCC-confirmed per-item SettlementAmount (set via the 정산처리 screen) overrides
+        // the retailerConfirm/factory-input estimate that was used when the charge was
+        // first drafted at 물류도착 - this is what lets 정산처리 correct the retailer's
+        // actual charge after the fact instead of it being locked in at goods-arrival time.
         var calculatedSettlementAmount = topLevelItems.Sum(oi =>
-            ((oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0) +
-             (oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0)) * oi.Quantity);
+            oi.SettlementAmount ?? (((oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0) +
+             (oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0)) * oi.Quantity));
 
         order.SettlementAmount = calculatedSettlementAmount > 0 ? calculatedSettlementAmount : order.TotalAmount;
 
@@ -363,6 +369,52 @@ public class ReceivableService : IReceivableService
             TotalChargeWeight = totalChargeWeight,
             TotalDepositWeight = totalDepositWeight,
             TotalReceivableWeight = totalReceivableWeight,
+            LastPaymentDate = lastPaymentDate
+        });
+    }
+
+    // Scoped to only the selected orders' own CHARGE records instead of the retailer's
+    // whole account, so 정산처리 (confirming one or several specific orders) doesn't show
+    // the retailer's unrelated balance from every other order they've ever been charged
+    // for. All selected orders must belong to the same retailer - mixing retailers into
+    // one confirmation isn't meaningful, so that's rejected outright rather than guessed at.
+    public async Task<ApiResponse<UserReceivableSummaryDto?>> GetReceivableChargeSummaryAsync(List<int> orderIds)
+    {
+        if (orderIds == null || orderIds.Count == 0) return ApiResponse<UserReceivableSummaryDto?>.Success(null);
+
+        var charges = await _dbContext.Receivables
+            .Include(r => r.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
+            .Where(r => r.Type == "CHARGE" && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value))
+            .ToListAsync();
+
+        if (charges.Count == 0) return ApiResponse<UserReceivableSummaryDto?>.Success(null);
+
+        var distinctUsers = charges.Select(r => r.UserId).Distinct().ToList();
+        if (distinctUsers.Count > 1)
+        {
+            return ApiResponse<UserReceivableSummaryDto?>.Failure("선택한 주문들이 서로 다른 거래처에 속해 있습니다. 같은 거래처의 주문만 함께 정산할 수 있습니다.", 400);
+        }
+
+        var first = charges[0];
+        var chargeIds = charges.Select(c => c.Id).ToList();
+        var lastPaymentDate = await _dbContext.ReceivableApplications
+            .Where(a => chargeIds.Contains(a.ChargeId))
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => (DateTime?)a.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        return ApiResponse<UserReceivableSummaryDto?>.Success(new UserReceivableSummaryDto
+        {
+            UserId = first.UserId,
+            UserName = first.User?.Username,
+            UserDisplayName = first.User?.Name,
+            CompanyName = first.User?.UserCompanies.FirstOrDefault()?.Company?.Name,
+            TotalCharge = charges.Sum(c => c.Amount),
+            TotalDeposit = charges.Sum(c => c.Amount - c.RemainingAmount),
+            TotalReceivable = charges.Sum(c => c.RemainingAmount),
+            TotalChargeWeight = charges.Sum(c => c.Weight),
+            TotalDepositWeight = charges.Sum(c => c.Weight - c.RemainingWeight),
+            TotalReceivableWeight = charges.Sum(c => c.RemainingWeight),
             LastPaymentDate = lastPaymentDate
         });
     }

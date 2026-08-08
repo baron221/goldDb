@@ -60,6 +60,9 @@ public class Company : BaseModel
 
     public string Category { get; set; } = "RTL";
 
+    [Description("소매점 가격 표시 숨김 여부")]
+    public bool HidePrice { get; set; } = false;
+
     [Description("물류센터 ID")]
     public int? LogisticsCompanyId { get; set; }
 
