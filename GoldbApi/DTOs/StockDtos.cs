@@ -211,6 +211,8 @@ public class StockSummaryDto
 
     public decimal TotalPureGoldWeight { get; set; }
 
+    public decimal TotalPtWeight { get; set; }
+
     public decimal TotalCalculatedPureGoldWeight { get; set; }
 }
 

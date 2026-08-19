@@ -35,54 +35,6 @@
         <el-input v-model="localQuery.orderNo" :placeholder="$t('order.filters.orderNo')" clearable @keyup.enter="handleFilter" />
       </el-form-item>
 
-      <el-form-item :label="$t('productMarket.labels.generalCategories')">
-        <common-select
-          v-model="localQuery.categoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          :placeholder="$t('productMarket.labels.largeCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleLargeChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          :placeholder="$t('productMarket.labels.mediumCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleMediumChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          :placeholder="$t('productMarket.labels.smallCategory')"
-          style="width: 120px;"
-          @change="handleFilter"
-        />
-      </el-form-item>
-
-      <el-form-item :label="$t('productMarket.labels.setCategories')">
-        <common-select
-          v-model="localQuery.setCategoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          :placeholder="$t('productMarket.labels.largeCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetLargeChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.setCategoryMedium"
-          :parent-id="setLargeId"
-          :placeholder="$t('productMarket.labels.mediumCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetMediumChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.setCategorySmall"
-          :parent-id="setMediumId"
-          :placeholder="$t('productMarket.labels.smallCategory')"
-          style="width: 120px;"
-          @change="handleFilter"
-        />
-      </el-form-item>
-
       <el-form-item>
         <el-button type="primary" :icon="Search" @click="handleFilter">{{ $t('common.search') }}</el-button>
         <el-button :icon="Refresh" @click="resetQuery">{{ $t('common.reset') }}</el-button>
@@ -95,7 +47,6 @@
 import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { Search, Refresh } from '@element-plus/icons-vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
-import CommonSelect from '@/components/CommonSelect/index.vue';
 import { getCompanySummaries } from '@/api/payable';
 import useUserStore from '@/store/modules/user';
 
@@ -141,11 +92,6 @@ watch(localQuery, (newVal) => {
   emit('update:query', newVal);
 }, { deep: true, flush: 'sync' });
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
 const dateRange = ref<string[] | null>(localQuery.startDate ? [localQuery.startDate, localQuery.endDate] : null);
 
 watch(() => props.query, () => {
@@ -163,47 +109,11 @@ const handleDateChange = (val: string[] | null) => {
   handleFilter();
 };
 
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  localQuery.categoryMedium = '';
-  localQuery.categorySmall = '';
-  mediumId.value = null;
-  handleFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  localQuery.categorySmall = '';
-  handleFilter();
-};
-
-const handleSetLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  localQuery.setCategoryMedium = '';
-  localQuery.setCategorySmall = '';
-  setMediumId.value = null;
-  handleFilter();
-};
-
-const handleSetMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  localQuery.setCategorySmall = '';
-  handleFilter();
-};
-
 const handleFilter = () => {
   emit('filter');
 };
 
 const resetQuery = () => {
-  largeId.value = null;
-  mediumId.value = null;
-  setLargeId.value = null;
-  setMediumId.value = null;
   dateRange.value = null;
   emit('reset');
 };

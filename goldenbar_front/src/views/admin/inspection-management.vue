@@ -147,7 +147,7 @@ const codeStore = useCodeStore();
 const userStore = useUserStore();
 const codeMap = computed(() => codeStore.codeMap);
 const orderStatusCodes = ref<any[]>([]);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 const expandedRowKeys = ref<number[]>([]);
 const scrollPosition = ref(0);
 

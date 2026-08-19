@@ -1,6 +1,7 @@
 using GoldbApi.Data;
 using GoldbApi.DTOs;
 using GoldbApi.Models;
+using GoldbApi.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoldbApi.Repositories;
@@ -290,14 +291,14 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
 
         if (query.StartDate.HasValue)
         {
-            var startDateUtc = DateTime.SpecifyKind(query.StartDate.Value, DateTimeKind.Utc);
+            var startDateUtc = DateRangeUtils.ToUtcRangeStart(query.StartDate.Value);
             dbQuery = dbQuery.Where(o => o.CreatedAt >= startDateUtc);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endDateUtc = DateTime.SpecifyKind(query.EndDate.Value, DateTimeKind.Utc);
-            dbQuery = dbQuery.Where(o => o.CreatedAt <= endDateUtc);
+            var nextDayUtc = DateRangeUtils.ToUtcRangeEndExclusive(query.EndDate.Value);
+            dbQuery = dbQuery.Where(o => o.CreatedAt < nextDayUtc);
         }
 
         if (!string.IsNullOrEmpty(query.SetCategoryLarge))
@@ -360,14 +361,12 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
 
         foreach(var group in allGroups)
         {
-            decimal ratio = group.Purity switch
-            {
-                "14K" => 0.6435m,
-                "18K" => 0.825m,
-                "24K" or "PURE_GOLD" => 1.0m,
-                "PT" or "PLATINUM" => 0.95m,
-                _ => 0
-            };
+            var p = (group.Purity ?? "").ToUpperInvariant();
+            decimal ratio = p.Contains("24K") || p.Contains("PURE") ? 1.0m
+                : p.Contains("18K") ? 0.825m
+                : p.Contains("14K") ? 0.6435m
+                : p.Contains("PT") || p.Contains("PLATINUM") ? 0.95m
+                : 0m;
             totalFineGold += group.Weight * ratio;
         }
 
@@ -521,13 +520,13 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
 
         if (query.StartDate.HasValue)
         {
-            var startDateUtc = DateTime.SpecifyKind(query.StartDate.Value, DateTimeKind.Utc);
+            var startDateUtc = DateRangeUtils.ToUtcRangeStart(query.StartDate.Value);
             dbQuery = dbQuery.Where(o => o.CreatedAt >= startDateUtc);
         }
 
         if (query.EndDate.HasValue)
         {
-            var nextDayUtc = DateTime.SpecifyKind(query.EndDate.Value.AddDays(1), DateTimeKind.Utc);
+            var nextDayUtc = DateRangeUtils.ToUtcRangeEndExclusive(query.EndDate.Value);
             dbQuery = dbQuery.Where(o => o.CreatedAt < nextDayUtc);
         }
 
@@ -565,9 +564,9 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
         return query.SortBy?.ToLower() switch
         {
             "id" => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.Id) : dbQuery.OrderBy(o => o.Id),
-            "orderno" => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.OrderNo) : dbQuery.OrderBy(o => o.OrderNo),
-            "status" => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.Status) : dbQuery.OrderBy(o => o.Status),
-            _ => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.CreatedAt) : dbQuery.OrderBy(o => o.CreatedAt)
+            "orderno" => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.OrderNo).ThenByDescending(o => o.Id) : dbQuery.OrderBy(o => o.OrderNo).ThenBy(o => o.Id),
+            "status" => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.Status).ThenByDescending(o => o.Id) : dbQuery.OrderBy(o => o.Status).ThenBy(o => o.Id),
+            _ => (query.IsDescending ?? true) ? dbQuery.OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id) : dbQuery.OrderBy(o => o.CreatedAt).ThenBy(o => o.Id)
         };
     }
 

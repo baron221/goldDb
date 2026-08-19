@@ -78,7 +78,7 @@
             />
             <div v-if="scope.row.basicLoss > 0" class="loss-checkbox-row">
               <el-checkbox v-model="scope.row.applyLoss" @change="recalcWeight(scope.row)">
-                {{ $t('admin.inspectionRequest.labels.applyLoss') }} ({{ scope.row.basicLoss }}%)
+                {{ $t('admin.inspectionRequest.labels.applyLoss') }} ({{ scope.row.basicLoss }}g)
               </el-checkbox>
               <div v-if="scope.row.applyLoss" class="loss-result">
                 → {{ scope.row.actualWeight.toFixed(2) }}g
@@ -156,7 +156,7 @@ const getCodeName = (code: string) => {
 
 const visible = ref(false);
 const submitting = ref(false);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const completeForm = reactive({
   items: [] as any[],
@@ -254,14 +254,14 @@ const handleClose = () => {
 };
 
 // 실중량 is whatever the factory measures on the scale (rawWeight). When the product
-// has a registered 기본감량(basicLoss)% - the casting/stone loss the factory declared
-// at product registration - the checkbox lets them subtract it right here instead of
-// doing the math by hand; unchecked, the typed number is used as-is.
+// has a registered 기본감량(basicLoss) - a fixed gram amount (casting/stone loss) the
+// factory declared at product registration - the checkbox lets them subtract it right
+// here instead of doing the math by hand; unchecked, the typed number is used as-is.
 const recalcWeight = (row: any) => {
   const raw = row.rawWeight || 0;
   const loss = row.basicLoss || 0;
   row.actualWeight = row.applyLoss && loss > 0
-    ? Math.round(raw * (1 - loss / 100) * 100) / 100
+    ? Math.max(Math.round((raw - loss) * 100) / 100, 0)
     : raw;
 };
 

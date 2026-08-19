@@ -15,6 +15,7 @@
             <th>14K 합계(g)</th>
             <th>18K 합계(g)</th>
             <th>순금 합계(g)</th>
+            <th>PT 합계(g)</th>
           </tr>
         </thead>
         <tbody>
@@ -22,6 +23,7 @@
             <td>{{ purity.purity14k.toFixed(2) }}</td>
             <td>{{ purity.purity18k.toFixed(2) }}</td>
             <td>{{ purity.pureGold.toFixed(2) }}</td>
+            <td>{{ purity.purityPt.toFixed(2) }}</td>
           </tr>
         </tbody>
       </table>
@@ -119,7 +121,8 @@ const purityLoading = ref(false);
 const purity = reactive({
   purity14k: 0,
   purity18k: 0,
-  pureGold: 0
+  pureGold: 0,
+  purityPt: 0
 });
 
 const depositForm = reactive({
@@ -158,6 +161,7 @@ watch(() => props.modelValue, async (val) => {
       purity.purity14k = res.data.purity14k || 0;
       purity.purity18k = res.data.purity18k || 0;
       purity.pureGold = res.data.pureGold || 0;
+      purity.purityPt = res.data.purityPt || 0;
     } catch (error) {
       console.error('Failed to load purity summary:', error);
     } finally {

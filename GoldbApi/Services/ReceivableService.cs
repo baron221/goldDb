@@ -59,6 +59,7 @@ public class ReceivableService : IReceivableService
         if (p.Contains("24K") || p.Contains("PURE")) return 1.0m;
         if (p.Contains("18K")) return 0.825m;
         if (p.Contains("14K")) return 0.6435m;
+        if (p.Contains("PT") || p.Contains("PLATINUM")) return 0.95m;
         return 0m;
     }
 
@@ -300,11 +301,15 @@ public class ReceivableService : IReceivableService
             var userReceivables = await _receivableRepository.GetReceivablesForUserAsync(user.Id);
 
             var totalCharge = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Amount);
-            var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount);
+            // "Deposited" = what actually landed on a charge: raw Amount plus any Discount
+            // granted, minus whatever part is still unapplied (RemainingAmount, set in
+            // ProcessDepositAsync/UpdateDepositAsync). Keeps TotalCharge - TotalDeposit ==
+            // TotalReceivable consistent even with a discount or an overpayment.
+            var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount + r.Discount - r.RemainingAmount);
             var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
 
             var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
-            var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight);
+            var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight - r.RemainingWeight);
             var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
 
             var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
@@ -345,11 +350,11 @@ public class ReceivableService : IReceivableService
         var userReceivables = await _receivableRepository.GetReceivablesForUserAsync(userId);
 
         var totalCharge = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Amount);
-        var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount);
+        var totalDeposit = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Amount + r.Discount - r.RemainingAmount);
         var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
 
         var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
-        var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight);
+        var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight - r.RemainingWeight);
         var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
 
         var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
@@ -453,7 +458,7 @@ public class ReceivableService : IReceivableService
     {
         var outstandingCharges = await _receivableRepository.GetOutstandingChargesWithOrderItemsAsync(userId);
 
-        decimal p14 = 0, p18 = 0, pure = 0;
+        decimal p14 = 0, p18 = 0, pure = 0, pt = 0;
 
         foreach (var charge in outstandingCharges)
         {
@@ -464,9 +469,10 @@ public class ReceivableService : IReceivableService
                 var weight = (item.ConfirmedWeight ?? item.ActualWeight ?? item.OrderWeight ?? 0m) * item.Quantity;
                 var purity = (item.Purity ?? "").ToUpperInvariant();
 
-                if (purity.Contains("14K")) p14 += weight;
+                if (purity.Contains("24K") || purity.Contains("PURE")) pure += weight;
                 else if (purity.Contains("18K")) p18 += weight;
-                else if (purity.Contains("24K") || purity.Contains("PURE")) pure += weight;
+                else if (purity.Contains("14K")) p14 += weight;
+                else if (purity.Contains("PT") || purity.Contains("PLATINUM")) pt += weight;
             }
         }
 
@@ -474,7 +480,8 @@ public class ReceivableService : IReceivableService
         {
             Purity14k = p14,
             Purity18k = p18,
-            PureGold = pure
+            PureGold = pure,
+            PurityPt = pt
         });
     }
 
@@ -576,7 +583,7 @@ public class ReceivableService : IReceivableService
         }
     }
 
-    private async Task<List<ReceivableApplication>> ApplyDepositToChargesAsync(int userId, int? orderId, decimal amountToApply, decimal weightToApply)
+    private async Task<(List<ReceivableApplication> Applications, decimal RemainingAmount, decimal RemainingWeight)> ApplyDepositToChargesAsync(int userId, int? orderId, decimal amountToApply, decimal weightToApply)
     {
         var applications = new List<ReceivableApplication>();
 
@@ -592,7 +599,7 @@ public class ReceivableService : IReceivableService
             applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply));
         }
 
-        return applications;
+        return (applications, amountToApply, weightToApply);
     }
 
     public async Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request)
@@ -622,7 +629,7 @@ public class ReceivableService : IReceivableService
         // Discount reduces outstanding charges the same way cash does, it's just
         // tracked separately on the deposit record so the ledger can show how much
         // of the settlement was actual payment vs. a discount write-off.
-        var applications = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.Amount + discount, request.Weight ?? 0m);
+        var (applications, remainingAmount, remainingWeight) = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.Amount + discount, request.Weight ?? 0m);
 
         // Record which charge(s) this deposit actually paid off, so the history table
         // can show where a payment went instead of just leaving charges mysteriously
@@ -632,6 +639,12 @@ public class ReceivableService : IReceivableService
             application.Deposit = deposit;
             _dbContext.ReceivableApplications.Add(application);
         }
+
+        // Anything left after covering every outstanding charge is an overpayment - keep it
+        // on the deposit record instead of discarding it, so it stays visible/traceable
+        // rather than silently vanishing.
+        deposit.RemainingAmount = remainingAmount;
+        deposit.RemainingWeight = remainingWeight;
 
         await _receivableRepository.SaveChangesAsync();
 
@@ -675,6 +688,9 @@ public class ReceivableService : IReceivableService
             _dbContext.ReceivableApplications.Add(application);
         }
 
+        deposit.RemainingAmount = newAmountToApply;
+        deposit.RemainingWeight = newWeightToApply;
+
         await _receivableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);
     }
@@ -698,6 +714,8 @@ public class ReceivableService : IReceivableService
         _dbContext.ReceivableApplications.RemoveRange(oldApplications);
 
         deposit.IsCancelled = true;
+        deposit.RemainingAmount = 0;
+        deposit.RemainingWeight = 0;
 
         await _receivableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);

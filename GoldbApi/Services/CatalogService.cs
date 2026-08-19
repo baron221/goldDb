@@ -47,7 +47,7 @@ public class CatalogService : ICatalogService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(c => c.CreatedAt)
+            .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ProjectToType<CatalogDto>()

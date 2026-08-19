@@ -1356,7 +1356,7 @@ export default {
     sizes: 'Product Size',
     sizesPlaceholder: 'e.g. 1호 (free text)',
     productSize: 'Product Size',
-    basicLoss: 'Basic Loss',
+    basicLoss: 'Basic Loss(g)',
     combinationTitle: 'Weight by Option Combination (Purity + Color)',
     bulkConverter: 'Bulk Weight Converter',
     basePurity: 'Base Purity',

@@ -206,6 +206,7 @@ const summary = reactive({
   total14KWeight: 0,
   total18KWeight: 0,
   totalPureGoldWeight: 0,
+  totalPtWeight: 0,
   totalCalculatedPureGoldWeight: 0
 });
 

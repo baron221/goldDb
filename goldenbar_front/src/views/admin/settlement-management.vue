@@ -176,7 +176,7 @@ const list = ref<any[]>([]);
 const total = ref(0);
 const codeStore = useCodeStore();
 const codeMap = computed(() => codeStore.codeMap);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const settlementDialogVisible = ref(false);
 const currentOrders = ref<any[]>([]);

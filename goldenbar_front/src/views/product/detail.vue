@@ -91,7 +91,7 @@ const product = ref<any>({});
 const quantity = ref(1);
 const isFavorite = ref(false);
 const activeCollapseNames = ref(['description']);
-const defaultImage = 'https://via.placeholder.com/600x600?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const isRetailUser = computed(() => {
   return userStore.companyType === 'RTL' && !!userStore.logisticsCompanyId;
@@ -145,13 +145,13 @@ const selectedColor = ref('');
 const orderMemo = ref('');
 const orderSize = ref('');
 
-// 기본감량 (casting/finishing loss %) is deducted from the raw registered weight
-// before it's shown to buyers - the displayed weight reflects what's actually
-// delivered, not the pre-loss raw material weight.
+// 기본감량 (casting/stone loss, a fixed gram amount) is deducted from the raw
+// registered weight before it's shown to buyers - the displayed weight reflects what's
+// actually delivered, not the pre-loss raw material weight.
 const applyBasicLoss = (rawWeight: number): number => {
   const basicLoss = product.value?.basicLoss || 0;
   if (basicLoss <= 0) return rawWeight;
-  return rawWeight * (1 - basicLoss / 100);
+  return Math.max(rawWeight - basicLoss, 0);
 };
 
 const activeWeight = computed(() => {

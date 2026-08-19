@@ -127,3 +127,19 @@
 .expand-ledger {
   margin-top: 1.25rem;
 }
+
+.purity-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: center;
+}
+.purity-summary-table th,
+.purity-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+}
+.purity-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}

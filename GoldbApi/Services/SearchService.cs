@@ -199,7 +199,7 @@ public class SearchService : ISearchService
         {
             result.Total = await productQuery.CountAsync();
             marketItems = await productQuery
-                .OrderByDescending(p => p.CreatedAt)
+                .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
                 .Skip((queryDto.Page - 1) * queryDto.PageSize)
                 .Take(queryDto.PageSize)
                 .Select(p => new MarketItemDto
@@ -224,7 +224,7 @@ public class SearchService : ISearchService
         {
             result.Total = await setQuery.CountAsync();
             marketItems = await setQuery
-                .OrderByDescending(ps => ps.CreatedAt)
+                .OrderByDescending(ps => ps.CreatedAt).ThenByDescending(ps => ps.Id)
                 .Skip((queryDto.Page - 1) * queryDto.PageSize)
                 .Take(queryDto.PageSize)
                 .Select(ps => new MarketItemDto
@@ -279,7 +279,7 @@ public class SearchService : ISearchService
                 Price = 0
             }).ToListAsync();
 
-            var combined = prods.Concat(sets).OrderByDescending(x => x.Id).ToList();
+            var combined = prods.Concat(sets).OrderByDescending(x => x.Id).ThenByDescending(x => x.IsSet).ToList();
             result.Total = combined.Count();
             marketItems = combined.Skip((queryDto.Page - 1) * queryDto.PageSize).Take(queryDto.PageSize).ToList();
         }

@@ -114,7 +114,7 @@ const emit = defineEmits(['update:modelValue', 'saved']);
 
 const visible = ref(false);
 const submitting = ref(false);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const approvalForm = reactive({
   items: [] as any[],

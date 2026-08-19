@@ -39,7 +39,7 @@
               </div>
               <template v-else>
                 <span class="memo-text">{{ item.memo || '메모 없음' }}</span>
-                <el-icon class="memo-edit-icon" @click="startEdit(item)"><Edit /></el-icon>
+                <el-icon v-if="canEditMemo(item)" class="memo-edit-icon" @click="startEdit(item)"><Edit /></el-icon>
               </template>
             </div>
           </div>
@@ -61,12 +61,26 @@ import { ref } from 'vue';
 import { Edit } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { updateOrderStatus } from '@/api/order';
+import useUserStore from '@/store/modules/user';
 
 const props = defineProps<{
   orderItems: any[];
   orderId?: number;
   orderStatus?: string;
 }>();
+
+const userStore = useUserStore();
+
+// MFG has no business editing a retailer's order memo at all. RTL sets it once
+// (either here or via the product page before ordering) and is locked out once it's
+// non-empty, so they can't keep changing a special request after production starts.
+// DCC (and admin) keep unrestricted edit access for ongoing operational corrections.
+const canEditMemo = (item: any) => {
+  const type = userStore.companyType;
+  if (type === 'MFG') return false;
+  if (type === 'RTL') return !item.memo;
+  return true;
+};
 
 const getOrderTotalQuantity = (items: any[]) => {
   if (!items) return 0;

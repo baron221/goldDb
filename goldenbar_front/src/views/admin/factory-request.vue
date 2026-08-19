@@ -90,7 +90,7 @@ const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
 
 const dateRange = ref<string[]>([defaultStartDate, defaultEndDate]);
 const orderStatusCodes = ref<any[]>([]);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 const scrollPosition = ref(0);
 
 const isAdmin = computed(() => {
@@ -262,8 +262,8 @@ const resetQuery = () => {
   listQuery.status = undefined;
   listQuery.startDate = defaultStartDate;
   listQuery.endDate = defaultEndDate;
-  listQuery.excludeCancelled = false;
-  listQuery.excludeCompleted = false;
+  listQuery.excludeCancelled = true;
+  listQuery.excludeCompleted = true;
   listQuery.isAsOnly = false;
   dateRange.value = [defaultStartDate, defaultEndDate];
   handleFilter();

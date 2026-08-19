@@ -25,7 +25,6 @@
           :orders="orders"
           :search-term="listQuery.orderNo"
           :is-mobile="isMobile"
-          @settle="openSettleDialog"
           @statement="openStatementDialog"
           @cancel="handleCancelOrder"
         />
@@ -52,10 +51,6 @@
       :statement="currentStatementData"
     />
 
-    <settlement-request-dialog
-      v-model="settleDialogVisible"
-      @submit="handleSettleSubmit"
-    />
   </div>
 </template>
 
@@ -67,7 +62,6 @@ import { useMobile } from '@/hooks/useMobile';
 import { useOrder } from './composables/useOrder';
 import OrderFilter from './components/OrderFilter.vue';
 import OrderList from './components/OrderList.vue';
-import SettlementRequestDialog from './components/SettlementRequestDialog.vue';
 import TransactionStatementDialog from '@/components/TransactionStatementDialog/index.vue';
 import useCodeStore from '@/store/modules/code';
 
@@ -80,8 +74,6 @@ const {
   totalCount,
   loading,
   listQuery,
-  settleDialogVisible,
-  currentSettleOrder,
   statementDialogVisible,
   selectedOrderForStatement,
   currentStatementData,
@@ -89,20 +81,8 @@ const {
   handleFilter,
   handleStatusChange,
   updateStatus,
-  openSettleDialog,
   openStatementDialog
 } = useOrder();
-
-const handleSettleSubmit = async (formData: any) => {
-  if (!currentSettleOrder.value) return;
-  const success = await updateStatus(currentSettleOrder.value.id, {
-    status: 'PROCESSING',
-    ...formData
-  });
-  if (success) {
-    settleDialogVisible.value = false;
-  }
-};
 
 const handleCancelOrder = (order: any) => {
   ElMessageBox.prompt(t('order.list.cancellationReason'), t('order.list.cancelOrder'), {

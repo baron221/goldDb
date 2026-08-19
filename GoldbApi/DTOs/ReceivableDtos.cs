@@ -93,6 +93,8 @@ public class PuritySummaryDto
     public decimal Purity18k { get; set; }
 
     public decimal PureGold { get; set; }
+
+    public decimal PurityPt { get; set; }
 }
 
 public class ReceivableQueryDto

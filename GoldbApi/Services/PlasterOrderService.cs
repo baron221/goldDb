@@ -48,7 +48,7 @@ public class PlasterOrderService : IPlasterOrderService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(o => o.OrderDate)
+            .OrderByDescending(o => o.OrderDate).ThenByDescending(o => o.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ProjectToType<PlasterOrderDto>()

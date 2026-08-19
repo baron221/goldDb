@@ -368,7 +368,7 @@ const formatDate = (dateStr: string) => {
 
 const handleOrderClick = (orderNo: string) => {
   router.push({
-    path: '/my/order',
+    path: '/order/order',
     query: { orderNo }
   });
 };

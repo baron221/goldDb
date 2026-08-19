@@ -22,7 +22,7 @@
         </el-tooltip>
 
         <el-tooltip v-if="isRetail" :content="$t('nav.orders')" effect="dark" placement="bottom">
-          <div class="right-menu-item hover-effect" @click="$router.push('/my/order')">
+          <div class="right-menu-item hover-effect" @click="$router.push('/order/order')">
             <el-icon><Tickets /></el-icon>
           </div>
         </el-tooltip>

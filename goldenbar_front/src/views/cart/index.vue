@@ -224,7 +224,7 @@ const handleCheckout = () => {
       });
       await store.cart().fetchCart();
       ElMessage.success(t('cart.messages.orderSuccess') + ' (제조사별로 주문이 분할 생성되었습니다.)');
-      router.push('/my/order');
+      router.push('/order/order');
     } catch (error) {
       console.error('Order failed:', error);
       ElMessage.error(t('cart.messages.orderError'));
@@ -238,7 +238,6 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&display=swap');
 
 .cart-page-luxury {
   font-family: 'S-CoreDream', 'Jost', sans-serif;

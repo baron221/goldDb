@@ -1356,7 +1356,7 @@ export default {
     sizes: '제품 사이즈',
     sizesPlaceholder: '예: 1호 (직접 입력)',
     productSize: '제품크기',
-    basicLoss: '기본감량',
+    basicLoss: '기본감량(g)',
     combinationTitle: '옵션 조합별 중량 설정 (함량 + 컬러)',
     bulkConverter: '중량 일괄 환산기',
     basePurity: '기준 함량',

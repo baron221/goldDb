@@ -189,7 +189,7 @@ const infoFormatter = (row) => `${row.companyName}\n${row.ceo} | ${row.region}`;
 const viewRetailerDetails = (row) => {
 
   router.push({
-    path: '/admin/logistics-approval',
+    path: '/order/logistics-approval',
     query: {
       companyId: row.companyId,
       logisticsCompanyId: row.logisticsCompanyId

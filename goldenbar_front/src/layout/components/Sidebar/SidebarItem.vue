@@ -159,6 +159,16 @@ export default defineComponent({
     },
     generateTitle(title) {
       if (!title) return '';
+      // 정산처리/payable-management is one shared route for both MFG and DCC, but the two
+      // sides use it for opposite directions of the same relationship (MFG pays, DCC
+      // receives) - the DB-backed menu label can't differ per company type on its own,
+      // so the display-only override lives here instead. The raw DB title covers both
+      // audiences at once ("정산처리/정산받은 내역"), so it's split apart per viewer here.
+      if (title === '정산처리/정산받은 내역') {
+        const companyType = store.user().companyType;
+        if (companyType === 'DCC') return '정산받은 내역';
+        if (companyType === 'MFG') return '정산처리';
+      }
       const key = 'route.' + title;
       if (this.$te && this.$te(key)) {
         return this.$t(key);

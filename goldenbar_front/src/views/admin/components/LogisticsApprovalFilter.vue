@@ -1,13 +1,12 @@
 <template>
 <el-card shadow="never" class="filter-card">
     <el-form :inline="true" :model="localListQuery" class="demo-form-inline">
-      <el-form-item :label="$t('home.roles.logistics.title')">
+      <el-form-item v-if="isAdmin" :label="$t('home.roles.logistics.title')">
         <company-select
           v-model="localListQuery.logisticsCompanyId"
           category="DCC"
           :placeholder="$t('admin.orderApproval.placeholder')"
           style="width: 200px"
-          :disabled="!isAdmin"
           @change="$emit('filter')"
         />
       </el-form-item>

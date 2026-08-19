@@ -140,7 +140,7 @@ const getPurityWeight = (purityCode: string): string | null => {
 
   const basicLoss = props.item.basicLoss || 0;
   const rawWeight = Number(match.weight);
-  const adjustedWeight = basicLoss > 0 ? rawWeight * (1 - basicLoss / 100) : rawWeight;
+  const adjustedWeight = basicLoss > 0 ? Math.max(rawWeight - basicLoss, 0) : rawWeight;
   return adjustedWeight.toFixed(2);
 };
 </script>

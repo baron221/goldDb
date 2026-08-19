@@ -1,29 +1,35 @@
 <template>
 <el-card shadow="never" class="summary-card">
     <el-row :gutter="20">
-      <el-col :xs="24" :sm="8" :md="4" class="mb-4 md:mb-0">
+      <el-col :xs="24" :sm="8" :md="3" class="mb-4 md:mb-0">
         <div class="summary-item">
           <div class="label">14K 총 실중량</div>
           <div class="value">{{ summary.total14KWeight.toFixed(2) }}g</div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="8" :md="4" class="mb-4 md:mb-0">
+      <el-col :xs="24" :sm="8" :md="3" class="mb-4 md:mb-0">
         <div class="summary-item">
           <div class="label">18K 총 실중량</div>
           <div class="value">{{ summary.total18KWeight.toFixed(2) }}g</div>
         </div>
       </el-col>
-      <el-col :xs="24" :sm="8" :md="4" class="mb-4 md:mb-0">
+      <el-col :xs="24" :sm="8" :md="3" class="mb-4 md:mb-0">
         <div class="summary-item">
           <div class="label">순금 총 실중량</div>
           <div class="value">{{ summary.totalPureGoldWeight.toFixed(2) }}g</div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="8" :md="3" class="mb-4 md:mb-0">
+        <div class="summary-item">
+          <div class="label">PT 총 실중량</div>
+          <div class="value">{{ summary.totalPtWeight.toFixed(2) }}g</div>
         </div>
       </el-col>
       <el-col :xs="24" :sm="24" :md="12">
         <div class="summary-item highlight">
           <div class="label">총 순금 보유량</div>
           <div class="value formula">
-            ({{ summary.total14KWeight.toFixed(2) }}g × 0.6435) + ({{ summary.total18KWeight.toFixed(2) }}g × 0.825) + {{ summary.totalPureGoldWeight.toFixed(2) }}g = {{ summary.totalCalculatedPureGoldWeight.toFixed(2) }}g
+            ({{ summary.total14KWeight.toFixed(2) }}g × 0.6435) + ({{ summary.total18KWeight.toFixed(2) }}g × 0.825) + {{ summary.totalPureGoldWeight.toFixed(2) }}g + ({{ summary.totalPtWeight.toFixed(2) }}g × 0.95) = {{ summary.totalCalculatedPureGoldWeight.toFixed(2) }}g
           </div>
         </div>
       </el-col>
@@ -42,6 +48,7 @@ defineProps({
       total14KWeight: number;
       total18KWeight: number;
       totalPureGoldWeight: number;
+      totalPtWeight: number;
       totalCalculatedPureGoldWeight: number;
     }>,
     required: true

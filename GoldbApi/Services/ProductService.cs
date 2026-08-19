@@ -169,7 +169,7 @@ public class ProductService : IProductService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(p => p.CreatedAt)
+            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
             .Skip(((query.Page ?? 1) - 1) * (query.PageSize ?? 20))
             .Take(query.PageSize ?? 20)
             .ProjectToType<ProductDto>()

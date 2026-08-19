@@ -8,9 +8,6 @@ export function useOrder() {
   const totalCount = ref(0);
   const loading = ref(false);
 
-  const settleDialogVisible = ref(false);
-  const currentSettleOrder = ref<any>(null);
-
   const statementDialogVisible = ref(false);
   const selectedOrderForStatement = ref<any>(null);
   const currentStatementData = ref<any>(null);
@@ -77,11 +74,6 @@ export function useOrder() {
     }
   };
 
-  const openSettleDialog = (order: any) => {
-    currentSettleOrder.value = order;
-    settleDialogVisible.value = true;
-  };
-
   const openStatementDialog = async (order: any) => {
     try {
       const res = await getOrderStatement(order.id);
@@ -105,8 +97,6 @@ export function useOrder() {
     totalCount,
     loading,
     listQuery,
-    settleDialogVisible,
-    currentSettleOrder,
     statementDialogVisible,
     selectedOrderForStatement,
     currentStatementData,
@@ -114,7 +104,6 @@ export function useOrder() {
     handleFilter,
     handleStatusChange,
     updateStatus,
-    openSettleDialog,
     openStatementDialog
   };
 }

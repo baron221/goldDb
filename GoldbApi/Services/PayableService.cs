@@ -14,6 +14,10 @@ public interface IPayableService
 
     Task<ApiResponse<PagedResult<PayableOrderRowDto>>> GetPayableOrderHistoryAsync(PayableQueryDto query);
 
+    Task<ApiResponse<PagedResult<PayableOrderRowDto>>> GetCompletedPayableOrdersAsync(PayableQueryDto query);
+
+    Task<ApiResponse<List<ChargeApplicationRowDto>>> GetChargeApplicationsAsync(int chargeId);
+
     Task<ApiResponse<PayableOrderHistorySummaryDto>> GetPayableOrderHistorySummaryAsync(PayableQueryDto query);
 
     Task<ApiResponse<PagedResult<PayableDto>>> GetPayablesAsync(PayableQueryDto query);
@@ -24,11 +28,15 @@ public interface IPayableService
 
     Task<ApiResponse<bool>> CancelPaymentAsync(int id);
 
+    Task<ApiResponse<bool>> DeletePaymentAsync(int id);
+
     Task<ApiResponse<bool>> MarkMfgProcessedAsync(int payableId, MfgProcessDto request);
 
     Task<ApiResponse<OrderChargeSummaryDto?>> GetOrderChargeSummaryAsync(List<int> orderIds);
 
     Task<ApiResponse<List<PaymentApplicationDetailDto>>> GetPaymentApplicationsAsync(int paymentId);
+
+    Task<ApiResponse<bool>> UpdatePaymentApplicationAsync(int applicationId, UpdatePaymentApplicationDto request);
 }
 
 public class PayableService : IPayableService
@@ -51,6 +59,20 @@ public class PayableService : IPayableService
         _userCompanyRepository = userCompanyRepository;
         _currentUserService = currentUserService;
         _dbContext = dbContext;
+    }
+
+    // Mirrors ReceivableService.GetPureGoldRatio - the purity breakdown here must convert
+    // to the same fine-gold basis as the Charge.Weight it's reconciled against (which is
+    // already stored fine-gold-converted at charge-creation time).
+    private static decimal GetPureGoldRatio(string? purity)
+    {
+        if (string.IsNullOrEmpty(purity)) return 0m;
+        var p = purity.ToUpperInvariant();
+        if (p.Contains("24K") || p.Contains("PURE")) return 1.0m;
+        if (p.Contains("18K")) return 0.825m;
+        if (p.Contains("14K")) return 0.6435m;
+        if (p.Contains("PT") || p.Contains("PLATINUM")) return 0.95m;
+        return 0m;
     }
 
     // Only DCC (the payer) and MFG (the payee) have a side in this ledger; admins can
@@ -120,7 +142,7 @@ public class PayableService : IPayableService
 
         var totalCount = await companiesQuery.CountAsync();
         var companies = await companiesQuery
-            .OrderBy(c => c.Name)
+            .OrderBy(c => c.Name).ThenBy(c => c.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -134,11 +156,15 @@ public class PayableService : IPayableService
                 .ToListAsync();
 
             var totalCharge = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.Amount);
-            var totalPaid = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Amount);
+            // "Paid" = what actually landed on a charge: raw Amount plus any Discount granted,
+            // minus whatever part of this payment is still unapplied (see RemainingAmount, set
+            // in ProcessPaymentAsync/UpdatePaymentAsync). This keeps TotalCharge - TotalPaid ==
+            // TotalOutstanding even when a payment carries a discount or overpays.
+            var totalPaid = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Amount + p.Discount - p.RemainingAmount);
             var totalOutstanding = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingAmount);
 
             var totalChargeWeight = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.Weight);
-            var totalPaidWeight = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Weight);
+            var totalPaidWeight = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Weight + p.DiscountWeight - p.RemainingWeight);
             var totalOutstandingWeight = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingWeight);
 
             var lastPaymentDate = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled)
@@ -186,11 +212,11 @@ public class PayableService : IPayableService
             .ToListAsync();
 
         var totalCharge = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.Amount);
-        var totalPaid = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Amount);
+        var totalPaid = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Amount + p.Discount - p.RemainingAmount);
         var totalOutstanding = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingAmount);
 
         var totalChargeWeight = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.Weight);
-        var totalPaidWeight = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Weight);
+        var totalPaidWeight = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled).Sum(p => p.Weight + p.DiscountWeight - p.RemainingWeight);
         var totalOutstandingWeight = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingWeight);
 
         var lastPaymentDate = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled)
@@ -283,7 +309,7 @@ public class PayableService : IPayableService
             .Select(g => new PurityBreakdownDto
             {
                 Purity = g.Key,
-                Weight = g.Sum(oi => (oi.ConfirmedWeight ?? oi.ActualWeight ?? oi.OrderWeight ?? 0m) * oi.Quantity),
+                Weight = g.Sum(oi => (oi.ConfirmedWeight ?? oi.ActualWeight ?? oi.OrderWeight ?? 0m) * GetPureGoldRatio(oi.Purity) * oi.Quantity),
                 Amount = g.Sum(oi => ((oi.FactoryInputMaterialCost ?? 0) + (oi.FactoryInputLaborCost ?? 0)) * oi.Quantity)
             })
             .Where(b => b.Weight > 0 || b.Amount > 0)
@@ -351,6 +377,11 @@ public class PayableService : IPayableService
                  (oi.ProductSet != null && oi.ProductSet.Title.Contains(query.ProductName)))));
         }
 
+        if (!string.IsNullOrEmpty(query.OrderNo))
+        {
+            dbQuery = dbQuery.Where(p => p.Order != null && p.Order.OrderNo.Contains(query.OrderNo));
+        }
+
         return dbQuery;
     }
 
@@ -383,7 +414,7 @@ public class PayableService : IPayableService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(p => p.CreatedAt)
+            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(p => new PayableOrderRowDto
@@ -415,7 +446,10 @@ public class PayableService : IPayableService
                             Color = oi.Color,
                             Size = oi.Size ?? (oi.Product != null ? oi.Product.ProductSize : null),
                             Memo = oi.Memo,
-                            Quantity = oi.Quantity
+                            Quantity = oi.Quantity,
+                            ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight,
+                            MaterialCost = oi.FactoryInputMaterialCost ?? 0,
+                            LaborCost = oi.FactoryInputLaborCost ?? 0
                         }).ToList()
                     : new List<PayableOrderItemSummaryDto>(),
                 LogisticsCompanyId = p.LogisticsCompanyId,
@@ -439,6 +473,112 @@ public class PayableService : IPayableService
             Page = query.Page,
             PageSize = query.PageSize
         });
+    }
+
+    // Order-centric view of "정산 완료 내역" - the mirror image of GetPayableOrderHistoryAsync's
+    // worklist (which drops a charge once it's fully paid): this one shows ONLY fully-paid
+    // charges, one row per order, so a payment that got split across several 거래번호 over
+    // time reads as "this order, paid via N transactions" instead of N separate order rows.
+    public async Task<ApiResponse<PagedResult<PayableOrderRowDto>>> GetCompletedPayableOrdersAsync(PayableQueryDto query)
+    {
+        var dbQuery = await BuildOrderHistoryQueryAsync(query);
+        dbQuery = dbQuery.Where(p => p.RemainingAmount <= 0 && p.RemainingWeight <= 0);
+
+        var totalCount = await dbQuery.CountAsync();
+        var items = await dbQuery
+            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(p => new PayableOrderRowDto
+            {
+                PayableId = p.Id,
+                OrderId = p.OrderId,
+                OrderNo = p.Order != null ? p.Order.OrderNo : null,
+                ProductName = p.Order != null
+                    ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .FirstOrDefault()
+                    : null,
+                ProductPhotoUrl = p.Order != null
+                    ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
+                        .Select(oi => oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
+                            : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null))
+                        .FirstOrDefault()
+                    : null,
+                ProductItemCount = p.Order != null ? p.Order.OrderItems.Count(oi => oi.ParentId == null) : 0,
+                Items = p.Order != null
+                    ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
+                        .Select(oi => new PayableOrderItemSummaryDto
+                        {
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
+                            PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
+                                : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
+                            Purity = oi.Purity,
+                            Color = oi.Color,
+                            Size = oi.Size ?? (oi.Product != null ? oi.Product.ProductSize : null),
+                            Memo = oi.Memo,
+                            Quantity = oi.Quantity,
+                            ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight,
+                            MaterialCost = oi.FactoryInputMaterialCost ?? 0,
+                            LaborCost = oi.FactoryInputLaborCost ?? 0
+                        }).ToList()
+                    : new List<PayableOrderItemSummaryDto>(),
+                LogisticsCompanyId = p.LogisticsCompanyId,
+                LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
+                ManufacturerCompanyId = p.ManufacturerCompanyId,
+                ManufacturerCompanyName = p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null,
+                OrderDate = p.CreatedAt,
+                ChargeAmount = p.Amount,
+                ChargeWeight = p.Weight,
+                PaidAmount = p.Amount - p.RemainingAmount,
+                PaidWeight = p.Weight - p.RemainingWeight,
+                RemainingAmount = p.RemainingAmount,
+                RemainingWeight = p.RemainingWeight
+            })
+            .ToListAsync();
+
+        return ApiResponse<PagedResult<PayableOrderRowDto>>.Success(new PagedResult<PayableOrderRowDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = query.Page,
+            PageSize = query.PageSize
+        });
+    }
+
+    // The inverse of GetPaymentApplicationsAsync: given one order's charge, list every
+    // payment (거래번호) that has ever applied against it, so a partially-then-fully-paid
+    // order can show its whole payment trail instead of just the latest 거래.
+    public async Task<ApiResponse<List<ChargeApplicationRowDto>>> GetChargeApplicationsAsync(int chargeId)
+    {
+        var charge = await _payableRepository.GetByIdAsync(chargeId);
+        if (charge == null || charge.Type != "CHARGE") return ApiResponse<List<ChargeApplicationRowDto>>.Failure("청구 내역을 찾을 수 없습니다.", 404);
+
+        if (!_currentUserService.IsAdmin)
+        {
+            var current = await GetCurrentCompanyAsync();
+            if (current == null || (current.Value.CompanyId != charge.LogisticsCompanyId && current.Value.CompanyId != charge.ManufacturerCompanyId))
+            {
+                return ApiResponse<List<ChargeApplicationRowDto>>.Failure("접근 권한이 없습니다.", 403);
+            }
+        }
+
+        var applications = await _dbContext.PayableApplications
+            .Where(a => a.ChargeId == chargeId)
+            .Select(a => new ChargeApplicationRowDto
+            {
+                PaymentId = a.PaymentId,
+                AppliedAmount = a.AppliedAmount,
+                AppliedWeight = a.AppliedWeight,
+                PaymentCreatedAt = a.Payment!.CreatedAt,
+                IsCancelled = a.Payment!.IsCancelled,
+                Memo = a.Payment!.Memo
+            })
+            .OrderBy(a => a.PaymentCreatedAt)
+            .ToListAsync();
+
+        return ApiResponse<List<ChargeApplicationRowDto>>.Success(applications);
     }
 
     public async Task<ApiResponse<PagedResult<PayableDto>>> GetPayablesAsync(PayableQueryDto query)
@@ -484,9 +624,18 @@ public class PayableService : IPayableService
             dbQuery = dbQuery.Where(p => p.CreatedAt < endExclusive);
         }
 
+        if (!string.IsNullOrEmpty(query.OrderNo))
+        {
+            // CHARGE rows link to their order directly; PAYMENT rows don't (one payment can
+            // cover several orders), so those are matched via their applications' charges.
+            dbQuery = dbQuery.Where(p =>
+                (p.Order != null && p.Order.OrderNo.Contains(query.OrderNo)) ||
+                _dbContext.PayableApplications.Any(a => a.PaymentId == p.Id && a.Charge!.Order != null && a.Charge!.Order.OrderNo.Contains(query.OrderNo)));
+        }
+
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(p => p.CreatedAt)
+            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(p => new PayableDto
@@ -543,6 +692,7 @@ public class PayableService : IPayableService
             .Where(a => a.PaymentId == paymentId)
             .Select(a => new PaymentApplicationDetailDto
             {
+                Id = a.Id,
                 ChargeId = a.ChargeId,
                 OrderId = a.Charge!.OrderId,
                 OrderNo = a.Charge!.Order != null ? a.Charge!.Order.OrderNo : null,
@@ -570,16 +720,75 @@ public class PayableService : IPayableService
                             Color = oi.Color,
                             Size = oi.Size ?? (oi.Product != null ? oi.Product.ProductSize : null),
                             Memo = oi.Memo,
-                            Quantity = oi.Quantity
+                            Quantity = oi.Quantity,
+                            ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight,
+                            MaterialCost = oi.FactoryInputMaterialCost ?? 0,
+                            LaborCost = oi.FactoryInputLaborCost ?? 0
                         }).ToList()
                     : new List<PayableOrderItemSummaryDto>(),
                 AppliedAmount = a.AppliedAmount,
-                AppliedWeight = a.AppliedWeight
+                AppliedWeight = a.AppliedWeight,
+                ChargeAmount = a.Charge!.Amount,
+                ChargeWeight = a.Charge!.Weight,
+                ChargeRemainingAmount = a.Charge!.RemainingAmount,
+                ChargeRemainingWeight = a.Charge!.RemainingWeight
             })
             .OrderBy(a => a.OrderNo)
             .ToListAsync();
 
         return ApiResponse<List<PaymentApplicationDetailDto>>.Success(items);
+    }
+
+    // Corrects how much of a payment applies to ONE specific charge (e.g. a stone-weight
+    // correction that only affects one order within a multi-order payment), independent of
+    // the auto-distribution ProcessPaymentAsync/UpdatePaymentAsync use. The charge's
+    // RemainingAmount/Weight absorbs the delta directly, and the parent payment's own
+    // Amount/Weight is kept in sync so it always equals the sum of its applications -
+    // otherwise the payment total would silently drift from what it actually paid.
+    public async Task<ApiResponse<bool>> UpdatePaymentApplicationAsync(int applicationId, UpdatePaymentApplicationDto request)
+    {
+        var application = await _dbContext.PayableApplications
+            .Include(a => a.Charge)
+            .Include(a => a.Payment)
+            .FirstOrDefaultAsync(a => a.Id == applicationId);
+
+        if (application == null || application.Charge == null || application.Payment == null)
+        {
+            return ApiResponse<bool>.Failure("적용 내역을 찾을 수 없습니다.", 404);
+        }
+
+        if (application.Payment.IsCancelled)
+        {
+            return ApiResponse<bool>.Failure("취소된 거래는 수정할 수 없습니다.", 400);
+        }
+
+        if (request.AppliedAmount < 0 || request.AppliedWeight < 0)
+        {
+            return ApiResponse<bool>.Failure("적용 금액과 중량은 0 이상이어야 합니다.", 400);
+        }
+
+        var deltaAmount = request.AppliedAmount - application.AppliedAmount;
+        var deltaWeight = request.AppliedWeight - application.AppliedWeight;
+
+        var newChargeRemainingAmount = application.Charge.RemainingAmount - deltaAmount;
+        var newChargeRemainingWeight = application.Charge.RemainingWeight - deltaWeight;
+
+        if (newChargeRemainingAmount < 0 || newChargeRemainingWeight < 0)
+        {
+            return ApiResponse<bool>.Failure("적용 금액이 해당 주문의 청구 금액을 초과할 수 없습니다.", 400);
+        }
+
+        application.Charge.RemainingAmount = newChargeRemainingAmount;
+        application.Charge.RemainingWeight = newChargeRemainingWeight;
+
+        application.Payment.Amount += deltaAmount;
+        application.Payment.Weight += deltaWeight;
+
+        application.AppliedAmount = request.AppliedAmount;
+        application.AppliedWeight = request.AppliedWeight;
+
+        await _payableRepository.SaveChangesAsync();
+        return ApiResponse<bool>.Success(true);
     }
 
     // Cash and gold weight are two views of the same underlying charge, not independent
@@ -771,6 +980,12 @@ public class PayableService : IPayableService
             _dbContext.PayableApplications.Add(application);
         }
 
+        // Anything left after covering every outstanding charge is an overpayment - keep it
+        // on the payment record instead of discarding it, so it stays visible/traceable
+        // rather than silently vanishing.
+        payment.RemainingAmount = remainingAmountToApply;
+        payment.RemainingWeight = remainingWeightToApply;
+
         await _payableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);
     }
@@ -812,6 +1027,9 @@ public class PayableService : IPayableService
             _dbContext.PayableApplications.Add(application);
         }
 
+        payment.RemainingAmount = newAmountToApply;
+        payment.RemainingWeight = newWeightToApply;
+
         await _payableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);
     }
@@ -835,7 +1053,30 @@ public class PayableService : IPayableService
         _dbContext.PayableApplications.RemoveRange(oldApplications);
 
         payment.IsCancelled = true;
+        payment.RemainingAmount = 0;
+        payment.RemainingWeight = 0;
 
+        await _payableRepository.SaveChangesAsync();
+        return ApiResponse<bool>.Success(true);
+    }
+
+    // Cancelling a payment already reverses its effect on the charges and clears its
+    // applications (CancelPaymentAsync above) - deleting it afterward is purely removing
+    // the now-inert record from the list, so it's only ever allowed once a payment is
+    // already cancelled, never on a live one still backing real settlement amounts.
+    public async Task<ApiResponse<bool>> DeletePaymentAsync(int id)
+    {
+        var payment = await _payableRepository.GetByIdAsync(id);
+        if (payment == null || payment.Type != "PAYMENT") return ApiResponse<bool>.Failure("정산 내역을 찾을 수 없습니다.", 404);
+        if (!payment.IsCancelled) return ApiResponse<bool>.Failure("취소된 거래만 삭제할 수 있습니다.", 400);
+
+        var remainingApplications = await _dbContext.PayableApplications.Where(a => a.PaymentId == id).ToListAsync();
+        if (remainingApplications.Count > 0)
+        {
+            _dbContext.PayableApplications.RemoveRange(remainingApplications);
+        }
+
+        _dbContext.Payables.Remove(payment);
         await _payableRepository.SaveChangesAsync();
         return ApiResponse<bool>.Success(true);
     }

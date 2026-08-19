@@ -174,6 +174,7 @@ const summary = reactive({
   total14KWeight: 0,
   total18KWeight: 0,
   totalPureGoldWeight: 0,
+  totalPtWeight: 0,
   totalCalculatedPureGoldWeight: 0
 });
 
@@ -245,7 +246,7 @@ const openGroupDetails = (group: any) => {
 
 const navigateToOrder = (orderNo: string) => {
   groupDetailDialogVisible.value = false;
-  router.push({ path: '/my/order', query: { orderNo }});
+  router.push({ path: '/order/order', query: { orderNo }});
 };
 
 const navigateToStock = (stockId: number) => {

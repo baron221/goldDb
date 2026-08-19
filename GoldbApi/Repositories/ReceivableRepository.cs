@@ -1,6 +1,7 @@
 using GoldbApi.Data;
 using GoldbApi.DTOs;
 using GoldbApi.Models;
+using GoldbApi.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace GoldbApi.Repositories;
@@ -82,6 +83,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
         query = query.Where(u => userIdsWithReceivables.Contains(u.Id));
 
         return await query
+            .OrderBy(u => u.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -109,14 +111,14 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
 
         if (query.StartDate.HasValue)
         {
-            var startDateUtc = DateTime.SpecifyKind(query.StartDate.Value, DateTimeKind.Utc);
+            var startDateUtc = DateRangeUtils.ToUtcRangeStart(query.StartDate.Value);
             dbQuery = dbQuery.Where(r => r.CreatedAt >= startDateUtc);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endDateUtc = DateTime.SpecifyKind(query.EndDate.Value, DateTimeKind.Utc).AddDays(1).AddTicks(-1);
-            dbQuery = dbQuery.Where(r => r.CreatedAt <= endDateUtc);
+            var nextDayUtc = DateRangeUtils.ToUtcRangeEndExclusive(query.EndDate.Value);
+            dbQuery = dbQuery.Where(r => r.CreatedAt < nextDayUtc);
         }
 
         if (!string.IsNullOrEmpty(query.OrderNo))
@@ -158,7 +160,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(r => r.CreatedAt)
+            .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(r => new ReceivableDto

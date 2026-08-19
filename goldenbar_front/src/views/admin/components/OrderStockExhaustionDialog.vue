@@ -114,7 +114,7 @@ const visible = ref(false);
 const loading = ref(false);
 const stockLoading = ref(false);
 const orderItems = ref<any[]>([]);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const stockSelectorVisible = ref(false);
 const currentItem = ref<any>(null);

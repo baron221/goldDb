@@ -59,14 +59,6 @@
         <template #default="{row}">
           <div class="action-cell">
             <el-button
-              v-if="row.status === 'PENDING' || row.status === '정산대기'"
-              type="warning"
-              size="small"
-              @click="emit('settle', row)"
-            >
-              정산확인요청
-            </el-button>
-            <el-button
               v-if="row.status === 'ORDERED' || row.status === '접수대기'"
               type="danger"
               size="small"
@@ -106,7 +98,7 @@ const props = defineProps<{
   searchTerm?: string;
 }>();
 
-const emit = defineEmits(['settle', 'statement', 'cancel']);
+const emit = defineEmits(['statement', 'cancel']);
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -188,7 +180,7 @@ const getStatusType = (status: string) => {
 const isStatementVisible = (status: string) => isStatementVisibleStatus(status);
 
 const hasAction = (status: string) => {
-  return status === 'PENDING' || status === '정산대기' || status === 'ORDERED' || status === '접수대기' || isStatementVisible(status);
+  return status === 'ORDERED' || status === '접수대기' || isStatementVisible(status);
 };
 </script>
 

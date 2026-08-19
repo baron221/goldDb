@@ -1,8 +1,15 @@
 <template>
   <el-card shadow="never" class="filter-card">
     <el-form :inline="!isMobile" :label-position="isMobile ? 'top' : 'right'" :model="localQuery" class="demo-form-inline">
-      <el-form-item :label="$t('admin.settlement.filters.company')">
-        <company-select v-model="localQuery.companyId" :placeholder="$t('admin.settlement.filters.companyPlaceholder')" style="width: 200px" @change="handleFilter" />
+      <el-form-item :label="companyLabel || $t('admin.settlement.filters.company')">
+        <company-select
+          v-model="localQuery.companyId"
+          :placeholder="$t('admin.settlement.filters.companyPlaceholder')"
+          :category="companyCategory"
+          :only-partners="!companyCategory"
+          style="width: 200px"
+          @change="handleFilter"
+        />
       </el-form-item>
       <el-form-item :label="$t('admin.settlement.filters.period')">
         <el-date-picker
@@ -36,11 +43,18 @@ import { Search, Refresh, Printer } from '@element-plus/icons-vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   query: any;
   isMobile: boolean;
   showCombinedPrint?: boolean;
-}>();
+  companyCategory?: string;
+  companyLabel?: string;
+}>(), {
+  showCombinedPrint: true
+});
+
+const companyCategory = computed(() => props.companyCategory || '');
+const companyLabel = computed(() => props.companyLabel || '');
 
 const showCombinedPrint = computed(() => props.showCombinedPrint !== false);
 

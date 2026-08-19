@@ -1,13 +1,12 @@
 <template>
 <el-card shadow="never" class="filter-card">
     <el-form :inline="true" :model="localQuery" class="demo-form-inline">
-      <el-form-item :label="$t('home.roles.factory.title')">
+      <el-form-item v-if="isAdmin" :label="$t('home.roles.factory.title')">
         <company-select
           v-model="localQuery.factoryCompanyId"
           category="MFG"
           :placeholder="$t('home.roles.factory.title')"
           style="width: 200px"
-          :disabled="!isAdmin"
           @change="handleFilter"
         />
       </el-form-item>
@@ -17,67 +16,6 @@
           category="DCC"
           :placeholder="$t('home.roles.logistics.title')"
           style="width: 200px"
-          @change="handleFilter"
-        />
-      </el-form-item>
-      <el-form-item :label="$t('home.roles.store.title')">
-        <company-select
-          v-model="localQuery.companyId"
-          category="RTL"
-          :placeholder="$t('home.roles.store.title')"
-          style="width: 200px"
-          @change="handleFilter"
-        />
-      </el-form-item>
-
-      <el-form-item :label="$t('productMarket.labels.generalCategories')">
-        <common-select
-          v-model="localQuery.categoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          :placeholder="$t('productMarket.labels.largeCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="handleLargeChange"
-        />
-        <common-select
-          v-if="localQuery.categoryLarge"
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          :placeholder="$t('productMarket.labels.mediumCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="handleMediumChange"
-        />
-        <common-select
-          v-if="localQuery.categoryMedium"
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          :placeholder="$t('productMarket.labels.smallCategory')"
-          style="width: 120px;"
-          @change="handleFilter"
-        />
-      </el-form-item>
-
-      <el-form-item :label="$t('productMarket.labels.setCategories')">
-        <common-select
-          v-model="localQuery.setCategoryLarge"
-          group-code="PRODUCT_CATEGORY"
-          :placeholder="$t('productMarket.labels.largeCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="handleSetLargeChange"
-        />
-        <common-select
-          v-if="localQuery.setCategoryLarge"
-          v-model="localQuery.setCategoryMedium"
-          :parent-id="setLargeId"
-          :placeholder="$t('productMarket.labels.mediumCategory')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="handleSetMediumChange"
-        />
-        <common-select
-          v-if="localQuery.setCategoryMedium"
-          v-model="localQuery.setCategorySmall"
-          :parent-id="setMediumId"
-          :placeholder="$t('productMarket.labels.smallCategory')"
-          style="width: 120px;"
           @change="handleFilter"
         />
       </el-form-item>
@@ -136,9 +74,7 @@
         </div>
       </el-form-item>
       <el-form-item>
-        <el-checkbox v-model="localQuery.excludeCancelled" @change="handleFilter">{{ $t('order.filters.hideCancelled') }}</el-checkbox>
-        <el-checkbox v-model="localQuery.excludeCompleted" @change="handleFilter">{{ $t('order.filters.hideCompleted') }}</el-checkbox>
-        <el-checkbox v-model="localQuery.isAsOnly" @change="handleFilter" style="margin-left: 0.75rem;">
+        <el-checkbox v-model="localQuery.isAsOnly" @change="handleFilter">
           <span style="color: #F56C6C; font-weight: 600;">AS의뢰 건만</span>
         </el-checkbox>
       </el-form-item>

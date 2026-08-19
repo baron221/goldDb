@@ -43,7 +43,7 @@ public static class ContactEndpoints
 
             var totalCount = await query.CountAsync();
             var items = await query
-                .OrderByDescending(c => c.CreatedAt)
+                .OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

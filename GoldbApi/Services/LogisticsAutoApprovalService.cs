@@ -44,6 +44,7 @@ public class LogisticsAutoApprovalService : BackgroundService
                 if (kstNow.Hour >= 16 && _lastRunDateKst != today)
                 {
                     await AutoApproveOrdersAsync();
+                    await AutoFactoryRequestOrdersAsync();
                     _lastRunDateKst = today;
                 }
             }
@@ -86,5 +87,39 @@ public class LogisticsAutoApprovalService : BackgroundService
 
         await dbContext.SaveChangesAsync();
         _logger.LogInformation("Logistics auto-approval: {Count} orders auto-approved.", pendingOrders.Count);
+    }
+
+    // Mirrors the manual "물류 승인 / 공장 의뢰" dialog's submit action, which by this point
+    // just re-submits each item's already-approved weight/cost as-is (no manual review
+    // fields remain in that dialog) - so the automatic sweep can skip straight to the
+    // status transition without recomputing anything on the order items.
+    private async Task AutoFactoryRequestOrdersAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var pendingOrders = await dbContext.Orders
+            .Where(o => o.Status == "LogisticsApproved")
+            .ToListAsync();
+
+        if (!pendingOrders.Any())
+        {
+            _logger.LogInformation("Factory auto-request: no orders waiting for factory request.");
+            return;
+        }
+
+        foreach (var order in pendingOrders)
+        {
+            order.Status = "FactoryRequested";
+            dbContext.OrderStatusHistories.Add(new OrderStatusHistory
+            {
+                OrderId = order.Id,
+                Status = "FactoryRequested",
+                Remarks = "상태 변경: LogisticsApproved -> FactoryRequested\n[오후 4시 자동 공장의뢰]"
+            });
+        }
+
+        await dbContext.SaveChangesAsync();
+        _logger.LogInformation("Factory auto-request: {Count} orders auto-dispatched to factory.", pendingOrders.Count);
     }
 }

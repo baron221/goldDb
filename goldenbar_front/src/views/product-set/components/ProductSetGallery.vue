@@ -37,7 +37,7 @@ const props = defineProps({
   },
   defaultImage: {
     type: String,
-    default: 'https://via.placeholder.com/600x600?text=No+Set+Image'
+    default: '/thumb_no_img.png'
   }
 });
 

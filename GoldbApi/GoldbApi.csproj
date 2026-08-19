@@ -8,6 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Local deploy artifacts (publish_deployN/ output folders, deploy zips) live in this
+         project directory but must never be swept into the NEXT publish as "Content" -
+         without this, each publish recursively re-bundles every prior one, snowballing
+         the output size with every deploy. -->
+    <Content Remove="publish_deploy*/**" />
+    <Content Remove="*.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">

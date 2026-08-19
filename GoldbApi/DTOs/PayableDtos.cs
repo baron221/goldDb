@@ -88,6 +88,8 @@ public class PayableQueryDto
     public DateTime? EndDate { get; set; }
 
     public string? ProductName { get; set; }
+
+    public string? OrderNo { get; set; }
 }
 
 public class PayableOrderRowDto
@@ -148,10 +150,18 @@ public class PayableOrderItemSummaryDto
     public string? Memo { get; set; }
 
     public int Quantity { get; set; }
+
+    public decimal? ActualWeight { get; set; }
+
+    public decimal MaterialCost { get; set; }
+
+    public decimal LaborCost { get; set; }
 }
 
 public class PaymentApplicationDetailDto
 {
+
+    public int Id { get; set; }
 
     public int ChargeId { get; set; }
 
@@ -170,6 +180,38 @@ public class PaymentApplicationDetailDto
     public decimal AppliedAmount { get; set; }
 
     public decimal AppliedWeight { get; set; }
+
+    public decimal ChargeAmount { get; set; }
+
+    public decimal ChargeWeight { get; set; }
+
+    public decimal ChargeRemainingAmount { get; set; }
+
+    public decimal ChargeRemainingWeight { get; set; }
+}
+
+public class UpdatePaymentApplicationDto
+{
+
+    public decimal AppliedAmount { get; set; }
+
+    public decimal AppliedWeight { get; set; }
+}
+
+public class ChargeApplicationRowDto
+{
+
+    public int PaymentId { get; set; }
+
+    public decimal AppliedAmount { get; set; }
+
+    public decimal AppliedWeight { get; set; }
+
+    public DateTime PaymentCreatedAt { get; set; }
+
+    public bool IsCancelled { get; set; }
+
+    public string? Memo { get; set; }
 }
 
 public class PayableOrderHistorySummaryDto

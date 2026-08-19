@@ -36,6 +36,16 @@ public static class PayableEndpoints
             return Results.Ok(await service.GetPayableOrderHistorySummaryAsync(query));
         });
 
+        group.MapGet("/order-history/completed", async (IPayableService service, [AsParameters] PayableQueryDto query) =>
+        {
+            return Results.Ok(await service.GetCompletedPayableOrdersAsync(query));
+        });
+
+        group.MapGet("/charges/{chargeId:int}/applications", async (IPayableService service, int chargeId) =>
+        {
+            return Results.Ok(await service.GetChargeApplicationsAsync(chargeId));
+        });
+
         group.MapPost("/payment", async (IPayableService service, CreatePaymentDto request) =>
         {
             return Results.Ok(await service.ProcessPaymentAsync(request));
@@ -51,6 +61,11 @@ public static class PayableEndpoints
             return Results.Ok(await service.GetPaymentApplicationsAsync(id));
         });
 
+        group.MapPut("/applications/{applicationId:int}", async (IPayableService service, int applicationId, UpdatePaymentApplicationDto request) =>
+        {
+            return Results.Ok(await service.UpdatePaymentApplicationAsync(applicationId, request));
+        });
+
         group.MapPut("/{id:int}", async (IPayableService service, int id, UpdatePaymentDto request) =>
         {
             return Results.Ok(await service.UpdatePaymentAsync(id, request));
@@ -64,6 +79,11 @@ public static class PayableEndpoints
         group.MapPost("/{id:int}/mfg-process", async (IPayableService service, int id, MfgProcessDto request) =>
         {
             return Results.Ok(await service.MarkMfgProcessedAsync(id, request));
+        });
+
+        group.MapDelete("/{id:int}", async (IPayableService service, int id) =>
+        {
+            return Results.Ok(await service.DeletePaymentAsync(id));
         });
     }
 }

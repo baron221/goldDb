@@ -159,7 +159,7 @@ const goToDetail = (type: string, id: any) => {
       router.push(`/stock/stock_detail/${id}`);
       break;
     case 'order':
-      router.push({ path: '/my/order', query: { orderNo: id }});
+      router.push({ path: '/order/order', query: { orderNo: id }});
       break;
   }
 };

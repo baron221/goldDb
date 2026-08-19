@@ -132,15 +132,16 @@ public class StockService : IStockService
         var summary = new StockSummaryDto();
         foreach (var s in list)
         {
-            var purity = s.Purity ?? (s.Product != null ? s.Product.Purity : "");
+            var purity = (s.Purity ?? (s.Product != null ? s.Product.Purity : "") ?? "").ToUpperInvariant();
             var weight = s.ActualWeight * s.Quantity;
 
-            if (purity == "14K") summary.Total14KWeight += weight;
-            else if (purity == "18K") summary.Total18KWeight += weight;
-            else if (purity == "24K") summary.TotalPureGoldWeight += weight;
+            if (purity.Contains("24K") || purity.Contains("PURE")) summary.TotalPureGoldWeight += weight;
+            else if (purity.Contains("18K")) summary.Total18KWeight += weight;
+            else if (purity.Contains("14K")) summary.Total14KWeight += weight;
+            else if (purity.Contains("PT") || purity.Contains("PLATINUM")) summary.TotalPtWeight += weight;
         }
 
-        summary.TotalCalculatedPureGoldWeight = (summary.Total14KWeight * 0.6435m) + (summary.Total18KWeight * 0.825m) + summary.TotalPureGoldWeight;
+        summary.TotalCalculatedPureGoldWeight = (summary.Total14KWeight * 0.6435m) + (summary.Total18KWeight * 0.825m) + summary.TotalPureGoldWeight + (summary.TotalPtWeight * 0.95m);
 
         return ApiResponse<StockSummaryDto>.Success(summary);
     }

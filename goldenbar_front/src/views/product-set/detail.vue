@@ -69,7 +69,7 @@ const productSet = ref<any>({});
 const quantity = ref(1);
 const isFavorite = ref(false);
 const activeCollapseNames = ref(['description']);
-const defaultImage = 'https://via.placeholder.com/600x600?text=No+Set+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const isRetailUser = computed(() => userStore.companyType === 'RTL');
 const isMfgUser = computed(() => userStore.companyType === 'MFG');

@@ -120,7 +120,7 @@ public class ProductSetService : IProductSetService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(s => s.CreatedAt)
+            .OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .ProjectToType<ProductSetDto>()

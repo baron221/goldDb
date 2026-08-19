@@ -294,7 +294,7 @@ const emit = defineEmits([
 const { t } = useI18n();
 const cartTableRef = ref();
 const selectedItems = ref<any[]>([]);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const handleSelectionChange = (val: any[]) => {
   selectedItems.value = val;

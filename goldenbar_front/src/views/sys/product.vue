@@ -242,7 +242,8 @@ const listQuery = reactive({
   categoryMedium: '',
   categorySmall: '',
   companyId: undefined,
-  isPublic: undefined
+  isPublic: undefined,
+  purity: undefined
 });
 
 const dialogFormVisible = ref(false);
@@ -278,7 +279,8 @@ const resetQuery = () => {
     categoryMedium: '',
     categorySmall: '',
     companyId: isCompanyUser.value ? userStore.companyId || undefined : undefined,
-    isPublic: undefined
+    isPublic: undefined,
+    purity: undefined
   });
   getList();
 };

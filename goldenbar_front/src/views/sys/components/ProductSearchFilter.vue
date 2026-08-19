@@ -38,6 +38,14 @@
       <el-form-item :label="$t('stock.labels.manufacturer')">
         <company-select v-model="localQuery.companyId" category="MFG" :disabled="isCompanyUser" />
       </el-form-item>
+      <el-form-item :label="$t('productDetail.labels.purity')">
+        <el-select v-model="localQuery.purity" placeholder="전체" clearable style="width: 120px;" @change="handleFilter">
+          <el-option label="14K" value="14K" />
+          <el-option label="18K" value="18K" />
+          <el-option label="24K" value="24K" />
+          <el-option label="PT" value="PT" />
+        </el-select>
+      </el-form-item>
       <el-form-item :label="$t('sys.product.headers.public')">
         <el-select v-model="localQuery.isPublic" :placeholder="$t('order.tabs.all')" clearable style="width: 120px;">
           <el-option :label="$t('sys.product.headers.public')" :value="true" />

@@ -85,43 +85,6 @@
           </template>
         </el-table-column>
 
-        <el-table-column
-          label="비용"
-          width="220"
-          align="center"
-          header-align="center"
-          :excel-formatter="(row) => `재료비: ${row.retailerConfirmMaterialCost || 0}\n수공비: ${row.retailerConfirmLaborCost || 0}`"
-        >
-          <template #default="scope">
-            <div class="request-item">
-              <label>재료비:</label>
-              <amount-input v-model="scope.row.retailerConfirmMaterialCost" placeholder="재료비" style="width: 120px;" />
-            </div>
-            <div class="request-item">
-              <label>수공비:</label>
-              <amount-input v-model="scope.row.retailerConfirmLaborCost" placeholder="수공비" style="width: 120px;" />
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="공장 의뢰"  align="center" header-align="center" width="200" :excel-formatter="scope => `중량: ${scope.requestedWeight || 0}g, 메모: ${scope.requestedMemo || '-'}`">
-          <template #default="scope">
-            <div class="request-item">
-              <label>중량:</label>
-              <el-input-number
-                v-model="scope.row.requestedWeight"
-                :precision="2"
-                :step="0.1"
-                :min="0"
-                style="width: 120px"
-              />
-            </div>
-            <div class="request-item">
-              <label>메모:</label>
-              <el-input v-model="scope.row.requestedMemo" placeholder="공장 의뢰 메모" clearable style="width: 120px" />
-            </div>
-          </template>
-        </el-table-column>
-
       </base-table>
 
       <el-row :gutter="20">
@@ -172,7 +135,6 @@ import { fetchStocks, exhaustStockItem } from '@/api/stock';
 import useUserStore from '@/store/modules/user';
 import BasePopup from '@/components/BasePopup/index.vue';
 import BaseTable from '@/components/BaseTable/index.vue';
-import AmountInput from '@/components/AmountInput/index.vue';
 
 const userStore = useUserStore();
 
@@ -186,7 +148,7 @@ const emit = defineEmits(['update:modelValue', 'completed']);
 
 const visible = ref(false);
 const submitLoading = ref(false);
-const defaultImage = 'https://via.placeholder.com/100x100?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 
 const requestForm = reactive({
   items: [] as any[],
@@ -389,23 +351,6 @@ const tableRowClassName = ({ row }: { row: any }) => {
 </script>
 
 <style scoped>
-.request-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  margin-bottom: 0.375rem;
-}
-.request-item:last-child {
-  margin-bottom: 0;
-}
-.request-item label {
-  width: 35px;
-  text-align: right;
-  font-size: 0.95rem;
-  color: #606266;
-  flex-shrink: 0;
-}
 .product-info-cell {
   display: flex;
   align-items: center;

@@ -52,7 +52,7 @@ const codeStore = useCodeStore();
 const stock = ref<any>({});
 const activePhoto = ref('');
 const activeCollapseNames = ref(['order']);
-const defaultImage = 'https://via.placeholder.com/600x600?text=No+Image';
+const defaultImage = '/thumb_no_img.png';
 const codeMap = computed(() => codeStore.codeMap);
 const widePhotos = ref<Set<string>>(new Set());
 
@@ -147,7 +147,7 @@ const getDetail = async () => {
 const goBack = () => router.back();
 
 const goToOrder = (orderNo: string) => {
-  router.push({ path: '/my/order', query: { orderNo }});
+  router.push({ path: '/order/order', query: { orderNo }});
 };
 
 onMounted(() => {

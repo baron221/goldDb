@@ -253,7 +253,7 @@ export default defineComponent({
       }
 
       this.router.push({
-        path: '/my/order',
+        path: '/order/order',
         query: {
           status: status,
           excludeCompleted: excludeCompleted ? 'true' : 'false'

@@ -66,7 +66,7 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
         var pageSize = query.PageSize ?? 50;
 
         var items = await dbQuery
-            .OrderByDescending(s => s.CreatedAt)
+            .OrderByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(s => new StockDto

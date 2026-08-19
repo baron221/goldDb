@@ -39,6 +39,21 @@ export function getPayableOrderHistorySummary(params: any) {
   });
 }
 
+export function getCompletedPayableOrders(params: any) {
+  return request({
+    url: '/payables/order-history/completed',
+    method: 'get',
+    params
+  });
+}
+
+export function getChargeApplications(chargeId: number) {
+  return request({
+    url: `/payables/charges/${chargeId}/applications`,
+    method: 'get'
+  });
+}
+
 export function processPayment(data: any) {
   return request({
     url: '/payables/payment',
@@ -62,6 +77,13 @@ export function cancelPayable(id: number) {
   });
 }
 
+export function deletePayable(id: number) {
+  return request({
+    url: `/payables/${id}`,
+    method: 'delete'
+  });
+}
+
 export function getOrderChargeSummary(orderIds: number[]) {
   return request({
     url: '/payables/order-charge-summary',
@@ -74,5 +96,13 @@ export function getPaymentApplications(paymentId: number) {
   return request({
     url: `/payables/${paymentId}/applications`,
     method: 'get'
+  });
+}
+
+export function updatePaymentApplication(applicationId: number, data: any) {
+  return request({
+    url: `/payables/applications/${applicationId}`,
+    method: 'put',
+    data
   });
 }
