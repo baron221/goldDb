@@ -25,7 +25,6 @@
           :orders="orders"
           :search-term="listQuery.orderNo"
           :is-mobile="isMobile"
-          @statement="openStatementDialog"
           @cancel="handleCancelOrder"
         />
 
@@ -43,45 +42,31 @@
         </div>
       </section>
     </div>
-
-    <transaction-statement-dialog
-      v-model="statementDialogVisible"
-      :order="selectedOrderForStatement"
-      :code-map="codeMap"
-      :statement="currentStatementData"
-    />
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
+import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
 import { useMobile } from '@/hooks/useMobile';
 import { useOrder } from './composables/useOrder';
 import OrderFilter from './components/OrderFilter.vue';
 import OrderList from './components/OrderList.vue';
-import TransactionStatementDialog from '@/components/TransactionStatementDialog/index.vue';
 import useCodeStore from '@/store/modules/code';
 
 const { isMobile } = useMobile();
 const codeStore = useCodeStore();
-const codeMap = computed(() => codeStore.codeMap);
 const { t } = useI18n();
 const {
   orders,
   totalCount,
   loading,
   listQuery,
-  statementDialogVisible,
-  selectedOrderForStatement,
-  currentStatementData,
   getList,
   handleFilter,
   handleStatusChange,
-  updateStatus,
-  openStatementDialog
+  updateStatus
 } = useOrder();
 
 const handleCancelOrder = (order: any) => {

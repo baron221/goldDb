@@ -165,14 +165,29 @@ const getCartList = async () => {
     if (itemListRef.value && cartItems.value.length > 0) {
       const buyNowProductId = router.currentRoute.value.query.buyNowProductId;
 
-      cartItems.value.forEach(row => {
-        if (buyNowProductId) {
-          const isTarget = row.productId === parseInt(buyNowProductId as string);
-          itemListRef.value.toggleRowSelection(row, isTarget);
-        } else {
-          itemListRef.value.toggleRowSelection(row, true);
+      // 소매점(RTL)은 한 번에 하나의 상품만 주문할 수 있으므로, 기본 선택도 하나만
+      // (buyNowProductId가 있으면 그 상품, 없으면 첫 번째 상품) 되도록 한다. 같은
+      // productId가 색상/사이즈가 달라 장바구니에 여러 행으로 들어있을 수 있으므로,
+      // find()로 정확히 한 행만 골라 선택한다 - forEach로 모든 일치 행에 true를
+      // 주면 여러 행이 동시에 선택되어 "1개씩 주문" 제한이 깨진다.
+      if (userStore.companyType === 'RTL') {
+        itemListRef.value.clearSelection();
+        const targetRow = buyNowProductId
+          ? cartItems.value.find(row => row.productId === parseInt(buyNowProductId as string))
+          : cartItems.value[0];
+        if (targetRow) {
+          itemListRef.value.toggleRowSelection(targetRow, true);
         }
-      });
+      } else {
+        cartItems.value.forEach(row => {
+          if (buyNowProductId) {
+            const isTarget = row.productId === parseInt(buyNowProductId as string);
+            itemListRef.value.toggleRowSelection(row, isTarget);
+          } else {
+            itemListRef.value.toggleRowSelection(row, true);
+          }
+        });
+      }
     }
   } catch (error) {
     console.error(error);

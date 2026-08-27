@@ -1,5 +1,13 @@
 <template>
 <div>
+    <el-row :gutter="20">
+      <el-col :xs="24" :sm="12">
+        <el-form-item :label="$t('productDialog.basicLoss')" prop="basicLoss">
+          <el-input-number v-model="localTemp.basicLoss" :precision="2" :step="0.01" style="width: 100%;" />
+        </el-form-item>
+      </el-col>
+    </el-row>
+
     <el-divider content-position="left">{{ $t('productDialog.centerStoneTitle') }}</el-divider>
     <el-row :gutter="20">
       <el-col :xs="24" :sm="12">

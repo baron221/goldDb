@@ -57,20 +57,6 @@
             v-model="detailQuery.categoryLarge"
             group-code="PRODUCT_CATEGORY"
             placeholder="대분류"
-            style="width: 120px; margin-right: 0.3125rem;"
-            @change="(val, options) => handleLargeChange(val, options)"
-          />
-          <common-select
-            v-model="detailQuery.categoryMedium"
-            :parent-id="largeId"
-            placeholder="중분류"
-            style="width: 120px; margin-right: 0.3125rem;"
-            @change="(val, options) => handleMediumChange(val, options)"
-          />
-          <common-select
-            v-model="detailQuery.categorySmall"
-            :parent-id="mediumId"
-            placeholder="소분류"
             style="width: 120px;"
             @change="handleDetailFilter"
           />
@@ -223,8 +209,6 @@ const detailLoading = ref(false);
 const detailList = ref<any[]>([]);
 const detailTotal = ref(0);
 const manufacturers = ref<any[]>([]);
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
 const dateRange = ref<string[]>([]);
 const defaultImage = '/thumb_no_img.png';
 
@@ -269,22 +253,6 @@ const fetchManufacturers = async () => {
   }
 };
 
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  detailQuery.categoryMedium = '';
-  detailQuery.categorySmall = '';
-  mediumId.value = null;
-  handleDetailFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  detailQuery.categorySmall = '';
-  handleDetailFilter();
-};
-
 const handleDateChange = (val: string[] | null) => {
   if (val) {
     detailQuery.startDate = val[0];
@@ -306,8 +274,6 @@ const resetQuery = () => {
   detailQuery.categorySmall = '';
   detailQuery.startDate = undefined;
   detailQuery.endDate = undefined;
-  largeId.value = null;
-  mediumId.value = null;
   dateRange.value = [];
   handleDetailFilter();
 };

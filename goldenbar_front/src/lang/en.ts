@@ -1353,6 +1353,8 @@ export default {
     laborCostPlaceholder: 'Enter labor cost',
     designNotice: 'Design Notice',
     designNoticePlaceholder: 'Enter design notice details',
+    specialNote: 'Special Note',
+    specialNotePlaceholder: 'Enter any special notes',
     sizes: 'Product Size',
     sizesPlaceholder: 'e.g. 1호 (free text)',
     productSize: 'Product Size',

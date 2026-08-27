@@ -121,14 +121,6 @@ watch(() => props.activeTab, (newVal) => {
   localActiveTab.value = newVal;
 });
 
-watch(() => props.currentCustomer, (newVal) => {
-  if (newVal && newVal.id && !props.isNewMode) {
-    fetchCustomerOrders(newVal.id);
-  } else {
-    customerOrders.value = [];
-  }
-}, { immediate: true });
-
 const fetchCustomerOrders = async (customerId: number) => {
   ordersLoading.value = true;
   try {
@@ -141,6 +133,18 @@ const fetchCustomerOrders = async (customerId: number) => {
     ordersLoading.value = false;
   }
 };
+
+// immediate:true fires synchronously while this component is still being set up, so
+// fetchCustomerOrders must already be defined above this point (a const isn't hoisted the
+// way a function declaration would be - referencing it before its own line throws a
+// "Cannot access before initialization" TDZ error).
+watch(() => props.currentCustomer, (newVal) => {
+  if (newVal && newVal.id && !props.isNewMode) {
+    fetchCustomerOrders(newVal.id);
+  } else {
+    customerOrders.value = [];
+  }
+}, { immediate: true });
 
 const handleSave = () => {
   if (formRef.value) {

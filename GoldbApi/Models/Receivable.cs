@@ -49,4 +49,7 @@ public class Receivable : BaseModel
 
     [Description("취소 여부")]
     public bool IsCancelled { get; set; } = false;
+
+    [Description("이 입금을 발생시킨 Payable(정산처리) 결제 ID - MFG-DCC 정산이 이 주문의 미수금에 비례 반영된 경우에만 값이 있음")]
+    public int? SourcePaymentId { get; set; }
 }

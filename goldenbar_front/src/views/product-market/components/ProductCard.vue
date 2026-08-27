@@ -71,7 +71,7 @@
     <div class="product-details-box">
       <div class="product-title-row">
         <h3 class="product-name-title" :title="item.name || item.title">{{ item.name || item.title }}</h3>
-        <div class="manufacturer-badge" v-if="item.companyName && userStore.companyType !== 'RTL'">
+        <div class="manufacturer-badge" v-if="item.companyName && userStore.companyType !== 'RTL' && userStore.companyType !== 'MFG'">
           {{ item.companyName }}
         </div>
         <div class="category-meta-wrap" :title="getCategoryName()">

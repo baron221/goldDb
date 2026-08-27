@@ -253,6 +253,14 @@ public class OrderQueryDto
 
     public bool? ExcludeCompleted { get; set; }
 
+    // Broader than ExcludeCompleted (which only ever meant the literal "Completed"
+    // status): hides every stage past the factory's own work (InspectedRequested
+    // onward - inspection, settlement, delivery, completion) regardless of which
+    // Status/status-group filter is also selected. Kept as its own flag rather than
+    // widening ExcludeCompleted, since other pages (e.g. logistics-approval) already
+    // depend on ExcludeCompleted meaning only "Completed".
+    public bool? ExcludePostInspected { get; set; }
+
     public bool? IsAsOnly { get; set; }
 
     public bool? IsPayableSettled { get; set; }

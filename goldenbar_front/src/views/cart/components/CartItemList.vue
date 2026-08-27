@@ -4,9 +4,11 @@
       ref="cartTableRef"
       v-loading="loading"
       :data="cartItems"
+      row-key="id"
       style="width: 100%"
       class="custom-cart-table d-none-mobile"
       @selection-change="handleSelectionChange"
+      @select-all="handleSelectAll"
     >
       <el-table-column type="selection" width="55" align="center" />
 
@@ -161,7 +163,7 @@
         <div class="mobile-card-header">
           <el-checkbox
             :model-value="selectedItems.some(i => i.id === row.id)"
-            @change="(val) => handleMobileCheckboxChange(row, val)"
+            @change="(val: boolean) => handleMobileCheckboxChange(row, val)"
           ><span class="mobile-checkbox-label">선택</span></el-checkbox>
           <el-button link class="delete-icon-btn" :icon="Delete" @click="handleRemove(row)" />
         </div>
@@ -252,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { updateCartPrice, removeFromCart, updateCartQuantity } from '@/api/cart';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -296,15 +298,41 @@ const cartTableRef = ref();
 const selectedItems = ref<any[]>([]);
 const defaultImage = '/thumb_no_img.png';
 
+const isSingleSelectOnly = computed(() => props.userStore.companyType === 'RTL');
+
+// 소매점(RTL)은 한 번에 하나의 상품만 주문할 수 있어야 하므로, 새로 선택된 행 외의
+// 기존 선택은 모두 해제한다 (체크박스를 라디오처럼 동작시킴). This used to live in a
+// separate @select handler that reacted after the fact by calling toggleRowSelection,
+// which fires its own selection-change events - depending on event ordering, the last one
+// to land could be the browser's own (still multi-row) event, leaving selectedItems (and
+// so the order summary) out of sync with what the checkboxes visually show. Enforcing it
+// directly here, in the one handler that's the actual source of truth, removes that race.
 const handleSelectionChange = (val: any[]) => {
+  if (isSingleSelectOnly.value && val.length > 1) {
+    const previousIds = new Set(selectedItems.value.map((item) => item.id));
+    const newlyChecked = val.find((item) => !previousIds.has(item.id)) || val[val.length - 1];
+    val.filter((item) => item.id !== newlyChecked.id).forEach((item) => {
+      cartTableRef.value?.toggleRowSelection(item, false);
+    });
+    selectedItems.value = [newlyChecked];
+    emit('selection-change', [newlyChecked]);
+    return;
+  }
   selectedItems.value = val;
   emit('selection-change', val);
 };
 
+const handleSelectAll = () => {
+  if (!isSingleSelectOnly.value || !cartTableRef.value) return;
+  cartTableRef.value.clearSelection();
+};
+
 const handleMobileCheckboxChange = (row: any, checked: boolean) => {
-  if (cartTableRef.value) {
-    cartTableRef.value.toggleRowSelection(row, checked);
+  if (!cartTableRef.value) return;
+  if (checked && isSingleSelectOnly.value) {
+    cartTableRef.value.clearSelection();
   }
+  cartTableRef.value.toggleRowSelection(row, checked);
 };
 
 const handleQuantityChange = async (row: any, val: number) => {
@@ -352,8 +380,15 @@ const toggleRowSelection = (row: any, select: boolean) => {
   }
 };
 
+const clearSelection = () => {
+  if (cartTableRef.value) {
+    cartTableRef.value.clearSelection();
+  }
+};
+
 defineExpose({
-  toggleRowSelection
+  toggleRowSelection,
+  clearSelection
 });
 </script>
 

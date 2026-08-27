@@ -68,22 +68,6 @@
           @update:model-value="val => updateField('categoryLarge', val)"
           group-code="PRODUCT_CATEGORY"
           placeholder="대분류"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => $emit('large-change', val, options)"
-        />
-        <common-select
-          :model-value="modelValue.categoryMedium"
-          @update:model-value="val => updateField('categoryMedium', val)"
-          :parent-id="largeId"
-          placeholder="중분류"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => $emit('medium-change', val, options)"
-        />
-        <common-select
-          :model-value="modelValue.categorySmall"
-          @update:model-value="val => updateField('categorySmall', val)"
-          :parent-id="mediumId"
-          placeholder="소분류"
           style="width: 120px;"
           @change="handleFilter"
         />
@@ -95,22 +79,6 @@
           @update:model-value="val => updateField('setCategoryLarge', val)"
           group-code="PRODUCT_CATEGORY"
           placeholder="대분류"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => $emit('set-large-change', val, options)"
-        />
-        <common-select
-          :model-value="modelValue.setCategoryMedium"
-          @update:model-value="val => updateField('setCategoryMedium', val)"
-          :parent-id="setLargeId"
-          placeholder="중분류"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => $emit('set-medium-change', val, options)"
-        />
-        <common-select
-          :model-value="modelValue.setCategorySmall"
-          @update:model-value="val => updateField('setCategorySmall', val)"
-          :parent-id="setMediumId"
-          placeholder="소분류"
           style="width: 120px;"
           @change="handleFilter"
         />

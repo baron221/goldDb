@@ -91,12 +91,13 @@
 
 <script setup lang="ts">
 
-import { ref, reactive, onMounted, nextTick, computed } from 'vue';
+import { ref, reactive, onMounted, onActivated, nextTick, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { getAllOrders, updateOrderStatus, saveOrderStatement, getOrderStatement } from '@/api/order';
 import { getCompanies } from '@/api/company';
 import { getPayableSummaryForOrder } from '@/api/payable';
+import { processDeposit, getReceivableChargeSummary } from '@/api/receivable';
 import useCodeStore from '@/store/modules/code';
 import { ElMessage, ElLoading } from 'element-plus';
 import { parseTime } from '@/utils';
@@ -133,11 +134,14 @@ const openHistoryDialog = (row: any) => { selectedOrderId.value = row.id; histor
 const handleStockExhaustion = (row: any) => { currentOrder.value = row; exhaustionDialogVisible.value = true; };
 const openRequestDialog = (row: any) => { currentOrder.value = row; requestDialogVisible.value = true; };
 
-const end = new Date();
-const start = new Date();
-start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
-const defaultStartDate = parseTime(start, '{y}-{m}-{d}');
-const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
+const computeDefaultDateRange = () => {
+  const end = new Date();
+  const start = new Date();
+  start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+  return { start: parseTime(start, '{y}-{m}-{d}'), end: parseTime(end, '{y}-{m}-{d}') };
+};
+
+let { start: defaultStartDate, end: defaultEndDate } = computeDefaultDateRange();
 
 const orderStatusCodes = ref<any[]>([]);
 const scrollPosition = ref(0);
@@ -328,6 +332,28 @@ const onSettlementConfirmed = async (order: any) => {
       settlementAmount: order.settlementAmount
     });
 
+    // The dialog's own helper text promises "입력된 금액만큼 즉시 입금(DEPOSIT) 처리됩니다"
+    // but nothing here ever actually recorded a deposit - the retailer's charge stayed fully
+    // outstanding and 결제(C) always read ₩0 regardless of what was confirmed as 실수납 금액.
+    // Apply the confirmed cash amount as a real DEPOSIT against this order's Receivable
+    // charge (using the charge's own weight so the gold-weight side closes out together).
+    if (order.settlementAmount > 0) {
+      try {
+        const summaryRes: any = await getReceivableChargeSummary([order.id]);
+        const chargeWeight = summaryRes.data?.saleWeight || 0;
+        await processDeposit({
+          userId: order.userId,
+          orderId: order.id,
+          amount: order.settlementAmount,
+          weight: chargeWeight,
+          memo: '정산 확인 요청을 통한 자동 입금 처리'
+        });
+      } catch (depositError) {
+        console.error('Failed to process deposit for confirmed settlement:', depositError);
+        ElMessage.warning('정산은 완료되었으나 입금 처리 중 오류가 발생했습니다. 미수금 관리에서 수동으로 확인해주세요.');
+      }
+    }
+
     ElMessage.success(t('admin.settlement.messages.settlementSuccess'));
     settlementConfirmDialogVisible.value = false;
     getList();
@@ -369,6 +395,8 @@ const openInspectionDialog = (row: any) => {
   inspectionDialogVisible.value = true;
 };
 
+let hasMountedOnce = false;
+
 onMounted(() => {
   if (!isAdmin.value) {
     listQuery.logisticsCompanyId = store.user().companyId;
@@ -384,6 +412,31 @@ onMounted(() => {
   fetchCompanies();
   fetchOrderStatuses();
   getList();
+  hasMountedOnce = true;
+});
+
+// This tab is kept alive (see AppMain.vue's <keep-alive>), so the "today" captured
+// in defaultStartDate/defaultEndDate at module setup goes stale the moment the real
+// calendar day rolls over while the tab just sits cached in the background - a
+// freshly-placed order then silently falls outside the still-yesterday date filter
+// until the user notices and touches it manually. Re-derive the default range (and
+// only it - never a range the user deliberately picked) every time this tab is
+// revisited, so it keeps tracking "today" across day boundaries.
+onActivated(() => {
+  if (!hasMountedOnce) return;
+
+  const wasOnDefaultRange = listQuery.startDate === defaultStartDate && listQuery.endDate === defaultEndDate;
+  const fresh = computeDefaultDateRange();
+  if (fresh.end === defaultEndDate) return;
+
+  defaultStartDate = fresh.start;
+  defaultEndDate = fresh.end;
+
+  if (wasOnDefaultRange) {
+    listQuery.startDate = defaultStartDate;
+    listQuery.endDate = defaultEndDate;
+    getList();
+  }
 });
 </script>
 

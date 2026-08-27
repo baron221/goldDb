@@ -17,20 +17,6 @@
           v-model="localQuery.categoryLarge"
           group-code="PRODUCT_CATEGORY"
           :placeholder="$t('productMarket.labels.selectLarge')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleLargeChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          :placeholder="$t('productMarket.labels.selectMedium')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleMediumChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          :placeholder="$t('productMarket.labels.selectSmall')"
           style="width: 120px;"
           @change="handleFilter"
         />
@@ -62,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { reactive, watch } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
@@ -91,32 +77,11 @@ watch(localQuery, (newVal) => {
   emit('update:query', newVal);
 }, { deep: true, flush: 'sync' });
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  localQuery.categoryMedium = '';
-  localQuery.categorySmall = '';
-  mediumId.value = null;
-  handleFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  localQuery.categorySmall = '';
-  handleFilter();
-};
-
 const handleFilter = () => {
   emit('filter');
 };
 
 const resetQuery = () => {
-  largeId.value = null;
-  mediumId.value = null;
   emit('reset');
 };
 

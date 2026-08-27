@@ -41,24 +41,6 @@
           group-code="PRODUCT_CATEGORY"
           placeholder="대분류"
           class="luxury-input"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleLargeChange(val, options)"
-        />
-        <common-select
-          v-if="largeId !== null"
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          placeholder="중분류"
-          class="luxury-input"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleMediumChange(val, options)"
-        />
-        <common-select
-          v-if="largeId !== null && mediumId !== null"
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          placeholder="소분류"
-          class="luxury-input"
           style="width: 120px;"
           @change="onFilter"
         />
@@ -69,24 +51,6 @@
           v-model="localQuery.setCategoryLarge"
           group-code="PRODUCT_CATEGORY"
           placeholder="대분류"
-          class="luxury-input"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetLargeChange(val, options)"
-        />
-        <common-select
-          v-if="setLargeId !== null"
-          v-model="localQuery.setCategoryMedium"
-          :parent-id="setLargeId"
-          placeholder="중분류"
-          class="luxury-input"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetMediumChange(val, options)"
-        />
-        <common-select
-          v-if="setLargeId !== null && setMediumId !== null"
-          v-model="localQuery.setCategorySmall"
-          :parent-id="setMediumId"
-          placeholder="소분류"
           class="luxury-input"
           style="width: 120px;"
           @change="onFilter"
@@ -106,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
+import { reactive, watch } from 'vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 
 const props = defineProps<{
@@ -125,43 +89,8 @@ watch(localQuery, (newVal) => {
   emit('update:query', newVal);
 }, { deep: true, flush: 'sync' });
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
 const onFilter = () => {
   emit('filter');
-};
-
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  localQuery.categoryMedium = '';
-  localQuery.categorySmall = '';
-  onFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  localQuery.categorySmall = '';
-  onFilter();
-};
-
-const handleSetLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  localQuery.setCategoryMedium = '';
-  localQuery.setCategorySmall = '';
-  onFilter();
-};
-
-const handleSetMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  localQuery.setCategorySmall = '';
-  onFilter();
 };
 </script>
 

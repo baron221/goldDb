@@ -41,9 +41,19 @@ public static class PayableEndpoints
             return Results.Ok(await service.GetCompletedPayableOrdersAsync(query));
         });
 
+        group.MapGet("/overdue-summary", async (IPayableService service, [AsParameters] PayableOverdueQueryDto query) =>
+        {
+            return Results.Ok(await service.GetPayableOverdueSummaryAsync(query));
+        });
+
         group.MapGet("/charges/{chargeId:int}/applications", async (IPayableService service, int chargeId) =>
         {
             return Results.Ok(await service.GetChargeApplicationsAsync(chargeId));
+        });
+
+        group.MapGet("/{id:int}/ledger-before", async (IPayableService service, int id) =>
+        {
+            return Results.Ok(await service.GetLedgerBeforeAsync(id));
         });
 
         group.MapPost("/payment", async (IPayableService service, CreatePaymentDto request) =>

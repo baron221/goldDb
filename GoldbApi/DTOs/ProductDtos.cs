@@ -52,6 +52,10 @@ public class ProductDto
 
     public string? SpecialNote { get; set; }
 
+    // Only populated for the owning manufacturer (or admin) - see ProductService's
+    // read-path redaction. Null for every other viewer regardless of what's stored.
+    public string? WorkNote { get; set; }
+
     public bool IsPublic { get; set; }
 
     public decimal LaborCost { get; set; }
@@ -125,6 +129,8 @@ public class CreateProductDto
     public string? Description { get; set; }
 
     public string? SpecialNote { get; set; }
+
+    public string? WorkNote { get; set; }
 
     public bool IsPublic { get; set; }
 

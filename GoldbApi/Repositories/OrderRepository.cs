@@ -400,13 +400,30 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
 
     private IQueryable<Order> ApplyFilters(IQueryable<Order> dbQuery, OrderQueryDto query)
     {
+        // Independent of whatever Status/status-group filter is selected below - "hide
+        // cancelled" (and, for factory-request.vue, "hide everything past my own stage")
+        // should always mean that, not just when no other status filter is active.
+        // Applying these BEFORE pagination is what keeps totalCount and the Skip/Take
+        // window consistent; a caller that instead fetches everything and filters the
+        // returned page client-side ends up with pages that don't match the true total.
+        if (query.ExcludeCancelled == true)
+        {
+            dbQuery = dbQuery.Where(o => o.Status.ToUpper() != "CANCELLED" && o.Status.ToUpper() != "SETTLED_CANCELLED");
+        }
+
+        // Only narrows the default/broad views (no status chosen, or the broad
+        // "Factory_Group" tab) - a caller that explicitly picked one of the specific
+        // post-inspected status tabs (제품출고/물류도착/정산/수령완료 etc.) is deliberately
+        // asking to see exactly that stage, and this flag must not fight that choice
+        // and silently zero out the results.
+        if (query.ExcludePostInspected == true && (string.IsNullOrWhiteSpace(query.Status) || query.Status == "Factory_Group"))
+        {
+            var postInspectedStatuses = new[] { "InspectedRequested", "Inspected", "PENDING", "PROCESSING", "SETTLED", "SETTLED_CANCELLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
+            dbQuery = dbQuery.Where(o => !postInspectedStatuses.Contains(o.Status));
+        }
+
         if (string.IsNullOrWhiteSpace(query.Status))
         {
-            if (query.ExcludeCancelled == true)
-            {
-                dbQuery = dbQuery.Where(o => o.Status.ToUpper() != "CANCELLED" && o.Status.ToUpper() != "SETTLED_CANCELLED");
-            }
-
             if (query.ExcludeCompleted == true)
             {
                 dbQuery = dbQuery.Where(o => o.Status.ToUpper() != "COMPLETED");

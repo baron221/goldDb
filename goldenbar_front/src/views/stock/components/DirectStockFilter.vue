@@ -25,20 +25,6 @@
             group-code="PRODUCT_CATEGORY"
             placeholder="대분류"
             style="width: 120px;"
-            @change="(val, options) => handleLargeChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.categoryMedium"
-            :parent-id="largeId"
-            placeholder="중분류"
-            style="width: 120px;"
-            @change="(val, options) => handleMediumChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.categorySmall"
-            :parent-id="mediumId"
-            placeholder="소분류"
-            style="width: 120px;"
             @change="handleFilter"
           />
         </div>
@@ -50,20 +36,6 @@
             v-model="localQuery.setCategoryLarge"
             group-code="PRODUCT_CATEGORY"
             placeholder="대분류"
-            style="width: 120px;"
-            @change="(val, options) => handleSetLargeChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.setCategoryMedium"
-            :parent-id="setLargeId"
-            placeholder="중분류"
-            style="width: 120px;"
-            @change="(val, options) => handleSetMediumChange(val, options)"
-          />
-          <common-select
-            v-model="localQuery.setCategorySmall"
-            :parent-id="setMediumId"
-            placeholder="소분류"
             style="width: 120px;"
             @change="handleFilter"
           />
@@ -140,43 +112,6 @@ watch(() => props.modelValue, (newVal) => {
 watch(localQuery, (newVal) => {
   emit('update:modelValue', newVal);
 }, { deep: true, flush: 'sync' });
-
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  localQuery.value.categoryMedium = undefined;
-  localQuery.value.categorySmall = undefined;
-  mediumId.value = null;
-  handleFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  localQuery.value.categorySmall = undefined;
-  handleFilter();
-};
-
-const handleSetLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  localQuery.value.setCategoryMedium = undefined;
-  localQuery.value.setCategorySmall = undefined;
-  setMediumId.value = null;
-  handleFilter();
-};
-
-const handleSetMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  localQuery.value.setCategorySmall = undefined;
-  handleFilter();
-};
 
 const handleFilter = () => {
   emit('filter');

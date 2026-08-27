@@ -1,6 +1,59 @@
 <template>
 <div class="settlement-management-container app-container">
 
+    <el-card v-if="isDcc" shadow="never" class="filter-card" style="margin-bottom: 1.25rem;">
+      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">미수 잔액 (이미 정산된 주문 중 잔액이 남은 건)</div>
+      <el-form :inline="true" :model="dccOrderQuery" class="demo-form-inline">
+        <el-form-item label="소매점">
+          <el-select v-model="dccOrderQuery.userId" placeholder="전체" clearable style="width: 180px;">
+            <el-option v-for="c in dccRetailerList" :key="c.userId" :label="c.companyName || c.userDisplayName" :value="c.userId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="비고">
+          <el-input v-model="dccOrderQuery.remarks" placeholder="비고" clearable @keyup.enter="handleDccOrderFilter" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="Search" @click="handleDccOrderFilter">조회</el-button>
+        </el-form-item>
+      </el-form>
+
+      <table class="order-history-summary-table" v-loading="dccOrderSummaryLoading">
+        <thead>
+          <tr>
+            <th></th>
+            <th>순금(g)</th>
+            <th>공임 및 현금</th>
+            <th>금액합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="summary-label">총 판매</td>
+            <td>{{ (dccOrderSummary.totalChargeWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(dccOrderSummary.totalChargeAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 결제</td>
+            <td>{{ (dccOrderSummary.totalPaidWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(dccOrderSummary.totalPaidAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 미수</td>
+            <td>{{ dccOrderOutstandingWeight.toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(dccOrderOutstandingAmount) }}</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </el-card>
+
+    <div v-if="isDcc" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9375rem;">
+      <div style="font-size: 1.1rem; font-weight: bold;">정산 확인 대기 (아직 확정되지 않은 주문)</div>
+      <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">주문 수기 등록</el-button>
+    </div>
     <settlement-management-filter
       :query="listQuery"
       @update:query="(val) => Object.assign(listQuery, val)"
@@ -44,9 +97,9 @@
                   </template>
                 </el-table-column>
                 <el-table-column :label="$t('orderDetail.headers.qty')" width="70" align="center" prop="quantity" />
-                <el-table-column prop="weight" :label="$t('orderDetail.headers.orderWeight')" width="90" align="center" :excel-formatter="(row) => row.weight ? row.weight + 'g' : '-'">
+                <el-table-column prop="orderWeight" :label="$t('orderDetail.headers.orderWeight')" width="90" align="center" :excel-formatter="(row) => (row.orderWeight || row.weight) ? (row.orderWeight || row.weight) + 'g' : '-'">
                   <template #default="item">
-                    <span>{{ item.row.weight ? item.row.weight + 'g' : '-' }}</span>
+                    <span>{{ (item.row.orderWeight || item.row.weight) ? (item.row.orderWeight || item.row.weight) + 'g' : '-' }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="confirmedWeight" :label="$t('orderDetail.headers.actualWeight')" width="110" align="center" :excel-formatter="(row) => row.confirmedWeight ? row.confirmedWeight + 'g' : '-'">
@@ -150,6 +203,11 @@
       :orders="currentOrders"
       @saved="onSettlementSaved"
     />
+
+    <order-manual-register-dialog
+      v-model="manualOrderDialogVisible"
+      @saved="onManualOrderSaved"
+    />
   </div>
 </template>
 
@@ -158,6 +216,8 @@ import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getAllOrders } from '@/api/order';
+import { getReceivableOrderHistorySummary, getUserSummaries } from '@/api/receivable';
+import { Search, Plus } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
@@ -166,10 +226,13 @@ import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
 import SettlementDialog from './components/SettlementDialog.vue';
 import SettlementManagementFilter from './components/SettlementManagementFilter.vue';
+import OrderManualRegisterDialog from './components/OrderManualRegisterDialog.vue';
 
 const { isMobile } = useMobile();
 const { t } = useI18n();
 const userStore = useUserStore();
+
+const isDcc = computed(() => userStore.companyType === 'DCC' || userStore.roles.includes('admin'));
 
 const listLoading = ref(true);
 const list = ref<any[]>([]);
@@ -182,6 +245,58 @@ const settlementDialogVisible = ref(false);
 const currentOrders = ref<any[]>([]);
 const tableRef = ref<any>(null);
 const selectedRows = ref<any[]>([]);
+
+// ---- DCC's own "미수 잔액" worklist - orders that already passed through the
+// PENDING/PROCESSING confirm-and-settle flow below (or were settled some other way) but
+// still have an outstanding Receivable balance (e.g. a partial payment was made). This is
+// deliberately separate from the generic order list above: that one's SettlementDialog
+// both fixes the final settlement amount AND can optionally collect a payment in the same
+// action, so an order only ever needs THIS worklist once it's past that confirm step and
+// still owes money - never for a still-PENDING order, to avoid bypassing the confirm step. ----
+
+const dccRetailerList = ref<any[]>([]);
+const dccOrderQuery = reactive({
+  userId: undefined as number | undefined,
+  remarks: ''
+});
+
+const dccOrderSummaryLoading = ref(false);
+const dccOrderSummary = reactive({
+  totalChargeAmount: 0,
+  totalChargeWeight: 0,
+  totalPaidAmount: 0,
+  totalPaidWeight: 0
+});
+const dccOrderOutstandingAmount = computed(() => Math.max(0, (dccOrderSummary.totalChargeAmount || 0) - (dccOrderSummary.totalPaidAmount || 0)));
+const dccOrderOutstandingWeight = computed(() => Math.max(0, (dccOrderSummary.totalChargeWeight || 0) - (dccOrderSummary.totalPaidWeight || 0)));
+
+const fetchDccRetailerList = async () => {
+  try {
+    const res: any = await getUserSummaries({ page: 1, pageSize: 1000 });
+    dccRetailerList.value = res.data.items || [];
+  } catch (error) {
+    console.error('Failed to fetch retailer list:', error);
+  }
+};
+
+const fetchDccOrderHistorySummary = async () => {
+  dccOrderSummaryLoading.value = true;
+  try {
+    // page/pageSize must still be sent (backend binds them as non-nullable ints - the
+    // request interceptor strips falsy params entirely, and omitting them 400s the whole
+    // request - same bug hit earlier on the Payable side's own summary call).
+    const res: any = await getReceivableOrderHistorySummary({ page: 1, pageSize: 1, userId: dccOrderQuery.userId });
+    Object.assign(dccOrderSummary, res.data);
+  } catch (error) {
+    console.error('Failed to fetch receivable order history summary:', error);
+  } finally {
+    dccOrderSummaryLoading.value = false;
+  }
+};
+
+const handleDccOrderFilter = () => {
+  fetchDccOrderHistorySummary();
+};
 
 const listQuery = reactive({
   page: 1,
@@ -301,6 +416,12 @@ const onSettlementSaved = () => {
   getList();
 };
 
+// A manually-registered order still has to pass through logistics approval/inspection
+// before it becomes a settleable charge, so it won't show up in this worklist yet -
+// nothing here needs to refresh.
+const manualOrderDialogVisible = ref(false);
+const onManualOrderSaved = () => {};
+
 const getOrderTotalAmount = (order: any) => {
   const isPostPending = isPostPendingStatus(order.status);
 
@@ -364,6 +485,10 @@ const memoFormatter = (row: any) => {
 
 onMounted(() => {
   getList();
+  if (isDcc.value) {
+    fetchDccRetailerList();
+    fetchDccOrderHistorySummary();
+  }
 });
 </script>
 

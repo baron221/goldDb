@@ -21,9 +21,39 @@ public static class ReceivableEndpoints
             return Results.Ok(await service.GetLogisticsSummaryAsync());
         });
 
+        group.MapGet("/order-history", async (IReceivableService service, [AsParameters] ReceivableOrderHistoryQueryDto query) =>
+        {
+            return Results.Ok(await service.GetReceivableOrderHistoryAsync(query));
+        });
+
+        group.MapGet("/order-history/summary", async (IReceivableService service, [AsParameters] ReceivableOrderHistoryQueryDto query) =>
+        {
+            return Results.Ok(await service.GetReceivableOrderHistorySummaryAsync(query));
+        });
+
+        group.MapGet("/order-history/completed", async (IReceivableService service, [AsParameters] ReceivableOrderHistoryQueryDto query) =>
+        {
+            return Results.Ok(await service.GetCompletedReceivableOrdersAsync(query));
+        });
+
+        group.MapGet("/overdue-summary", async (IReceivableService service, [AsParameters] ReceivableOverdueQueryDto query) =>
+        {
+            return Results.Ok(await service.GetReceivableOverdueSummaryAsync(query));
+        });
+
+        group.MapGet("/{chargeId:int}/charge-applications", async (IReceivableService service, int chargeId) =>
+        {
+            return Results.Ok(await service.GetReceivableChargeApplicationsAsync(chargeId));
+        });
+
         group.MapGet("/purity-summary", async (IReceivableService service, [FromQuery] int userId) =>
         {
             return Results.Ok(await service.GetPuritySummaryAsync(userId));
+        });
+
+        group.MapGet("/{id:int}/ledger-before", async (IReceivableService service, int id) =>
+        {
+            return Results.Ok(await service.GetLedgerBeforeAsync(id));
         });
 
         group.MapGet("/user-summary/{userId:int}", async (IReceivableService service, int userId) =>

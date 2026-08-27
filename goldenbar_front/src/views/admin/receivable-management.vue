@@ -1,6 +1,141 @@
 <template>
 <div class="receivable-management-container app-container">
-    <el-card shadow="never" class="filter-card">
+
+    <el-card v-if="isMfg" shadow="never" class="filter-card">
+      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">미수금 관리</div>
+      <el-form :inline="true" :model="overdueQuery" class="demo-form-inline">
+        <el-form-item label="거래처">
+          <company-select v-model="overdueQuery.logisticsCompanyId" category="DCC" placeholder="전체" style="width: 200px" @change="handleOverdueFilter" />
+        </el-form-item>
+        <el-form-item label="조회기간">
+          <el-date-picker
+            v-model="overdueDateRange"
+            type="daterange"
+            range-separator="~"
+            start-placeholder="시작일"
+            end-placeholder="종료일"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+            @change="handleOverdueDateChange"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="Search" @click="handleOverdueFilter">검색</el-button>
+          <el-button :icon="Refresh" @click="resetOverdueFilter">초기화</el-button>
+        </el-form-item>
+      </el-form>
+
+      <base-table v-loading="overdueLoading" :data="overdueList" border row-key="logisticsCompanyId" style="width: 100%; margin-top: 1.25rem;">
+        <el-table-column label="거래처명" width="160" align="center" prop="companyName" />
+        <el-table-column label="매출일자" width="130" align="center">
+          <template #default="{row}">{{ formatDate(row.saleDate) }}</template>
+        </el-table-column>
+        <el-table-column label="매출" min-width="150" align="right">
+          <template #default="{row}">
+            <div>공임: ₩{{ formatPrice(row.saleAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.saleWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="수금" min-width="150" align="right">
+          <template #default="{row}">
+            <div style="color: #67c23a;">공임: ₩{{ formatPrice(row.collectedAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.collectedWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="미수" min-width="150" align="right">
+          <template #default="{row}">
+            <div style="color: #f56c6c; font-weight: bold;">공임: ₩{{ formatPrice(row.outstandingAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="연체 일수" width="100" align="center">
+          <template #default="{row}">{{ row.overdueDays }}일</template>
+        </el-table-column>
+        <el-table-column label="작업" width="110" align="center">
+          <template #default="{row}">
+            <el-button type="primary" size="small" @click="openOverdueSettleDialog(row)">입금처리</el-button>
+          </template>
+        </el-table-column>
+      </base-table>
+
+      <batch-settle-dialog
+        v-model="overdueBatchSettleDialogVisible"
+        :order-ids="overdueOrderIds"
+        :single-mode="false"
+        @saved="onOverdueSettleSaved"
+      />
+    </el-card>
+
+    <el-card v-if="isDcc" shadow="never" class="filter-card">
+      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">미수금 관리</div>
+      <el-form :inline="true" :model="receivableOverdueQuery" class="demo-form-inline">
+        <el-form-item label="소매점">
+          <el-select v-model="receivableOverdueQuery.userId" placeholder="전체" clearable filterable style="width: 200px" @change="handleReceivableOverdueFilter">
+            <el-option v-for="c in list" :key="c.userId" :label="c.companyName || c.userDisplayName" :value="c.userId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="조회기간">
+          <el-date-picker
+            v-model="receivableOverdueDateRange"
+            type="daterange"
+            range-separator="~"
+            start-placeholder="시작일"
+            end-placeholder="종료일"
+            value-format="YYYY-MM-DD"
+            style="width: 260px"
+            @change="handleReceivableOverdueDateChange"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="Search" @click="handleReceivableOverdueFilter">검색</el-button>
+          <el-button :icon="Refresh" @click="resetReceivableOverdueFilter">초기화</el-button>
+        </el-form-item>
+      </el-form>
+
+      <base-table v-loading="receivableOverdueLoading" :data="receivableOverdueList" border row-key="userId" style="width: 100%; margin-top: 1.25rem;">
+        <el-table-column label="소매점" width="160" align="center">
+          <template #default="{row}">{{ row.companyName || row.userDisplayName }}</template>
+        </el-table-column>
+        <el-table-column label="매출일자" width="130" align="center">
+          <template #default="{row}">{{ formatDate(row.saleDate) }}</template>
+        </el-table-column>
+        <el-table-column label="매출" min-width="150" align="right">
+          <template #default="{row}">
+            <div>공임: ₩{{ formatPrice(row.saleAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.saleWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="수금" min-width="150" align="right">
+          <template #default="{row}">
+            <div style="color: #67c23a;">공임: ₩{{ formatPrice(row.collectedAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.collectedWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="미수" min-width="150" align="right">
+          <template #default="{row}">
+            <div style="color: #f56c6c; font-weight: bold;">공임: ₩{{ formatPrice(row.outstandingAmount) }}</div>
+            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="연체 일수" width="100" align="center">
+          <template #default="{row}">{{ row.overdueDays }}일</template>
+        </el-table-column>
+        <el-table-column label="작업" width="110" align="center">
+          <template #default="{row}">
+            <el-button type="primary" size="small" @click="openReceivableOverdueSettleDialog(row)">입금처리</el-button>
+          </template>
+        </el-table-column>
+      </base-table>
+
+      <receivable-batch-settle-dialog
+        v-model="receivableOverdueBatchSettleDialogVisible"
+        :order-ids="receivableOverdueOrderIds"
+        :single-mode="false"
+        @saved="onReceivableOverdueSettleSaved"
+      />
+    </el-card>
+
+    <el-card v-if="!isMfg && !isDcc" shadow="never" class="filter-card">
       <el-form :inline="true" :model="listQuery" class="demo-form-inline">
         <el-form-item label="사용자 검색">
           <el-input v-model="listQuery.search" placeholder="이름 또는 아이디" clearable @keyup.enter="handleFilter" />
@@ -12,7 +147,7 @@
       </el-form>
     </el-card>
 
-    <el-card shadow="never" style="margin-top: 1.25rem;">
+    <el-card v-if="!isMfg && !isDcc" shadow="never" style="margin-top: 1.25rem;">
       <base-table
         v-loading="listLoading"
         :data="list"
@@ -50,9 +185,16 @@
                     <el-tag v-if="item.row.isCancelled" type="info" size="small" style="margin-left: 0.25rem;">취소됨</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="orderNo" label="주문번호" width="180" align="center">
+                <el-table-column prop="orderNo" label="주문내용" min-width="220" align="left" :excel-formatter="(row) => `${row.orderNo || '-'}${row.productName ? ' / ' + row.productName : ''}`">
                   <template #default="item">
-                    <span>{{ item.row.orderNo || '-' }}</span>
+                    <div v-if="item.row.orderNo" style="display: flex; align-items: center; gap: 0.5rem;">
+                      <el-image :src="item.row.productPhotoUrl || defaultImage" fit="cover" style="width: 44px; height: 44px; border-radius: 2px; border: 1px solid #ebeef5; flex-shrink: 0;" />
+                      <div style="min-width: 0; text-align: left;">
+                        <div style="font-weight: 600; font-size: 0.875rem;">{{ item.row.productName || '-' }}</div>
+                        <div class="applied-order-link" style="font-size: 0.8125rem;" @click="goToOrder(item.row.orderNo)">{{ item.row.orderNo }}</div>
+                      </div>
+                    </div>
+                    <span v-else>-</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="amount" label="금액" width="130" align="right" :excel-formatter="historyAmountFormatter">
@@ -60,6 +202,14 @@
                     <span :style="{ color: item.row.type === 'CHARGE' ? '#f56c6c' : '#67c23a', fontWeight: 'bold' }">
                       {{ item.row.type === 'CHARGE' ? '+' : '-' }} ₩ {{ formatPrice(item.row.amount) }}
                     </span>
+                  </template>
+                </el-table-column>
+                <el-table-column v-if="!isMobile" label="결제 금액" width="130" align="right" :excel-formatter="(row) => row.type === 'CHARGE' ? formatPrice(row.amount - row.remainingAmount) : '-'">
+                  <template #default="item">
+                    <span v-if="item.row.type === 'CHARGE'" style="color: #67c23a;">
+                      ₩ {{ formatPrice(item.row.amount - item.row.remainingAmount) }}
+                    </span>
+                    <span v-else>-</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="remainingAmount" label="남은 잔액(미수)" width="130" align="right" :excel-formatter="remainingAmountFormatter">
@@ -87,10 +237,11 @@
                   <template #default="item">
                     <div v-if="item.row.type === 'DEPOSIT'" style="display: flex; gap: 0.375rem; justify-content: center;">
                       <el-button size="small" @click="handlePrintReceipt(item.row, row)">영수증 출력</el-button>
-                      <template v-if="!item.row.isCancelled">
+                      <template v-if="!item.row.isCancelled && !item.row.sourcePaymentId">
                         <el-button size="small" type="warning" @click="openEditDialog(item.row)">수정</el-button>
                         <el-button size="small" type="danger" @click="handleCancelReceivable(item.row, row.userId)">정산취소</el-button>
                       </template>
+                      <span v-else-if="!item.row.isCancelled && item.row.sourcePaymentId" style="font-size: 0.75rem; color: #909399;">정산처리 연동</span>
                     </div>
                   </template>
                 </el-table-column>
@@ -165,9 +316,10 @@
 
 <script setup lang="ts">
 import { useMobile } from '@/hooks/useMobile';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { getUserSummaries, getUserSummaryById, getReceivables, cancelReceivable } from '@/api/receivable';
+import { getUserSummaries, getUserSummaryById, getReceivables, cancelReceivable, getLedgerBefore, getReceivableOverdueSummary } from '@/api/receivable';
+import { getPayableOverdueSummary } from '@/api/payable';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance } from 'element-plus';
 import { Search, Refresh } from '@element-plus/icons-vue';
@@ -176,10 +328,73 @@ import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import DepositDialog from './components/DepositDialog.vue';
 import ReceivableEditDialog from './components/ReceivableEditDialog.vue';
+import BatchSettleDialog from './components/BatchSettleDialog.vue';
+import ReceivableBatchSettleDialog from './components/ReceivableBatchSettleDialog.vue';
+import CompanySelect from '@/components/CompanySelect/index.vue';
 import useUserStore from '@/store/modules/user';
 const { isMobile } = useMobile();
 const userStore = useUserStore();
 const router = useRouter();
+const defaultImage = '/thumb_no_img.png';
+
+const isDcc = computed(() => userStore.companyType === 'DCC' || userStore.roles.includes('admin'));
+
+// MFG's own 미수금 관리 - tracks partially-paid Payable charges (DCC owes this factory) by
+// DCC partner. This page is otherwise entirely Receivable-focused (DCC<->retailer), but the
+// sidebar's single "미수금 관리" tab is shared, so an MFG viewer gets this Payable-side view
+// instead of the Receivable content above, which would be empty/meaningless for them anyway.
+const isMfg = computed(() => userStore.companyType === 'MFG');
+
+const overdueLoading = ref(false);
+const overdueList = ref<any[]>([]);
+const overdueQuery = reactive({
+  logisticsCompanyId: undefined as number | undefined,
+  startDate: undefined as string | undefined,
+  endDate: undefined as string | undefined
+});
+const overdueDateRange = ref<[string, string] | null>(null);
+
+const fetchOverdueSummary = async () => {
+  overdueLoading.value = true;
+  try {
+    const res: any = await getPayableOverdueSummary({ ...overdueQuery });
+    overdueList.value = res.data || [];
+  } catch (error) {
+    console.error('Failed to fetch payable overdue summary:', error);
+  } finally {
+    overdueLoading.value = false;
+  }
+};
+
+const handleOverdueFilter = () => {
+  fetchOverdueSummary();
+};
+
+const handleOverdueDateChange = (val: [string, string] | null) => {
+  overdueQuery.startDate = val ? val[0] : undefined;
+  overdueQuery.endDate = val ? val[1] : undefined;
+  fetchOverdueSummary();
+};
+
+const resetOverdueFilter = () => {
+  overdueQuery.logisticsCompanyId = undefined;
+  overdueQuery.startDate = undefined;
+  overdueQuery.endDate = undefined;
+  overdueDateRange.value = null;
+  fetchOverdueSummary();
+};
+
+const overdueBatchSettleDialogVisible = ref(false);
+const overdueOrderIds = ref<number[]>([]);
+
+const openOverdueSettleDialog = (row: any) => {
+  overdueOrderIds.value = row.orderIds;
+  overdueBatchSettleDialogVisible.value = true;
+};
+
+const onOverdueSettleSaved = () => {
+  fetchOverdueSummary();
+};
 
 const goToOrder = (orderNo: string) => {
   if (!orderNo) return;
@@ -325,25 +540,37 @@ const handleCancelReceivable = (record: any, userId: number) => {
   }).catch(() => {});
 };
 
-const handlePrintReceipt = (record: any, user: any) => {
+const handlePrintReceipt = async (record: any, user: any) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  // The deposit record itself has no stored before/after snapshot (it's applied across
-  // however many outstanding charges it covers), so this shows the user's current
-  // outstanding balance as the "after" figure - accurate as of now, best-effort for
-  // older transactions if other settlements happened since.
-  const afterAmount = user.totalReceivable || 0;
-  const afterWeight = user.totalReceivableWeight || 0;
-  const beforeAmount = afterAmount + (record.amount || 0) + (record.discount || 0);
-  const beforeWeight = afterWeight + (record.weight || 0);
+  // company.totalReceivable is today's running balance, so it's only a correct "before"
+  // figure for the single most recent deposit. For anything older, fetch the true
+  // point-in-time balance from the backend instead of approximating from today's total.
+  let beforeAmount = (user.totalReceivable || 0) + (record.amount || 0) + (record.discount || 0);
+  let beforeWeight = (user.totalReceivableWeight || 0) + (record.weight || 0);
+  let newChargeAmount = 0;
+  let newChargeWeight = 0;
+  if (record.id) {
+    try {
+      const res: any = await getLedgerBefore(record.id);
+      beforeAmount = res.data.beforeAmount;
+      beforeWeight = res.data.beforeWeight;
+      newChargeAmount = res.data.newChargeAmount || 0;
+      newChargeWeight = res.data.newChargeWeight || 0;
+    } catch (error) {
+      console.error('Failed to fetch accurate ledger balance, falling back to approximation:', error);
+    }
+  }
+  const afterAmount = beforeAmount + newChargeAmount - (record.amount || 0) - (record.discount || 0);
+  const afterWeight = beforeWeight + newChargeWeight - (record.weight || 0);
   const supplierName = userStore.companyName || '-';
   const partnerName = user.companyName || user.userDisplayName || '-';
 
   const ledgerRows = `
     <tr><td class="label">최근결제</td><td>${user.lastPaymentDate ? formatDate(user.lastPaymentDate) : '-'}</td><td></td><td></td></tr>
     <tr><td class="label">거래 전 미수(A)</td><td>${beforeWeight.toFixed(2)}</td><td>${formatPrice(beforeAmount)}</td><td></td></tr>
-    <tr><td class="label">판매(B)</td><td>0.00</td><td>0</td><td></td></tr>
+    <tr><td class="label">판매(B)</td><td>${newChargeWeight.toFixed(2)}</td><td>${formatPrice(newChargeAmount)}</td><td></td></tr>
     <tr><td class="label">결제(C)</td><td>${(record.weight || 0).toFixed(2)}</td><td>${formatPrice(record.amount || 0)}</td><td></td></tr>
     <tr><td class="label">할인(D)</td><td>0.00</td><td>${formatPrice(record.discount || 0)}</td><td></td></tr>
     <tr><td class="label"><strong>거래 후 미수(A+B-C-D)</strong></td><td><strong>${afterWeight.toFixed(2)}</strong></td><td><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
@@ -413,7 +640,73 @@ const loadSingleUser = async (userId: number) => {
   }
 };
 
+// ---- DCC's own 미수금 관리 - retailers with at least one partially-paid Receivable charge
+// still outstanding. Mirrors the MFG-side payable-overdue tracker exactly (one row per
+// counterparty, not per order), just grouped by retailer instead of by DCC partner. ----
+
+const receivableOverdueLoading = ref(false);
+const receivableOverdueList = ref<any[]>([]);
+const receivableOverdueQuery = reactive({
+  userId: undefined as number | undefined,
+  startDate: undefined as string | undefined,
+  endDate: undefined as string | undefined
+});
+const receivableOverdueDateRange = ref<[string, string] | null>(null);
+
+const fetchReceivableOverdueSummary = async () => {
+  receivableOverdueLoading.value = true;
+  try {
+    const res: any = await getReceivableOverdueSummary({ ...receivableOverdueQuery });
+    receivableOverdueList.value = res.data || [];
+  } catch (error) {
+    console.error('Failed to fetch receivable overdue summary:', error);
+  } finally {
+    receivableOverdueLoading.value = false;
+  }
+};
+
+const handleReceivableOverdueFilter = () => {
+  fetchReceivableOverdueSummary();
+};
+
+const handleReceivableOverdueDateChange = (val: [string, string] | null) => {
+  receivableOverdueQuery.startDate = val ? val[0] : undefined;
+  receivableOverdueQuery.endDate = val ? val[1] : undefined;
+  fetchReceivableOverdueSummary();
+};
+
+const resetReceivableOverdueFilter = () => {
+  receivableOverdueQuery.userId = undefined;
+  receivableOverdueQuery.startDate = undefined;
+  receivableOverdueQuery.endDate = undefined;
+  receivableOverdueDateRange.value = null;
+  fetchReceivableOverdueSummary();
+};
+
+const receivableOverdueBatchSettleDialogVisible = ref(false);
+const receivableOverdueOrderIds = ref<number[]>([]);
+
+const openReceivableOverdueSettleDialog = (row: any) => {
+  receivableOverdueOrderIds.value = row.orderIds;
+  receivableOverdueBatchSettleDialogVisible.value = true;
+};
+
+const onReceivableOverdueSettleSaved = () => {
+  fetchReceivableOverdueSummary();
+};
+
 onMounted(() => {
+  if (isMfg.value) {
+    fetchOverdueSummary();
+    return;
+  }
+
+  if (isDcc.value) {
+    getList();
+    fetchReceivableOverdueSummary();
+    return;
+  }
+
   const userId = route.query.userId ? Number(route.query.userId) : null;
   if (userId) {
     loadSingleUser(userId);
@@ -447,6 +740,129 @@ onMounted(() => {
   margin-top: 1.25rem;
   display: flex;
   justify-content: center;
+}
+.order-history-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.order-history-summary-table th,
+.order-history-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+  text-align: center;
+}
+.order-history-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.summary-label {
+  text-align: left;
+  font-weight: 600;
+  background: #fafafa;
+  white-space: nowrap;
+}
+.batch-settle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 2px;
+  font-weight: 600;
+  color: #303133;
+}
+.order-link {
+  color: #409eff;
+  cursor: pointer;
+}
+.order-link:hover {
+  text-decoration: underline;
+}
+.product-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+}
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.product-thumb {
+  border-radius: 2px;
+  border: 1px solid #ebeef5;
+  flex-shrink: 0;
+}
+.product-text {
+  min-width: 0;
+}
+.product-name {
+  font-weight: 600;
+}
+.product-no-code {
+  color: #409eff;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+.product-memo {
+  font-size: 0.75rem;
+  color: #e6a23c;
+  margin-top: 0.125rem;
+}
+.product-spec {
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 0.125rem;
+}
+.product-more {
+  font-size: 0.75rem;
+  color: #409eff;
+}
+.order-detail-expand {
+  padding: 1.25rem;
+}
+.order-detail-expand h4 {
+  margin-top: 0;
+  margin-bottom: 0.9375rem;
+}
+.ledger-table,
+.purity-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.ledger-table th, .ledger-table td,
+.purity-summary-table th, .purity-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+  text-align: center;
+}
+.ledger-table th,
+.purity-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.ledger-label {
+  text-align: left;
+  font-weight: 600;
+  background: #fafafa;
+  white-space: nowrap;
+}
+.ledger-readonly {
+  color: #606266;
+}
+.ledger-total-row {
+  font-weight: bold;
+}
+.ledger-total-row .ledger-readonly {
+  color: #f56c6c;
+}
+.expand-ledger {
+  margin-top: 1.25rem;
 }
 </style>
 

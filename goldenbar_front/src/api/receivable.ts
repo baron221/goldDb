@@ -15,6 +15,45 @@ export function getLogisticsReceivableSummary() {
   });
 }
 
+export function getReceivableOrderHistory(params: any) {
+  return request({
+    url: '/receivables/order-history',
+    method: 'get',
+    params
+  });
+}
+
+export function getReceivableOrderHistorySummary(params: any) {
+  return request({
+    url: '/receivables/order-history/summary',
+    method: 'get',
+    params
+  });
+}
+
+export function getCompletedReceivableOrders(params: any) {
+  return request({
+    url: '/receivables/order-history/completed',
+    method: 'get',
+    params
+  });
+}
+
+export function getReceivableOverdueSummary(params?: any) {
+  return request({
+    url: '/receivables/overdue-summary',
+    method: 'get',
+    params
+  });
+}
+
+export function getReceivableChargeApplications(chargeId: number) {
+  return request({
+    url: `/receivables/${chargeId}/charge-applications`,
+    method: 'get'
+  });
+}
+
 export function getReceivables(params: any) {
   return request({
     url: '/receivables',
@@ -36,6 +75,13 @@ export function getPuritySummary(userId: number) {
     url: '/receivables/purity-summary',
     method: 'get',
     params: { userId }
+  });
+}
+
+export function getLedgerBefore(id: number) {
+  return request({
+    url: `/receivables/${id}/ledger-before`,
+    method: 'get'
   });
 }
 

@@ -15,24 +15,6 @@
           group-code="SET_PRODUCT_CATEGORY"
           placeholder="대분류 선택"
           clearable
-          @change="handleLargeCategoryChange"
-        />
-      </el-form-item>
-      <el-form-item label="중분류">
-        <common-select
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          placeholder="중분류 선택"
-          clearable
-          @change="handleMediumCategoryChange"
-        />
-      </el-form-item>
-      <el-form-item label="소분류">
-        <common-select
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          placeholder="소분류 선택"
-          clearable
           @change="handleFilter"
         />
       </el-form-item>
@@ -55,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { reactive, computed, watch } from 'vue';
 import { View, Plus } from '@element-plus/icons-vue';
 import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
@@ -87,30 +69,11 @@ watch(localQuery, (newVal) => {
 const userStore = useUserStore();
 const isCompanyUser = computed(() => !userStore.roles.includes('admin'));
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-
-const handleLargeCategoryChange = (val: string, options: any[]) => {
-  largeId.value = options.find(o => o.code === val)?.id || null;
-  localQuery.categoryMedium = '';
-  localQuery.categorySmall = '';
-  mediumId.value = null;
-  handleFilter();
-};
-
-const handleMediumCategoryChange = (val: string, options: any[]) => {
-  mediumId.value = options.find(o => o.code === val)?.id || null;
-  localQuery.categorySmall = '';
-  handleFilter();
-};
-
 const handleFilter = () => {
   emit('filter');
 };
 
 const handleReset = () => {
-  largeId.value = null;
-  mediumId.value = null;
   emit('reset');
 };
 

@@ -66,10 +66,10 @@
         </template>
       </el-table-column>
 
-      <el-table-column v-if="userStore.companyType !== 'MFFG' && userStore.companyType !== 'MFG'" prop="approvedWeight" label="물류승인" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'approvedWeight', 'approvedMemo')">
+      <el-table-column v-if="userStore.companyType !== 'MFFG' && userStore.companyType !== 'MFG'" prop="approvedWeight" label="물류승인" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'approvedWeight', 'approvedMemo', 'orderWeight')">
         <template #default="item">
-          <span v-if="item.row.approvedWeight" class="weight-display-luxury">
-            <span class="val">{{ item.row.approvedWeight }}</span><span class="unit">g</span>
+          <span v-if="effectiveWeight(item.row, 'approvedWeight', 'orderWeight')" class="weight-display-luxury">
+            <span class="val">{{ effectiveWeight(item.row, 'approvedWeight', 'orderWeight') }}</span><span class="unit">g</span>
           </span>
           <span v-else class="empty-dash">-</span>
           <br />
@@ -77,20 +77,20 @@
         </template>
       </el-table-column>
 
-      <el-table-column v-if="userStore.companyType !== 'RTL'" prop="requestedWeight" label="공장 의뢰" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'requestedWeight', 'requestedMemo')">
+      <el-table-column v-if="userStore.companyType !== 'RTL'" prop="requestedWeight" label="공장 의뢰" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'requestedWeight', 'requestedMemo', 'approvedWeight', 'orderWeight')">
         <template #default="item">
-          <span v-if="item.row.requestedWeight" class="weight-display-luxury requested">
-            <span class="val">{{ item.row.requestedWeight }}</span><span class="unit">g</span>
+          <span v-if="effectiveWeight(item.row, 'requestedWeight', 'approvedWeight', 'orderWeight')" class="weight-display-luxury requested">
+            <span class="val">{{ effectiveWeight(item.row, 'requestedWeight', 'approvedWeight', 'orderWeight') }}</span><span class="unit">g</span>
           </span>
           <span v-else class="empty-dash">-</span><br />
           <span class="memo-text-luxury">{{ item.row.requestedMemo || '-' }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="actualWeight" label="검수" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'actualWeight', 'inspectionMemo')">
+      <el-table-column prop="actualWeight" label="검수" width="180" align="center" header-align="center" :excel-formatter="(row) => weightFormatter(row, 'actualWeight', 'inspectionMemo', 'requestedWeight', 'approvedWeight', 'orderWeight')">
         <template #default="item">
-          <span v-if="item.row.actualWeight" class="weight-display-luxury actual">
-            <span class="val">{{ item.row.actualWeight }}</span><span class="unit">g</span>
+          <span v-if="effectiveWeight(item.row, 'actualWeight', 'requestedWeight', 'approvedWeight', 'orderWeight')" class="weight-display-luxury actual">
+            <span class="val">{{ effectiveWeight(item.row, 'actualWeight', 'requestedWeight', 'approvedWeight', 'orderWeight') }}</span><span class="unit">g</span>
           </span>
           <span v-else class="empty-dash">-</span><br />
           <span class="memo-text-luxury">{{ item.row.inspectionMemo || '-' }}</span>
@@ -313,11 +313,22 @@ const qtyFormatter = (row: any) => {
   return text;
 };
 
-const weightFormatter = (row: any, weightField: string, memoField: string) => {
-  const weight = row[weightField];
+// A pipeline-stage weight (approved/requested/actual) is often still empty at the
+// point someone's viewing the order - falls back to the earlier, already-known stage
+// instead of showing blank, so RTL sees their originally-requested weight right away
+// instead of nothing until DCC/factory eventually fill in their own stage's field.
+const effectiveWeight = (row: any, ...fields: string[]): number => {
+  for (const field of fields) {
+    if (row[field]) return row[field];
+  }
+  return 0;
+};
+
+const weightFormatter = (row: any, weightField: string, memoField: string, ...fallbackFields: string[]) => {
+  const weight = effectiveWeight(row, weightField, ...fallbackFields);
   const memo = row[memoField];
   if (!weight && !memo) return '-';
-  return `${weight || 0}g${memo ? `\n(${memo})` : ''}`;
+  return `${weight}g${memo ? `\n(${memo})` : ''}`;
 };
 
 const unitPriceFormatter = (row: any) => {

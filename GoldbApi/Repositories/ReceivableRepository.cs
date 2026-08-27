@@ -44,7 +44,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
             .ToListAsync();
     }
 
-    public async Task<int> GetUsersWithReceivablesCountAsync(string? search, List<int> userIdsWithReceivables, string? companyCategory = null)
+    public async Task<int> GetUsersWithReceivablesCountAsync(string? search, List<int> userIdsWithReceivables, string? companyCategory = null, List<int>? allowedCompanyIds = null)
     {
         var query = Context.Users
             .Include(u => u.UserCompanies).ThenInclude(uc => uc.Company)
@@ -58,13 +58,18 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
         if (!string.IsNullOrEmpty(companyCategory))
         {
             query = query.Where(u => u.UserCompanies.Any(uc => uc.Company != null && uc.Company.Category == companyCategory));
+        }
+
+        if (allowedCompanyIds != null)
+        {
+            query = query.Where(u => u.UserCompanies.Any(uc => allowedCompanyIds.Contains(uc.CompanyId)));
         }
 
         query = query.Where(u => userIdsWithReceivables.Contains(u.Id));
         return await query.CountAsync();
     }
 
-    public async Task<List<User>> GetUsersWithReceivablesPagedAsync(int page, int pageSize, string? search, List<int> userIdsWithReceivables, string? companyCategory = null)
+    public async Task<List<User>> GetUsersWithReceivablesPagedAsync(int page, int pageSize, string? search, List<int> userIdsWithReceivables, string? companyCategory = null, List<int>? allowedCompanyIds = null)
     {
         var query = Context.Users
             .Include(u => u.UserCompanies).ThenInclude(uc => uc.Company)
@@ -78,6 +83,11 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
         if (!string.IsNullOrEmpty(companyCategory))
         {
             query = query.Where(u => u.UserCompanies.Any(uc => uc.Company != null && uc.Company.Category == companyCategory));
+        }
+
+        if (allowedCompanyIds != null)
+        {
+            query = query.Where(u => u.UserCompanies.Any(uc => allowedCompanyIds.Contains(uc.CompanyId)));
         }
 
         query = query.Where(u => userIdsWithReceivables.Contains(u.Id));
@@ -96,12 +106,15 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
             .ToListAsync();
     }
 
-    public async Task<(List<ReceivableDto> Items, int TotalCount)> GetReceivablesPagedAsync(ReceivableQueryDto query)
+    public async Task<(List<ReceivableDto> Items, int TotalCount)> GetReceivablesPagedAsync(ReceivableQueryDto query, List<int>? allowedUserIds = null)
     {
         var dbQuery = DbSet
             .Include(r => r.User)
             .Include(r => r.Order)
             .AsQueryable();
+
+        if (allowedUserIds != null)
+            dbQuery = dbQuery.Where(r => allowedUserIds.Contains(r.UserId));
 
         if (query.UserId.HasValue)
             dbQuery = dbQuery.Where(r => r.UserId == query.UserId.Value);
@@ -192,6 +205,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 Discount = r.Discount,
                 IsCancelled = r.IsCancelled,
                 CreatedAt = r.CreatedAt,
+                SourcePaymentId = r.SourcePaymentId,
                 AppliedCharges = r.Type == "DEPOSIT"
                     ? Context.ReceivableApplications
                         .Where(a => a.DepositId == r.Id)
@@ -201,10 +215,36 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                             OrderId = a.Charge != null ? a.Charge.OrderId : null,
                             OrderNo = a.Charge != null && a.Charge.Order != null ? a.Charge.Order.OrderNo : null,
                             AppliedAmount = a.AppliedAmount,
-                            AppliedWeight = a.AppliedWeight
+                            AppliedWeight = a.AppliedWeight,
+                            ChargeAmount = a.Charge != null ? a.Charge.Amount : 0,
+                            ChargeWeight = a.Charge != null ? a.Charge.Weight : 0,
+                            ChargeRemainingAmount = a.Charge != null ? a.Charge.RemainingAmount : 0,
+                            ChargeRemainingWeight = a.Charge != null ? a.Charge.RemainingWeight : 0,
+                            Items = a.Charge != null && a.Charge.Order != null
+                                ? a.Charge.Order.OrderItems.Where(oi => oi.ParentId == null)
+                                    .Select(oi => new ReceivableOrderItemSummaryDto
+                                    {
+                                        ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                                        ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
+                                        PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl
+                                            : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl : null),
+                                        Purity = oi.Purity,
+                                        Color = oi.Color,
+                                        Size = oi.Size,
+                                        Memo = oi.Memo,
+                                        Quantity = oi.Quantity,
+                                        ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight
+                                    }).ToList()
+                                : new List<ReceivableOrderItemSummaryDto>()
                         })
                         .ToList()
-                    : new List<AppliedChargeDto>()
+                    : new List<AppliedChargeDto>(),
+                OutstandingChargeAmount = r.Type == "DEPOSIT"
+                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.RemainingAmount).Sum()
+                    : 0,
+                OutstandingChargeWeight = r.Type == "DEPOSIT"
+                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.RemainingWeight).Sum()
+                    : 0
             })
             .ToListAsync();
 
@@ -215,6 +255,14 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
     {
         return await DbSet
             .Where(r => r.UserId == userId && r.OrderId == orderId && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+            .ToListAsync();
+    }
+
+    public async Task<List<Receivable>> GetTargetChargesForOrdersAsync(int userId, List<int> orderIds)
+    {
+        return await DbSet
+            .Where(r => r.UserId == userId && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value) && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+            .OrderBy(r => r.CreatedAt)
             .ToListAsync();
     }
 

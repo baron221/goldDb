@@ -79,6 +79,14 @@
         </el-checkbox>
       </el-form-item>
       <el-form-item>
+        <el-checkbox
+          :model-value="!localQuery.excludeCompleted"
+          @change="(val: boolean) => { localQuery.excludeCompleted = !val; handleFilter(); }"
+        >
+          완료/출고된 항목 포함 (기간별 조회)
+        </el-checkbox>
+      </el-form-item>
+      <el-form-item>
         <el-button type="primary" :icon="Search" @click="handleFilter">{{ $t('common.search') }}</el-button>
         <el-button :icon="Refresh" @click="handleReset">{{ $t('common.reset') }}</el-button>
       </el-form-item>

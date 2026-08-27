@@ -1,5 +1,5 @@
-import { ref, reactive, computed } from 'vue';
-import { getMyOrders, updateOrderStatus, getOrderStatement } from '@/api/order';
+import { ref, reactive } from 'vue';
+import { getMyOrders, updateOrderStatus } from '@/api/order';
 import { ElMessage } from 'element-plus';
 import { parseTime } from '@/utils';
 
@@ -7,10 +7,6 @@ export function useOrder() {
   const orders = ref<any[]>([]);
   const totalCount = ref(0);
   const loading = ref(false);
-
-  const statementDialogVisible = ref(false);
-  const selectedOrderForStatement = ref<any>(null);
-  const currentStatementData = ref<any>(null);
 
   const end = new Date();
   const start = new Date();
@@ -74,36 +70,14 @@ export function useOrder() {
     }
   };
 
-  const openStatementDialog = async (order: any) => {
-    try {
-      const res = await getOrderStatement(order.id);
-      selectedOrderForStatement.value = order;
-      currentStatementData.value = res.data;
-      statementDialogVisible.value = true;
-    } catch (error: any) {
-      if (error && (error.message === 'Stored statement not found' || error.response?.status === 404)) {
-        selectedOrderForStatement.value = order;
-        currentStatementData.value = null;
-        statementDialogVisible.value = true;
-      } else {
-        console.error('명세서 조회 실패:', error);
-        ElMessage.error('명세서 정보를 불러오는데 실패했습니다.');
-      }
-    }
-  };
-
   return {
     orders,
     totalCount,
     loading,
     listQuery,
-    statementDialogVisible,
-    selectedOrderForStatement,
-    currentStatementData,
     getList,
     handleFilter,
     handleStatusChange,
-    updateStatus,
-    openStatementDialog
+    updateStatus
   };
 }

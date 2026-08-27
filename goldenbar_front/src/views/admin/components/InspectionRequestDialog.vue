@@ -17,7 +17,7 @@
                   {{ scope.row.productName || scope.row.productSetTitle }}
                 </div>
                 <div class="product-no" style="font-size: 0.8875rem;">{{ scope.row.productNo }}</div>
-                <span style="font-size: 0.95rem; color: #E6A23C;">{{ scope.row.manufacturerName || '-' }}</span>
+                <span style="font-size: 0.95rem; color: #E6A23C;">물류: {{ props.order?.logisticsCompanyName || '-' }}</span>
               </div>
             </div>
           </template>

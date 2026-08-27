@@ -11,9 +11,13 @@
 
     <div class="shop-layout-container">
 
-      <div class="shop-main-content">
-        <!-- My Favorites Section -->
-        <div v-if="favoriteItems && favoriteItems.length > 0" class="favorites-section" style="margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid #eae6df;">
+      <div class="shop-main-content" style="display: flex; flex-direction: column;">
+        <!-- My Favorites Section - pushed below the search results once a filter is active -->
+        <div
+          v-if="favoriteItems && favoriteItems.length > 0"
+          class="favorites-section"
+          :style="{ order: isFilterActive ? 2 : 0, marginBottom: '2.5rem', paddingBottom: '2rem', borderBottom: '1px solid #eae6df' }"
+        >
           <div class="section-header" style="margin-bottom: 1.5rem;">
             <h2 class="market-main-title" style="font-size: 1.4rem; color: #222; font-weight: 700;">나의 즐겨찾기</h2>
           </div>
@@ -36,57 +40,59 @@
           </el-row>
         </div>
 
-        <div class="shop-header-toolbar">
-          <div class="shop-title-area">
-            <h1 class="market-main-title">{{ $t('productMarket.title') }}</h1>
-            <p class="market-subtitle">{{ $t('productMarket.subtitle') }}</p>
+        <div class="results-section" :style="{ order: 1 }">
+          <div class="shop-header-toolbar">
+            <div class="shop-title-area">
+              <h1 class="market-main-title">{{ $t('productMarket.title') }}</h1>
+              <p class="market-subtitle">{{ $t('productMarket.subtitle') }}</p>
+            </div>
+
+            <div class="elegant-tabs-container">
+              <button
+                v-for="tab in [{value:'all',label:$t('productMarket.tabs.all')},{value:'product',label:$t('productMarket.tabs.general')},{value:'set',label:$t('productMarket.tabs.set')}]"
+                :key="tab.value"
+                class="tab-btn"
+                :class="{ active: activeTab === tab.value }"
+                @click="activeTab = tab.value; handleTabChange()"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
           </div>
 
-          <div class="elegant-tabs-container">
-            <button
-              v-for="tab in [{value:'all',label:$t('productMarket.tabs.all')},{value:'product',label:$t('productMarket.tabs.general')},{value:'set',label:$t('productMarket.tabs.set')}]"
-              :key="tab.value"
-              class="tab-btn"
-              :class="{ active: activeTab === tab.value }"
-              @click="activeTab = tab.value; handleTabChange()"
-            >
-              {{ tab.label }}
-            </button>
+          <div v-loading="loading" class="grid-loading-container">
+            <el-row :gutter="24" class="products-grid">
+              <el-col
+                v-for="item in displayList"
+                :key="item.id + (item.isSet ? '-set' : '-prod')"
+                :xs="24" :sm="12" :md="8" :lg="6" :xl="4"
+                class="product-grid-item"
+              >
+                <product-card
+                  :item="item"
+                  :is-favorite="isFavorite(item)"
+                  :is-in-cart="isInCart(item)"
+                  @click="goToDetail"
+                  @favorite="toggleFavorite(item)"
+                  @add-to-cart="handleAddToCart(item)"
+                />
+              </el-col>
+            </el-row>
+
+            <el-empty v-if="!loading && displayList.length === 0" :description="$t('productMarket.labels.noData')" />
           </div>
-        </div>
 
-        <div v-loading="loading" class="grid-loading-container">
-          <el-row :gutter="24" class="products-grid">
-            <el-col
-              v-for="item in displayList"
-              :key="item.id + (item.isSet ? '-set' : '-prod')"
-              :xs="24" :sm="12" :md="8" :lg="6" :xl="4"
-              class="product-grid-item"
-            >
-              <product-card
-                :item="item"
-                :is-favorite="isFavorite(item)"
-                :is-in-cart="isInCart(item)"
-                @click="goToDetail"
-                @favorite="toggleFavorite(item)"
-                @add-to-cart="handleAddToCart(item)"
-              />
-            </el-col>
-          </el-row>
-
-          <el-empty v-if="!loading && displayList.length === 0" :description="$t('productMarket.labels.noData')" />
-        </div>
-
-        <div class="shop-pagination-wrap" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="filters.page"
-            v-model:page-size="filters.pageSize"
-            :total="total"
-            :page-sizes="[12, 24, 48, 96]"
-            layout="prev, pager, next, jumper"
-            @size-change="fetchData"
-            @current-change="fetchData"
-          />
+          <div class="shop-pagination-wrap" v-if="total > 0">
+            <el-pagination
+              v-model:current-page="filters.page"
+              v-model:page-size="filters.pageSize"
+              :total="total"
+              :page-sizes="[12, 24, 48, 96]"
+              layout="prev, pager, next, jumper"
+              @size-change="fetchData"
+              @current-change="fetchData"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -143,6 +149,13 @@ const favoriteItems = computed(() => {
     }
     return null;
   }).filter(Boolean);
+});
+
+// Once the user has set any search/category/purity/weight criteria, the search results
+// should read as the primary content - the favorites section drops below them instead of
+// sitting above and pushing the thing they searched for down the page.
+const isFilterActive = computed(() => {
+  return !!(filters.search || filters.categoryLarge || filters.purity || filters.minWeight != null || filters.maxWeight != null);
 });
 
 const goToDetail = (item: any) => {

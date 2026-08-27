@@ -166,32 +166,24 @@ const getList = async () => {
       query.status = 'Factory_Group';
     }
 
+    // Once an order has shipped out of the factory (InspectedRequested) or arrived at
+    // logistics (Inspected), it's no longer something the factory needs to act on - it
+    // should drop out of the default worklist the same way later settlement/delivery
+    // stages already do, and only reappear when this toggle is switched off. This has
+    // to happen server-side (excludePostInspected), not by filtering the page we get
+    // back - filtering after the fact leaves totalCount/pagination describing a
+    // different set of rows than what's actually shown, so some pages end up looking
+    // near-empty while others still show a full 20.
+    query.excludePostInspected = listQuery.excludeCompleted;
+    delete query.excludeCompleted;
+
     const [res] = await Promise.all([
       getAllOrders(query),
       codeStore.fetchCodes()
     ]);
 
-    let fetchedList = res.data.items;
+    list.value = res.data.items;
     total.value = res.data.totalCount;
-
-    if (listQuery.excludeCancelled) {
-      fetchedList = fetchedList.filter((order: any) => order.status !== 'Cancelled');
-    }
-
-    if (listQuery.excludeCompleted) {
-      const postInspectedStatuses = [
-        'PENDING',
-        'PROCESSING',
-        'SETTLED',
-        'SETTLED_CANCELLED',
-        'DELIVERY_READY',
-        'DELIVERY_IN_TRANSIT',
-        'DELIVERED',
-        'Completed'
-      ];
-      fetchedList = fetchedList.filter((order: any) => !postInspectedStatuses.includes(order.status));
-    }
-    list.value = fetchedList;
 
     const codes = codeStore.codes;
     if (codes) {

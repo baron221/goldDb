@@ -44,13 +44,18 @@
           <td class="ledger-readonly">{{ saleWeight.toFixed(2) }}</td>
           <td class="ledger-readonly">₩ {{ formatPrice(saleAmount) }}</td>
         </tr>
+        <tr v-if="alreadyPaidAmount > 0 || alreadyPaidWeight > 0">
+          <td class="ledger-label">기 결제</td>
+          <td class="ledger-readonly">{{ alreadyPaidWeight.toFixed(2) }}</td>
+          <td class="ledger-readonly">₩ {{ formatPrice(alreadyPaidAmount) }}</td>
+        </tr>
         <tr>
           <td class="ledger-label">결제(C)</td>
           <td>
-            <el-input-number v-model="depositForm.weight" :min="0" :precision="2" :step="0.1" size="small" style="width: 100%;" />
+            <el-input-number v-model="depositForm.weight" :min="0" :max="collectibleWeight" :precision="2" :step="0.1" size="small" style="width: 100%;" />
           </td>
           <td>
-            <el-input-number v-model="depositForm.amount" :min="0" :step="1000" size="small" style="width: 100%;" />
+            <el-input-number v-model="depositForm.amount" :min="0" :max="collectibleAmount" :step="1000" size="small" style="width: 100%;" />
           </td>
         </tr>
         <tr>
@@ -61,7 +66,7 @@
           </td>
         </tr>
         <tr class="ledger-total-row">
-          <td class="ledger-label">거래 후 미수(A+B-C-D)</td>
+          <td class="ledger-label">거래 후 미수<template v-if="alreadyPaidAmount > 0 || alreadyPaidWeight > 0">(A+B-기결제-C-D)</template><template v-else>(A+B-C-D)</template></td>
           <td class="ledger-readonly">{{ afterWeight.toFixed(2) }}</td>
           <td class="ledger-readonly">₩ {{ formatPrice(afterAmount) }}</td>
         </tr>
@@ -86,7 +91,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { updateOrderStatus } from '@/api/order';
-import { getUserSummaryById, processDeposit } from '@/api/receivable';
+import { getUserSummaryById, processDeposit, getReceivableChargeSummary } from '@/api/receivable';
 import BasePopup from '@/components/BasePopup/index.vue';
 import { formatPrice } from '@/utils/format';
 import { parseTime } from '@/utils';
@@ -104,6 +109,15 @@ const emit = defineEmits(['update:modelValue', 'saved']);
 const visible = ref(false);
 const submitting = ref(false);
 const summary = ref<any>(null);
+
+// Set only when these orders already carry an existing Receivable CHARGE (e.g. a prior
+// partial payment was collected against it before this official 정산확인 - the charge's
+// full original amount/weight is still what 판매(B) should show, so it always reads as the
+// order's real sale value regardless of anything paid earlier. remainingAmount/Weight is
+// what's ACTUALLY still collectible on it right now - 결제(C) is capped there instead of at
+// B's full value, or a full-B payment would overshoot the charge's real remaining balance
+// and leave an unapplied credit sitting on the deposit instead of zeroing out.
+const existingCharge = ref<{ amount: number; weight: number; remainingAmount: number; remainingWeight: number } | null>(null);
 
 const depositForm = reactive({
   amount: 0,
@@ -165,6 +179,19 @@ const saleWeight = computed(() => {
   }, 0);
 });
 
+// What 결제(C) is actually capped at - the existing charge's real remaining balance when
+// one exists (never its full original amount, which 판매(B) already shows), otherwise the
+// same fresh full sale amount as B (nothing paid yet, so the whole thing is collectible).
+const collectibleAmount = computed(() => existingCharge.value ? existingCharge.value.remainingAmount : saleAmount.value);
+const collectibleWeight = computed(() => existingCharge.value ? existingCharge.value.remainingWeight : saleWeight.value);
+
+// 기 결제 - whatever was already collected on this exact charge before this dialog (e.g. a
+// partial payment through another flow). Surfacing it as its own line, rather than folding
+// it invisibly into A, keeps A a clean "everything else" figure that's never negative and
+// never has to be reverse-engineered to make the final total agree.
+const alreadyPaidAmount = computed(() => existingCharge.value ? existingCharge.value.amount - existingCharge.value.remainingAmount : 0);
+const alreadyPaidWeight = computed(() => existingCharge.value ? existingCharge.value.weight - existingCharge.value.remainingWeight : 0);
+
 const purityBreakdown = computed(() => {
   const groups: Record<string, { purity: string; weight: number; amount: number }> = {};
   flattenItems().forEach((item: any) => {
@@ -179,12 +206,12 @@ const purityBreakdown = computed(() => {
 
 const afterAmount = computed(() => {
   const a = summary.value?.totalReceivable || 0;
-  return a + saleAmount.value - (depositForm.amount || 0) - (depositForm.discount || 0);
+  return a + saleAmount.value - alreadyPaidAmount.value - (depositForm.amount || 0) - (depositForm.discount || 0);
 });
 
 const afterWeight = computed(() => {
   const a = summary.value?.totalReceivableWeight || 0;
-  return a + saleWeight.value - (depositForm.weight || 0);
+  return a + saleWeight.value - alreadyPaidWeight.value - (depositForm.weight || 0);
 });
 
 const fetchSummary = async () => {
@@ -195,7 +222,35 @@ const fetchSummary = async () => {
   }
   try {
     const res: any = await getUserSummaryById(userId);
-    summary.value = res.data;
+    const userSummary = res.data;
+
+    // If these orders already carry an existing Receivable CHARGE (e.g. a prior partial
+    // payment was collected against it before this official 정산확인), its still-outstanding
+    // remainder is already folded into A (the whole-account total) above - excluding that
+    // remainder (not the full original amount) keeps A a clean "everything else" figure that
+    // never goes negative. 기 결제 (alreadyPaidAmount, computed from amount - remainingAmount)
+    // covers the difference so A+B-기결제-C still nets out correctly.
+    existingCharge.value = null;
+    if (userSummary) {
+      try {
+        const orderIds = props.orders.map((o: any) => o.id);
+        const chargeRes: any = await getReceivableChargeSummary(orderIds);
+        if (chargeRes.data) {
+          userSummary.totalReceivable = (userSummary.totalReceivable || 0) - (chargeRes.data.saleAmount || 0);
+          userSummary.totalReceivableWeight = (userSummary.totalReceivableWeight || 0) - (chargeRes.data.saleWeight || 0);
+          existingCharge.value = {
+            amount: chargeRes.data.totalCharge || 0,
+            weight: chargeRes.data.totalChargeWeight || 0,
+            remainingAmount: chargeRes.data.saleAmount || 0,
+            remainingWeight: chargeRes.data.saleWeight || 0
+          };
+        }
+      } catch (chargeError) {
+        console.error('Failed to check for an existing charge on these orders:', chargeError);
+      }
+    }
+
+    summary.value = userSummary;
   } catch (error) {
     console.error('Failed to fetch user receivable summary:', error);
     summary.value = null;
@@ -210,6 +265,7 @@ watch(() => props.modelValue, (val) => {
     depositForm.discount = 0;
     depositForm.memo = '';
     summary.value = null;
+    existingCharge.value = null;
     fetchSummary();
   }
 });
@@ -248,8 +304,13 @@ const handleSettlementSubmit = () => {
       }));
 
       if ((depositForm.amount || 0) > 0 || (depositForm.weight || 0) > 0 || (depositForm.discount || 0) > 0) {
+        // Target these specific orders' own charge(s) explicitly - without orderIds, a
+        // payment falls back to "oldest outstanding charge first" across the retailer's
+        // whole account, which can silently apply this settlement's money to an unrelated
+        // order instead of the one actually being confirmed here.
         await processDeposit({
           userId,
+          orderIds: props.orders.map((order: any) => order.id),
           amount: depositForm.amount,
           weight: depositForm.weight,
           discount: depositForm.discount,

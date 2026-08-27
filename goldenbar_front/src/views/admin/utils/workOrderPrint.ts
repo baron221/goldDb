@@ -262,20 +262,27 @@ export function printApprovedOrdersList(orders: any[], codeMap: Record<string, s
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${ampm} ${h12}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   };
 
-  const rowsHtml = orders.map((order) => {
+  const rowsHtml = orders.map((order, idx) => {
     const item = (order.orderItems || []).find((i: any) => !i.parentId) || (order.orderItems || [])[0] || {};
     const name = item.productName || item.productSetTitle || '-';
     const size = item.size && item.size !== 'EMPTY' ? item.size : '';
+    const color = item.color && item.color !== 'EMPTY' ? codeName(item.color) : '';
     const weight = item.requestedWeight || item.actualWeight || 0;
+    const asBadge = item.isAsOrder ? '<span class="badge as">AS</span>' : '';
+    const setBadge = item.isSet ? '<span class="badge set">SET</span>' : '';
+    const memo = [item.memo, item.requestedMemo, item.inspectionMemo].filter(Boolean).join(' / ');
 
     return `
-      <tr>
-        <td class="c">${esc(order.orderNo || order.id || '-')}</td>
+      <tr class="${idx % 2 === 1 ? 'alt' : ''}">
+        <td class="c orderno">${esc(order.orderNo || order.id || '-')}</td>
         <td class="goods">
           <img class="thumb" src="${esc(item.photoUrl || '/thumb_no_img.png')}" />
           <div class="goods-text">
-            <div class="gname">${esc(name)}</div>
+            <div class="gname">${setBadge}${esc(name)}${asBadge}</div>
+            <div class="gno">제품번호: ${esc(item.productNo || '-')}</div>
             ${size ? `<div class="gsize">표준 사이즈 : ${esc(size)}</div>` : ''}
+            ${color ? `<div class="gcolor">색상 : ${esc(color)}</div>` : ''}
+            ${memo ? `<div class="gmemo">메모 : ${esc(memo)}</div>` : ''}
           </div>
         </td>
         <td class="detail">
@@ -297,20 +304,32 @@ export function printApprovedOrdersList(orders: any[], codeMap: Record<string, s
           @page { size: A4; margin: 14mm; }
           * { box-sizing: border-box; }
           body { margin: 0; font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; color: #1a1a1a; font-size: 12px; }
-          .doc-title { font-size: 22px; font-weight: 800; margin-bottom: 14px; }
-          table { width: 100%; border-collapse: collapse; }
-          thead th { background: #f2f0eb; border: 1px solid #b9b5ac; padding: 8px 6px; font-size: 11px; font-weight: 700; }
-          tbody td { border: 1px solid #cfccc4; padding: 8px; vertical-align: middle; }
+          .doc-title { font-size: 22px; font-weight: 800; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 3px solid #1a1a1a; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          thead th { background: #f2f0eb; border: 1px solid #b9b5ac; padding: 8px 6px; font-size: 11px; font-weight: 700; text-align: center; }
+          tbody td { border: 1px solid #cfccc4; padding: 10px 8px; vertical-align: middle; line-height: 1.5; overflow: hidden; word-break: break-word; }
+          tbody tr.alt td { background: #faf9f6; }
           td.c { text-align: center; }
+          td.orderno { font-size: 10px; word-break: break-all; }
           td.date { font-size: 11px; color: #555; }
-          .goods { display: flex; align-items: center; gap: 8px; }
-          .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd; flex-shrink: 0; }
-          .gname { font-weight: 700; }
-          .gsize { color: #c0392b; font-size: 10.5px; margin-top: 2px; }
-          .detail { font-size: 10.5px; color: #555; }
+          .goods { display: table-cell; }
+          .goods > .thumb { float: left; margin-right: 8px; }
+          .thumb { width: 68px; height: 68px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd; }
+          .goods-text { overflow: hidden; }
+          .gname { font-weight: 700; margin-bottom: 2px; }
+          .gno, .gsize, .gcolor, .gmemo { color: #666; font-size: 10.5px; margin-top: 1px; }
+          .gsize { color: #c0392b; }
+          .gmemo { color: #333; }
+          .badge {
+            display: inline-block; font-size: 9px; font-weight: 700;
+            padding: 0 4px; border-radius: 3px; margin-right: 4px; vertical-align: middle;
+          }
+          .badge.set { background: #e6a23c; color: #fff; }
+          .badge.as { background: #f56c6c; color: #fff; margin-right: 0; margin-left: 4px; }
+          .detail { font-size: 10.5px; color: #555; line-height: 1.6; }
           .print-btn-row { text-align: center; margin-top: 20px; }
           .print-btn { background: #6c3fc5; color: #fff; border: none; padding: 10px 22px; border-radius: 4px; font-size: 13px; font-weight: 700; cursor: pointer; }
-          @media print { .print-btn-row { display: none; } }
+          @media print { .print-btn-row { display: none; } tbody tr.alt td { background: #f5f5f2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
         </style>
       </head>
       <body>
@@ -318,13 +337,13 @@ export function printApprovedOrdersList(orders: any[], codeMap: Record<string, s
         <table>
           <thead>
             <tr>
-              <th style="width: 60px;">번호</th>
+              <th style="width: 100px;">번호</th>
               <th>주문내용</th>
-              <th style="width: 150px;">주문상세</th>
-              <th style="width: 50px;">함량</th>
-              <th style="width: 60px;">중량</th>
-              <th style="width: 60px;">주문수량</th>
-              <th style="width: 110px;">주문일자</th>
+              <th style="width: 130px;">주문상세</th>
+              <th style="width: 46px;">함량</th>
+              <th style="width: 56px;">중량</th>
+              <th style="width: 56px;">주문수량</th>
+              <th style="width: 100px;">주문일자</th>
             </tr>
           </thead>
           <tbody>

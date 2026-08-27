@@ -32,20 +32,6 @@
                 v-model="listQuery.categoryLarge"
                 group-code="PRODUCT_CATEGORY"
                 placeholder="대분류"
-                style="width: 120px; margin-right: 0.3125rem;"
-                @change="(val, options) => handleLargeChange(val, options)"
-              />
-              <common-select
-                v-model="listQuery.categoryMedium"
-                :parent-id="largeId"
-                placeholder="중분류"
-                style="width: 120px; margin-right: 0.3125rem;"
-                @change="(val, options) => handleMediumChange(val, options)"
-              />
-              <common-select
-                v-model="listQuery.categorySmall"
-                :parent-id="mediumId"
-                placeholder="소분류"
                 style="width: 120px;"
                 @change="handleFilter"
               />
@@ -56,20 +42,6 @@
                 v-model="listQuery.setCategoryLarge"
                 group-code="PRODUCT_CATEGORY"
                 placeholder="대분류"
-                style="width: 120px; margin-right: 0.3125rem;"
-                @change="(val, options) => handleSetLargeChange(val, options)"
-              />
-              <common-select
-                v-model="listQuery.setCategoryMedium"
-                :parent-id="setLargeId"
-                placeholder="중분류"
-                style="width: 120px; margin-right: 0.3125rem;"
-                @change="(val, options) => handleSetMediumChange(val, options)"
-              />
-              <common-select
-                v-model="listQuery.setCategorySmall"
-                :parent-id="setMediumId"
-                placeholder="소분류"
                 style="width: 120px;"
                 @change="handleFilter"
               />
@@ -251,43 +223,6 @@ const listQuery = reactive({
   categoryLarge: '', categoryMedium: '', categorySmall: '',
   setCategoryLarge: '', setCategoryMedium: '', setCategorySmall: ''
 });
-
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  listQuery.categoryMedium = '';
-  listQuery.categorySmall = '';
-  mediumId.value = null;
-  handleFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  listQuery.categorySmall = '';
-  handleFilter();
-};
-
-const handleSetLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  listQuery.setCategoryMedium = '';
-  listQuery.setCategorySmall = '';
-  setMediumId.value = null;
-  handleFilter();
-};
-
-const handleSetMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  listQuery.setCategorySmall = '';
-  handleFilter();
-};
 
 const selectedOrder = ref<any>(null);
 const historyLoading = ref(false);

@@ -121,6 +121,14 @@ public class Product : BaseModel
 
     public string? SpecialNote { get; set; }
 
+    // Internal production notes for the manufacturer's own staff - never returned to
+    // other companies (see ProductService's read-path redaction), unlike every other
+    // field on this model which is shared with whoever can see the product at all.
+    [Description("작업내용 (공장 전용 메모)")]
+    [MaxLength(1000)]
+
+    public string? WorkNote { get; set; }
+
     [Description("공개 여부")]
     public bool IsPublic { get; set; } = false;
 

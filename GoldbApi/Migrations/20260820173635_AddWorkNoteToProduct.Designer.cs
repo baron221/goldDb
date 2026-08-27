@@ -3,6 +3,7 @@ using System;
 using GoldbApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoldbApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820173635_AddWorkNoteToProduct")]
+    partial class AddWorkNoteToProduct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3173,11 +3176,6 @@ namespace GoldbApi.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("settlement_method");
-
-                    b.Property<int?>("SourcePaymentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_payment_id")
-                        .HasComment("이 입금을 발생시킨 Payable(정산처리) 결제 ID - MFG-DCC 정산이 이 주문의 미수금에 비례 반영된 경우에만 값이 있음");
 
                     b.Property<string>("Type")
                         .IsRequired()

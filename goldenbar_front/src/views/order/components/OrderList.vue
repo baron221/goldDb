@@ -42,22 +42,20 @@
       </el-table-column>
 
       <el-table-column
-        label="주문의 총금액"
-        width="140"
-        align="right"
-        :excel-formatter="(row) => canViewPrice ? `${getStatusLabel(row.status)} / ₩${formatPrice(getOrderTotal(row))}` : getStatusLabel(row.status)"
+        label="상태"
+        width="120"
+        align="center"
+        :excel-formatter="(row) => getStatusLabel(row.status)"
       >
         <template #default="{row}">
-          <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag><br />
-          <template v-if="canViewPrice">
-            <span style="font-size: 0.8875rem; color: #909399; margin-right: 0.1875rem;">₩</span><span style="font-weight: bold; color: #f56c6c; font-size: 1.05rem;">{{ formatPrice(getOrderTotal(row)) }}</span>
-          </template>
+          <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
 
-      <el-table-column label="액션" width="150" align="center">
+      <el-table-column label="고객" width="150" align="center">
         <template #default="{row}">
           <div class="action-cell">
+            <span class="customer-name">{{ row.customerName || '-' }}</span>
             <el-button
               v-if="row.status === 'ORDERED' || row.status === '접수대기'"
               type="danger"
@@ -66,15 +64,6 @@
             >
               주문취소
             </el-button>
-            <el-button
-              v-if="isStatementVisible(row.status)"
-              type="info"
-              size="small"
-              @click="emit('statement', row)"
-            >
-              명세서 확인
-            </el-button>
-            <span v-if="!hasAction(row.status)" class="no-action-note">제품 준비 중입니다</span>
           </div>
         </template>
       </el-table-column>
@@ -84,13 +73,8 @@
 
 <script setup lang="ts">
 import { parseTime } from '@/utils';
-import { formatPrice } from '@/utils/format';
-import { isStatementVisibleStatus, isPostPendingStatus } from '@/utils/order';
 import BaseTable from '@/components/BaseTable/index.vue';
 import OrderGoodsCell from '@/components/OrderTableList/components/OrderGoodsCell.vue';
-import { useCanViewPrice } from '@/hooks/usePriceVisibility';
-
-const canViewPrice = useCanViewPrice();
 
 const props = defineProps<{
   orders: any[];
@@ -98,44 +82,19 @@ const props = defineProps<{
   searchTerm?: string;
 }>();
 
-const emit = defineEmits(['statement', 'cancel']);
+const emit = defineEmits(['cancel']);
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   return parseTime(new Date(dateStr), '{y}-{m}-{d} {h}:{i}');
 };
 
-const getOrderTotal = (order: any) => {
-  // Once logistics confirms the production price (order reaches PENDING+), the
-  // retailer should see that confirmed price rather than the original cart-time
-  // listing price - prefer the backend-settled amount, then the item-level
-  // logistics-confirmed figures, falling back to the original price otherwise.
-  const isPostPending = isPostPendingStatus(order.status);
-  if (isPostPending && order.settlementAmount) {
-    return order.settlementAmount;
-  }
-
-  return order.orderItems.reduce((sum: number, item: any) => {
-    const itemPrice = isPostPending && (item.retailerConfirmMaterialCost || item.retailerConfirmLaborCost)
-      ? (item.retailerConfirmMaterialCost || 0) + (item.retailerConfirmLaborCost || 0)
-      : item.price;
-    let itemTotal = itemPrice * item.quantity;
-    if (item.children) {
-      itemTotal += item.children.reduce((cSum: number, c: any) => {
-        const childPrice = isPostPending && (c.retailerConfirmMaterialCost || c.retailerConfirmLaborCost)
-          ? (c.retailerConfirmMaterialCost || 0) + (c.retailerConfirmLaborCost || 0)
-          : c.price;
-        return cSum + (childPrice * c.quantity);
-      }, 0);
-    }
-    return sum + itemTotal;
-  }, 0);
-};
-
 const STATUS_LABEL: Record<string, string> = {
   'ORDERED': '접수대기',
   'Cancelled': '주문취소',
   'LogisticsApproved': '제품준비중',
+  'FactoryApproved': '제품준비중',
+  'FactoryRejected': '공장거절',
   'FactoryRequested': '제품준비중',
   'WorkOrderCreated': '제품준비중',
   'InspectedRequested': '제품준비중',
@@ -159,6 +118,8 @@ const getStatusType = (status: string) => {
     'ORDERED': 'info',
     'Cancelled': 'info',
     'LogisticsApproved': 'warning',
+    'FactoryApproved': 'warning',
+    'FactoryRejected': 'danger',
     'FactoryRequested': 'warning',
     'WorkOrderCreated': 'warning',
     'InspectedRequested': 'warning',
@@ -175,12 +136,6 @@ const getStatusType = (status: string) => {
     'Completed': 'success'
   };
   return map[status] ?? 'info';
-};
-
-const isStatementVisible = (status: string) => isStatementVisibleStatus(status);
-
-const hasAction = (status: string) => {
-  return status === 'ORDERED' || status === '접수대기' || isStatementVisible(status);
 };
 </script>
 
@@ -221,10 +176,14 @@ const hasAction = (status: string) => {
       margin-left: 0 !important;
     }
 
-    .no-action-note {
-      font-size: 0.8125rem;
-      color: #b0b0b0;
-      white-space: nowrap;
+    .customer-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #2c2c2e;
+
+      :global(html.dark) & {
+        color: #eaeaea;
+      }
     }
   }
 }

@@ -30,20 +30,6 @@
           v-model="localQuery.categoryLarge"
           group-code="PRODUCT_CATEGORY"
           :placeholder="$t('productMarket.labels.selectLarge')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleLargeChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categoryMedium"
-          :parent-id="largeId"
-          :placeholder="$t('productMarket.labels.selectMedium')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleMediumChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.categorySmall"
-          :parent-id="mediumId"
-          :placeholder="$t('productMarket.labels.selectSmall')"
           style="width: 120px;"
           @change="emitFilter"
         />
@@ -54,20 +40,6 @@
           v-model="localQuery.setCategoryLarge"
           group-code="PRODUCT_CATEGORY"
           :placeholder="$t('productMarket.labels.selectLarge')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetLargeChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.setCategoryMedium"
-          :parent-id="setLargeId"
-          :placeholder="$t('productMarket.labels.selectMedium')"
-          style="width: 120px; margin-right: 0.3125rem;"
-          @change="(val, options) => handleSetMediumChange(val, options)"
-        />
-        <common-select
-          v-model="localQuery.setCategorySmall"
-          :parent-id="setMediumId"
-          :placeholder="$t('productMarket.labels.selectSmall')"
           style="width: 120px;"
           @change="emitFilter"
         />
@@ -118,11 +90,6 @@ const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
 const dateRange = ref<string[]>([localQuery.startDate || defaultStartDate, localQuery.endDate || defaultEndDate]);
 const orderStatusCodes = ref<any[]>([]);
 
-const largeId = ref<number | null>(null);
-const mediumId = ref<number | null>(null);
-const setLargeId = ref<number | null>(null);
-const setMediumId = ref<number | null>(null);
-
 const isAdmin = computed(() => userStore.roles.includes('admin'));
 
 const statusLabel = (status: string) => {
@@ -144,38 +111,6 @@ const handleDateChange = (val: string[] | null) => {
   emitFilter();
 };
 
-const handleLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  largeId.value = selected ? selected.id : null;
-  localQuery.categoryMedium = '';
-  localQuery.categorySmall = '';
-  mediumId.value = null;
-  emitFilter();
-};
-
-const handleMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  mediumId.value = selected ? selected.id : null;
-  localQuery.categorySmall = '';
-  emitFilter();
-};
-
-const handleSetLargeChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setLargeId.value = selected ? selected.id : null;
-  localQuery.setCategoryMedium = '';
-  localQuery.setCategorySmall = '';
-  setMediumId.value = null;
-  emitFilter();
-};
-
-const handleSetMediumChange = (val: string, options: any) => {
-  const selected = options.find((o: any) => o.code === val);
-  setMediumId.value = selected ? selected.id : null;
-  localQuery.setCategorySmall = '';
-  emitFilter();
-};
-
 const emitReset = () => {
   dateRange.value = [defaultStartDate, defaultEndDate];
   localQuery.startDate = defaultStartDate;
@@ -189,11 +124,6 @@ const emitReset = () => {
   localQuery.setCategoryLarge = '';
   localQuery.setCategoryMedium = '';
   localQuery.setCategorySmall = '';
-
-  largeId.value = null;
-  mediumId.value = null;
-  setLargeId.value = null;
-  setMediumId.value = null;
 
   emit('reset');
 };

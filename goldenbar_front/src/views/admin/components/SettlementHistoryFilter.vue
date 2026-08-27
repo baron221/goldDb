@@ -22,8 +22,8 @@
           @change="handleDateChange"
         />
       </el-form-item>
-      <el-form-item :label="$t('order.filters.orderNo')">
-        <el-input v-model="localQuery.orderNo" :placeholder="$t('order.filters.orderNo')" clearable @keyup.enter="handleFilter" />
+      <el-form-item label="상품명">
+        <el-input v-model="localQuery.productName" placeholder="상품명" clearable @keyup.enter="handleFilter" />
       </el-form-item>
 
 

@@ -175,6 +175,21 @@ public class ProductService : IProductService
             .ProjectToType<ProductDto>()
             .ToListAsync();
 
+        if (!_currentUserService.IsAdmin)
+        {
+            // GetCurrentUserCompanyIdsAsync() throws for anonymous callers (no UserId) -
+            // this endpoint allows anonymous access (public marketplace browsing), so an
+            // anonymous request just redacts everything rather than erroring out.
+            var myCompanyIds = _currentUserService.UserId.HasValue
+                ? await GetCurrentUserCompanyIdsAsync()
+                : new List<int>();
+            foreach (var item in items)
+            {
+                if (!item.CompanyId.HasValue || !myCompanyIds.Contains(item.CompanyId.Value))
+                    item.WorkNote = null;
+            }
+        }
+
         return ApiResponse<PagedResult<ProductDto>>.Success(new PagedResult<ProductDto>
         {
             Items = items,
@@ -232,7 +247,17 @@ public class ProductService : IProductService
             }
         }
 
-        return ApiResponse<ProductDto>.Success(p.Adapt<ProductDto>());
+        var dto = p.Adapt<ProductDto>();
+        if (!_currentUserService.IsAdmin)
+        {
+            var myCompanyIds = _currentUserService.UserId.HasValue
+                ? await GetCurrentUserCompanyIdsAsync()
+                : new List<int>();
+            if (!p.CompanyId.HasValue || !myCompanyIds.Contains(p.CompanyId.Value))
+                dto.WorkNote = null;
+        }
+
+        return ApiResponse<ProductDto>.Success(dto);
     }
 
     public async Task<ApiResponse<ProductDto>> CreateProductAsync(CreateProductDto request)
@@ -273,6 +298,7 @@ public class ProductService : IProductService
             SideStoneCount = request.SideStoneCount,
             Description = request.Description,
             SpecialNote = request.SpecialNote,
+            WorkNote = request.WorkNote,
             IsPublic = request.IsPublic,
             LaborCost = request.LaborCost,
             Colors = request.Colors,
@@ -351,6 +377,7 @@ public class ProductService : IProductService
         product.SideStoneCount = request.SideStoneCount;
         product.Description = request.Description;
         product.SpecialNote = request.SpecialNote;
+        product.WorkNote = request.WorkNote;
         product.IsPublic = request.IsPublic;
         product.LaborCost = request.LaborCost;
         product.Colors = request.Colors;

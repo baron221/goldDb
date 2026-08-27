@@ -145,31 +145,17 @@
         </template>
       </el-table-column>
 
-      <el-table-column
-        v-if="props.userCategory === 'DCC'"
-        label="정산"
-        width="100"
-        align="center"
-        :excel-formatter="(row) => row.isPayableSettled ? '정산완료' : '정산대기'"
-      >
-        <template #default="{row}">
-          <el-tag :type="row.isPayableSettled ? 'success' : 'warning'" size="small">
-            {{ row.isPayableSettled ? '정산완료' : '정산대기' }}
-          </el-tag>
-        </template>
-      </el-table-column>
 
       <el-table-column
-        prop="totalAmount"
-        label="주문의 총금액"
-        width="130"
-        align="right"
+        prop="status"
+        label="상태"
+        width="120"
+        align="center"
         :fixed="!isMobile ? 'right' : false"
-        :excel-formatter="(row) => `${statusLabel(row.status)} / ₩${formatPrice(getOrderTotalAmount(row, props.userCategory))}`"
+        :excel-formatter="(row) => statusLabel(row.status)"
       >
         <template #default="{row}">
-          <el-tag :type="getStatusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag><br />
-          <span style="font-size: 0.8875rem; color: #909399; margin-right: 0.1875rem; font-weight: normal;">₩</span><span style="font-weight: bold; color: #f56c6c; font-size: 1.2rem;">{{ formatPrice(getOrderTotalAmount(row, props.userCategory)) }}</span>
+          <el-tag :type="getStatusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
 
@@ -223,8 +209,7 @@ import OrderActionMore from '@/components/OrderActionMore/index.vue';
 import OrderGoodsCell from './components/OrderGoodsCell.vue';
 import OrderActionButtons from './components/OrderActionButtons.vue';
 import { parseTime } from '@/utils';
-import { formatPrice } from '@/utils/format';
-import { getStatusLabel, getStatusTagType, getOrderTotalAmount } from '@/utils/order';
+import { getStatusLabel, getStatusTagType } from '@/utils/order';
 import { ref } from 'vue';
 const { isMobile } = useMobile();
 

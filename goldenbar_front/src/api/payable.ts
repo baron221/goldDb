@@ -39,6 +39,14 @@ export function getPayableOrderHistorySummary(params: any) {
   });
 }
 
+export function getPayableOverdueSummary(params?: any) {
+  return request({
+    url: '/payables/overdue-summary',
+    method: 'get',
+    params
+  });
+}
+
 export function getCompletedPayableOrders(params: any) {
   return request({
     url: '/payables/order-history/completed',
@@ -50,6 +58,13 @@ export function getCompletedPayableOrders(params: any) {
 export function getChargeApplications(chargeId: number) {
   return request({
     url: `/payables/charges/${chargeId}/applications`,
+    method: 'get'
+  });
+}
+
+export function getLedgerBefore(id: number) {
+  return request({
+    url: `/payables/${id}/ledger-before`,
     method: 'get'
   });
 }

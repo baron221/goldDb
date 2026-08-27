@@ -165,6 +165,20 @@
           </el-form-item>
         </el-col>
       </el-row>
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <el-form-item :label="$t('productDialog.specialNote')" prop="specialNote">
+            <el-input v-model="localTemp.specialNote" type="textarea" :rows="2" :placeholder="$t('productDialog.specialNotePlaceholder')" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row v-if="isMfgUser" :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="작업내용" prop="workNote">
+            <el-input v-model="localTemp.workNote" type="textarea" :rows="3" placeholder="공장 내부 작업 메모 (다른 업체에는 보이지 않습니다)" />
+          </el-form-item>
+        </el-col>
+      </el-row>
     </el-col>
   </el-row>
 </template>
@@ -176,8 +190,13 @@ import CommonSelect from '@/components/CommonSelect/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 import AmountInput from '@/components/AmountInput/index.vue';
 import useCodeStore from '@/store/modules/code';
+import useUserStore from '@/store/modules/user';
 
 const codeStore = useCodeStore();
+const userStore = useUserStore();
+// Work-note visibility mirrors the backend's read-path redaction (ProductService):
+// only the manufacturer who owns the product (or an admin) ever sees or edits it.
+const isMfgUser = computed(() => userStore.companyType === 'MFG' || userStore.roles.includes('admin'));
 
 const getCodeName = (code: string) => {
   return codeStore.getCodeName(code) || code;

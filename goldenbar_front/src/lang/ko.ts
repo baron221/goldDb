@@ -1353,6 +1353,8 @@ export default {
     laborCostPlaceholder: '수공비를 입력하세요',
     designNotice: '디자인고시',
     designNoticePlaceholder: '디자인 관련 고시 사항을 입력하세요',
+    specialNote: '특이사항',
+    specialNotePlaceholder: '특이사항을 입력하세요',
     sizes: '제품 사이즈',
     sizesPlaceholder: '예: 1호 (직접 입력)',
     productSize: '제품크기',

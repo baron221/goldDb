@@ -16,11 +16,6 @@
           <el-input v-model="localTemp.productSize" />
         </el-form-item>
       </el-col>
-      <el-col :xs="24" :sm="12">
-        <el-form-item :label="$t('productDialog.basicLoss')" prop="basicLoss">
-          <el-input-number v-model="localTemp.basicLoss" :precision="2" :step="0.01" style="width: 100%;" />
-        </el-form-item>
-      </el-col>
     </el-row>
 
     <el-row v-if="localTemp.purity && localTemp.purity.length > 0 && localTemp.colors && localTemp.colors.length > 0" :gutter="20" style="margin-top: 0.9375rem; margin-bottom: 0.9375rem;">
