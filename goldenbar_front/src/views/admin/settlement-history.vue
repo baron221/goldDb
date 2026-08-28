@@ -2,148 +2,223 @@
 <div class="settlement-history-container app-container">
 
     <template v-if="!isPayableSide">
-      <el-row :gutter="20" class="summary-cards" v-loading="summaryLoading">
-        <el-col :xs="24" :sm="8" class="mb-4 sm:mb-0">
-          <el-card shadow="hover" class="summary-card">
-            <template #header><div class="card-header"><span>{{ $t('admin.settlement.summary.totalActualWeight') }}</span></div></template>
-            <div class="card-value">{{ summaryData.totalActualWeight.toFixed(2) }}g</div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="8" class="mb-4 sm:mb-0">
-          <el-card shadow="hover" class="summary-card gold">
-            <template #header><div class="card-header"><span>{{ $t('admin.settlement.summary.totalFineGold') }}</span></div></template>
-            <div class="card-value">{{ summaryData.totalFineGold.toFixed(2) }}g</div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="8">
-          <el-card shadow="hover" class="summary-card settle">
-            <template #header><div class="card-header"><span>{{ $t('admin.settlement.summary.totalAmount') }}</span></div></template>
-            <div class="card-value">₩ {{ formatPrice(summaryData.totalSettlementAmount) }}</div>
-          </el-card>
-        </el-col>
-      </el-row>
-
       <settlement-history-filter
-        :query="listQuery"
+        :query="receivableQuery"
         :is-mobile="isMobile"
         company-category="RTL"
         company-label="소매점"
-        @update:query="Object.assign(listQuery, $event)"
-        @filter="handleFilter"
-        @reset="resetQuery"
-        @print-combined="printCombinedStatement"
-        style="margin-top: 1.25rem;"
+        @update:query="Object.assign(receivableQuery, $event)"
+        @filter="handleReceivableFilter"
+        @reset="resetReceivableQuery"
+        @print-combined="printCombinedReceivableStatement"
       />
 
       <el-card shadow="never" style="margin-top: 1.25rem;">
         <base-table
-          v-loading="listLoading"
-          :data="list"
+          v-loading="receivableListLoading"
+          :data="receivableList"
+          :total="receivableTotal"
+          v-model:page="receivableQuery.page"
+          v-model:page-size="receivableQuery.pageSize"
           border
-          fit
-          highlight-current-row
-          style="width: 100%"
           row-key="id"
+          style="width: 100%;"
+          @change="fetchReceivableList"
         >
-          <el-table-column type="expand">
+          <el-table-column label="거래번호" width="100" align="center" prop="id" />
+          <el-table-column label="거래처" width="180" align="center">
             <template #default="{row}">
-              <div class="order-detail-expand">
-                <h4>{{ $t('admin.settlement.table.expandTitle') }}</h4>
-                <base-table :data="flattenOrderItems(row.orderItems)" border size="small" style="width: 100%">
-                  <el-table-column :label="$t('orderDetail.headers.productInfo')" min-width="250" prop="productName" :excel-formatter="productItemInfoFormatter">
-                    <template #default="item">
-                      <div class="product-info-cell" :style="{ paddingLeft: item.row.depth * 20 + 'px' }">
-                        <el-image :src="item.row.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 35px; height: 35px;" />
-                        <div class="product-text">
-                          <div class="product-name">{{ item.row.productName || item.row.productSetTitle }}</div>
-                          <div class="product-no">{{ item.row.productNo }}</div>
-                          <div class="product-options" v-if="item.row.purity || item.row.color">
-                            <el-tag size="small" type="info" effect="plain" v-if="item.row.purity">{{ codeMap[item.row.purity] || item.row.purity }}</el-tag>
-                            <el-tag size="small" type="info" effect="plain" v-if="item.row.color && item.row.color !== 'EMPTY'" style="margin-left: 0.3125rem;">{{ codeMap[item.row.color] || item.row.color }}</el-tag>
-                          </div>
-                        </div>
-                      </div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column :label="$t('orderDetail.headers.actualWeight')" width="90" align="center" prop="actualWeight" :excel-formatter="(row) => row.actualWeight ? row.actualWeight + 'g' : '-'">
-                    <template #default="item">
-                      <span>{{ item.row.actualWeight ? item.row.actualWeight + 'g' : '-' }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column :label="$t('productDetail.labels.purity')" width="80" align="center" prop="purity" />
-                  <el-table-column :label="$t('admin.settlement.table.fineGold')" width="100" align="center" prop="fineGold" :excel-formatter="(row) => calculatePurityWeight(row.actualWeight, row.purity) + 'g'">
-                    <template #default="item">
-                      <span>{{ calculatePurityWeight(item.row.actualWeight, item.row.purity) }}g</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column :label="$t('admin.settlement.table.ratio')" width="80" align="center" prop="settlementRatio" :excel-formatter="(row) => row.settlementRatio + '%'">
-                    <template #default="item">
-                      <span>{{ item.row.settlementRatio }}%</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column :label="$t('admin.settlement.table.amount')" width="120" align="right" prop="settlementAmount" :excel-formatter="(row) => '₩ ' + formatPrice(row.settlementAmount || row.totalPrice || row.price || (((row.retailerConfirmMaterialCost || row.factoryInputMaterialCost || 0) + (row.retailerConfirmLaborCost || row.factoryInputLaborCost || 0)) * (row.quantity || 1)))">
-                    <template #default="item">
-                      <span style="font-weight: bold; color: #f56c6c;">₩ {{ formatPrice(item.row.settlementAmount || item.row.totalPrice || item.row.price || (((item.row.retailerConfirmMaterialCost || item.row.factoryInputMaterialCost || 0) + (item.row.retailerConfirmLaborCost || item.row.factoryInputLaborCost || 0)) * (item.row.quantity || 1))) }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column :label="$t('admin.settlement.table.memo')" min-width="150" prop="settlementMemo" />
-                </base-table>
-              </div>
+              {{ row.companyName || row.userDisplayName }}
             </template>
           </el-table-column>
-
-          <el-table-column :label="$t('admin.settlement.table.settledDate')" width="160" align="center" prop="updatedAt" :excel-formatter="(row) => formatDate(row.updatedAt || row.createdAt)">
+          <el-table-column label="거래일자" width="160" align="center">
             <template #default="{row}">
-              <span>{{ formatDate(row.updatedAt || row.createdAt) }}</span>
+              <span class="order-link" @click="openReceivableLedgerDetail(row)">{{ formatDate(row.createdAt) }}</span>
             </template>
           </el-table-column>
-          <el-table-column :label="$t('order.filters.orderNo')" prop="orderNo" width="200" align="center" />
-          <el-table-column :label="$t('orderDetail.headers.productInfo')" min-width="220" :excel-formatter="productSummaryFormatter">
+          <el-table-column label="거래 주문 수량" width="130" align="center">
             <template #default="{row}">
-              <div v-if="primaryOrderItem(row)" class="product-info-cell">
-                <el-image :src="primaryOrderItem(row).photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 40px; height: 40px;" />
-                <div class="product-text">
-                  <div class="product-name">
-                    {{ primaryOrderItem(row).productName || primaryOrderItem(row).productSetTitle }}
-                    <el-tag v-if="orderItemCount(row) > 1" size="small" type="info" effect="plain" style="margin-left: 0.3125rem;">+{{ orderItemCount(row) - 1 }}</el-tag>
-                  </div>
-                  <div class="product-no">{{ primaryOrderItem(row).productNo }}</div>
-                </div>
-              </div>
-              <span v-else>-</span>
+              {{ row.orderCount }}건
             </template>
           </el-table-column>
-          <el-table-column :label="$t('admin.settlement.filters.company')" width="180" align="center" prop="userDisplayName" :excel-formatter="(row) => `${row.userDisplayName} (${row.userName})`">
+          <el-table-column label="정산 금액" width="150" align="right">
             <template #default="{row}">
-              <span>{{ row.userDisplayName }} ({{ row.userName }})</span>
+              <span style="font-weight: bold; color: #67c23a;">₩ {{ formatPrice(row.amount) }}</span>
+              <span v-if="row.weight > 0" style="color: #909399; font-size: 0.8125rem;"> ({{ row.weight.toFixed(2) }}g)</span>
             </template>
           </el-table-column>
-          <el-table-column :label="$t('admin.settlement.summary.totalAmount')" width="150" align="right" prop="totalSettlementAmount" :excel-formatter="(row) => '₩ ' + formatPrice(calculateOrderTotalSettlement(row))">
+          <el-table-column label="상태" width="100" align="center">
             <template #default="{row}">
-              <span style="font-weight: bold; color: #f56c6c;">₩ {{ formatPrice(calculateOrderTotalSettlement(row)) }}</span>
+              <el-tag v-if="row.isCancelled" type="info" size="small">취소됨</el-tag>
+              <el-tag v-else-if="(row.outstandingChargeAmount || 0) > 0 || (row.outstandingChargeWeight || 0) > 0" type="warning" size="small">부분 정산</el-tag>
+              <el-tag v-else type="success" size="small">완료</el-tag>
             </template>
           </el-table-column>
-          <el-table-column :label="$t('common.action')" width="180" align="center" :fixed="!isMobile ? 'right' : false">
+          <el-table-column label="미수 잔액" width="150" align="right">
             <template #default="{row}">
-              <el-button type="primary" size="small" :icon="Printer" @click="printStatement(row)">
-                {{ $t('common.action') === '작업' ? '거래명세서' : $t('common.action') }}
-              </el-button>
+              <span v-if="!row.isCancelled && ((row.outstandingChargeAmount || 0) > 0 || (row.outstandingChargeWeight || 0) > 0)" style="color: #f56c6c; font-weight: bold;">
+                ₩ {{ formatPrice(row.outstandingChargeAmount) }}
+                <span v-if="row.outstandingChargeWeight > 0" style="color: #909399; font-size: 0.8125rem;"> ({{ row.outstandingChargeWeight.toFixed(2) }}g)</span>
+              </span>
+              <span v-else style="color: #c0c4cc;">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="메모" min-width="140" prop="memo" />
+          <el-table-column label="작업" width="140" align="center" :fixed="!isMobile ? 'right' : false">
+            <template #default="{row}">
+              <el-button size="small" @click="handleIssueReceivableStatement(row)">거래명세서</el-button>
             </template>
           </el-table-column>
         </base-table>
-
-        <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="listQuery.page"
-            v-model:page-size="listQuery.pageSize"
-            :total="total"
-            :page-sizes="[10, 20, 30, 50]"
-            layout="total, sizes, prev, pager, next, jumper"
-            @size-change="getList"
-            @current-change="getList"
-          />
-        </div>
       </el-card>
+
+      <base-popup v-model="receivableLedgerDetailVisible" title="정산 상세" width="900px">
+        <div v-if="receivableLedgerDetailRow" class="order-detail-expand" v-loading="receivableLedgerLoading">
+          <table class="ledger-table" style="margin-bottom: 1.25rem;">
+            <thead>
+              <tr>
+                <th>거래번호</th>
+                <th>발행처</th>
+                <th>거래처</th>
+                <th>거래일자</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ledger-readonly">{{ receivableLedgerDetailRow.id }}</td>
+                <td class="ledger-readonly">{{ userStore.companyName || '-' }}</td>
+                <td class="ledger-readonly">{{ receivableLedgerDetailRow.companyName || receivableLedgerDetailRow.userDisplayName }}</td>
+                <td class="ledger-readonly">{{ formatDate(receivableLedgerDetailRow.createdAt) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <el-alert v-if="receivableLedgerDetailRow.isCancelled" type="info" :closable="false" show-icon>
+            이 정산은 취소되어 적용된 제품 내역이 없습니다. 취소 시 연결된 청구 금액이 원래대로 복구되었습니다.
+          </el-alert>
+          <template v-else>
+          <h4>적용 제품 내역</h4>
+          <base-table :data="receivableLedgerDetailRow.appliedCharges || []" border size="small" style="width: 100%" row-key="chargeId">
+            <el-table-column label="주문번호" width="180" align="center" prop="orderNo" />
+            <el-table-column label="제품정보" min-width="280">
+              <template #default="{row: item}">
+                <div v-if="item.items && item.items.length > 0" class="product-info-list">
+                  <div v-for="(p, idx) in item.items.slice(0, 3)" :key="idx" class="product-info-cell">
+                    <el-image :src="p.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 36px; height: 36px;" />
+                    <div class="product-text">
+                      <div class="product-name">
+                        {{ p.productName || '-' }}
+                        <span v-if="p.productNo" class="product-no-code">{{ p.productNo }}</span>
+                      </div>
+                      <div class="product-spec">
+                        함량: {{ p.purity || '-' }} / 수량: {{ p.quantity }}개
+                        <template v-if="p.color && p.color !== 'EMPTY'"> / 색상: {{ codeMap[p.color] || p.color }}</template>
+                        <template v-if="p.size && p.size !== 'EMPTY'"> / 사이즈: {{ p.size }}</template>
+                      </div>
+                      <div v-if="p.memo" class="product-memo">메모: {{ p.memo }}</div>
+                    </div>
+                  </div>
+                  <div v-if="item.items.length > 3" class="product-more">+{{ item.items.length - 3 }}건 더</div>
+                </div>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="적용 금액" width="140" align="right">
+              <template #default="{row: item}">
+                <span style="color: #67c23a; font-weight: bold;">₩ {{ formatPrice(item.appliedAmount) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="적용 중량" width="120" align="right">
+              <template #default="{row: item}">
+                {{ getEffectiveAppliedWeight(item).toFixed(2) }}g
+              </template>
+            </el-table-column>
+            <el-table-column label="작업" width="120" align="center">
+              <template #default="{row: item}">
+                <el-button size="small" @click="handleIssueReceivableItemStatement(item, receivableLedgerDetailRow)">거래명세서</el-button>
+              </template>
+            </el-table-column>
+          </base-table>
+
+          <table v-if="receivableLedgerDetailRow.appliedCharges && receivableLedgerDetailRow.appliedCharges.length > 0" class="purity-summary-table expand-ledger">
+            <thead>
+              <tr>
+                <th>14K 합계(g)</th>
+                <th>18K 합계(g)</th>
+                <th>순금 합계(g)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ getPurityBreakdownForReceivableRow(receivableLedgerDetailRow).p14.toFixed(2) }}</td>
+                <td>{{ getPurityBreakdownForReceivableRow(receivableLedgerDetailRow).p18.toFixed(2) }}</td>
+                <td>{{ getPurityBreakdownForReceivableRow(receivableLedgerDetailRow).pure.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="ledger-table expand-ledger">
+            <thead>
+              <tr>
+                <th></th>
+                <th>순금(g)</th>
+                <th>공임 및 현금</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ledger-label">거래 전 미수(A)</td>
+                <td class="ledger-readonly">{{ receivableLedgerDetailBase.beforeWeight.toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailBase.beforeAmount) }}</td>
+              </tr>
+              <tr>
+                <td class="ledger-label">판매(B)</td>
+                <td class="ledger-readonly">{{ (receivableLedgerDetailBase.newChargeWeight || 0).toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailBase.newChargeAmount || 0) }}</td>
+              </tr>
+              <tr v-if="(receivableLedgerDetailBase.alreadyPaidAmount || 0) > 0 || (receivableLedgerDetailBase.alreadyPaidWeight || 0) > 0">
+                <td class="ledger-label">기 결제</td>
+                <td class="ledger-readonly">{{ (receivableLedgerDetailBase.alreadyPaidWeight || 0).toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailBase.alreadyPaidAmount || 0) }}</td>
+              </tr>
+              <tr v-if="receivableLedgerDetailRow.isMostRecentPayment">
+                <td class="ledger-label">결제(C)</td>
+                <td>
+                  <el-input-number v-model="getReceivableLedgerEditForm(receivableLedgerDetailRow).weight" :min="0" :precision="2" :step="0.1" size="small" style="width: 100%;" />
+                </td>
+                <td>
+                  <el-input-number v-model="getReceivableLedgerEditForm(receivableLedgerDetailRow).amount" :min="0" :step="1000" size="small" style="width: 100%;" />
+                </td>
+              </tr>
+              <tr v-else>
+                <td class="ledger-label">결제(C)</td>
+                <td class="ledger-readonly">{{ (receivableLedgerDetailRow.weight || 0).toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailRow.amount) }}</td>
+              </tr>
+              <tr v-if="receivableLedgerDetailRow.isMostRecentPayment">
+                <td class="ledger-label">할인(D)</td>
+                <td class="ledger-readonly">-</td>
+                <td>
+                  <el-input-number v-model="getReceivableLedgerEditForm(receivableLedgerDetailRow).discount" :min="0" :step="1000" size="small" style="width: 100%;" />
+                </td>
+              </tr>
+              <tr v-else>
+                <td class="ledger-label">할인(D)</td>
+                <td class="ledger-readonly">-</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailRow.discount) }}</td>
+              </tr>
+              <tr class="ledger-total-row">
+                <td class="ledger-label">거래 후 미수<template v-if="(receivableLedgerDetailBase.alreadyPaidAmount || 0) > 0 || (receivableLedgerDetailBase.alreadyPaidWeight || 0) > 0">(A+B-기결제-C-D)</template><template v-else>(A+B-C-D)</template></td>
+                <td class="ledger-readonly">{{ getReceivableLedgerAfter(receivableLedgerDetailRow).afterWeight.toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(getReceivableLedgerAfter(receivableLedgerDetailRow).afterAmount) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="receivableLedgerDetailRow.isMostRecentPayment" style="display: flex; justify-content: flex-end; margin-top: 0.625rem;">
+            <el-button type="primary" size="small" :loading="receivableLedgerSaving" @click="saveReceivableLedgerEdit(receivableLedgerDetailRow)">저장</el-button>
+          </div>
+          </template>
+        </div>
+      </base-popup>
     </template>
 
     <template v-else>
@@ -168,11 +243,6 @@
           style="width: 100%;"
           @change="fetchPayableList"
         >
-          <el-table-column label="" width="70" align="center">
-            <template #default="{row}">
-              <el-button size="small" text type="primary" @click="openLedgerDetail(row)">상세</el-button>
-            </template>
-          </el-table-column>
           <el-table-column label="거래번호" width="100" align="center" prop="id" />
           <el-table-column label="거래처" width="180" align="center">
             <template #default="{row}">
@@ -181,7 +251,7 @@
           </el-table-column>
           <el-table-column label="거래일자" width="160" align="center">
             <template #default="{row}">
-              {{ formatDate(row.createdAt) }}
+              <span class="order-link" @click="openLedgerDetail(row)">{{ formatDate(row.createdAt) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="거래 주문 수량" width="130" align="center">
@@ -217,7 +287,7 @@
               <div style="display: flex; gap: 0.375rem; justify-content: center;">
                 <el-button size="small" @click="handleIssueStatement(row)">거래명세서</el-button>
                 <el-button v-if="!row.isCancelled && row.isMostRecentPayment" size="small" type="warning" @click="openEditDialog(row)">수정</el-button>
-                <el-button v-if="row.isCancelled" size="small" type="danger" @click="handleDeletePayable(row)">삭제</el-button>
+                <el-button v-if="row.isCancelled || isHollowPayment(row)" size="small" type="danger" @click="handleDeletePayable(row)">삭제</el-button>
               </div>
             </template>
           </el-table-column>
@@ -240,17 +310,31 @@
 
       <base-popup v-model="ledgerDetailVisible" title="정산 상세" width="900px">
         <div v-if="ledgerDetailRow" class="order-detail-expand" v-loading="paymentApplicationsLoading[ledgerDetailRow.id]">
+          <table class="ledger-table" style="margin-bottom: 1.25rem;">
+            <thead>
+              <tr>
+                <th>거래번호</th>
+                <th>발행처</th>
+                <th>거래처</th>
+                <th>거래일자</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ledger-readonly">{{ ledgerDetailRow.id }}</td>
+                <td class="ledger-readonly">{{ userStore.companyName || '-' }}</td>
+                <td class="ledger-readonly">{{ ledgerDetailRow.logisticsCompanyName }}</td>
+                <td class="ledger-readonly">{{ formatDate(ledgerDetailRow.createdAt) }}</td>
+              </tr>
+            </tbody>
+          </table>
           <el-alert v-if="ledgerDetailRow.isCancelled" type="info" :closable="false" show-icon>
             이 정산은 취소되어 적용된 제품 내역이 없습니다. 취소 시 연결된 청구 금액이 원래대로 복구되었습니다.
           </el-alert>
           <template v-else>
           <h4>적용 제품 내역</h4>
           <base-table :data="paymentApplicationsData[ledgerDetailRow.id] || []" border size="small" style="width: 100%" row-key="chargeId">
-            <el-table-column label="주문번호" width="180" align="center">
-              <template #default="{row: item}">
-                <span class="order-link" @click="goToOrder(item.orderNo)">{{ item.orderNo }}</span>
-              </template>
-            </el-table-column>
+            <el-table-column label="주문번호" width="180" align="center" prop="orderNo" />
             <el-table-column label="제품정보" min-width="280">
               <template #default="{row: item}">
                 <div v-if="item.items && item.items.length > 0" class="product-info-list">
@@ -322,13 +406,18 @@
             <tbody>
               <tr>
                 <td class="ledger-label">거래 전 미지급(A)</td>
-                <td class="ledger-readonly">{{ getLedgerForRow(ledgerDetailRow).beforeWeight.toFixed(2) }}</td>
-                <td class="ledger-readonly">₩ {{ formatPrice(getLedgerForRow(ledgerDetailRow).beforeAmount) }}</td>
+                <td class="ledger-readonly">{{ ledgerDetailBase.beforeWeight.toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailBase.beforeAmount) }}</td>
               </tr>
               <tr>
                 <td class="ledger-label">청구(B)</td>
-                <td class="ledger-readonly">0.00</td>
-                <td class="ledger-readonly">₩ 0</td>
+                <td class="ledger-readonly">{{ (ledgerDetailBase.newChargeWeight || 0).toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailBase.newChargeAmount || 0) }}</td>
+              </tr>
+              <tr v-if="(ledgerDetailBase.alreadyPaidAmount || 0) > 0 || (ledgerDetailBase.alreadyPaidWeight || 0) > 0">
+                <td class="ledger-label">기 결제</td>
+                <td class="ledger-readonly">{{ (ledgerDetailBase.alreadyPaidWeight || 0).toFixed(2) }}</td>
+                <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailBase.alreadyPaidAmount || 0) }}</td>
               </tr>
               <tr v-if="ledgerDetailRow.isMostRecentPayment">
                 <td class="ledger-label">결제(C)</td>
@@ -359,7 +448,7 @@
                 <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailRow.discount) }}</td>
               </tr>
               <tr class="ledger-total-row">
-                <td class="ledger-label">거래 후 미지급(A+B-C-D)</td>
+                <td class="ledger-label">거래 후 미지급<template v-if="(ledgerDetailBase.alreadyPaidAmount || 0) > 0 || (ledgerDetailBase.alreadyPaidWeight || 0) > 0">(A+B-기결제-C-D)</template><template v-else>(A+B-C-D)</template></td>
                 <td class="ledger-readonly">{{ getLedgerAfter(ledgerDetailRow).afterWeight.toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(getLedgerAfter(ledgerDetailRow).afterAmount) }}</td>
               </tr>
@@ -373,281 +462,6 @@
       </base-popup>
     </template>
 
-    <div id="print-area" v-if="printData" style="display: none;">
-      <div class="receipt-double-container">
-        <template v-for="copyType in ['고객용', '보관용']" :key="copyType">
-          <div class="receipt-copy-block">
-            <!-- Header Table -->
-            <table class="receipt-header-table">
-              <tr>
-                <td class="header-title-cell">
-                  <span class="company-tag">[{{ isMfg ? (printData.companyName || '제조사') : (printData.userDisplayName || printData.userName || printData.companyName || '거래처') }}]</span>
-                  <span class="main-title">임가공 거래 명세서</span>
-                  <span class="copy-badge" :class="{ 'blue-badge': copyType === '고객용' }">({{ copyType }})</span>
-                </td>
-                <td class="supplier-info-cell" rowspan="2">
-                  <div>공급자: {{ isMfg ? (printData.companyName || '제조사') : (printData.logisticsCompanyName || '골든바') }}</div>
-                  <div>전 화: {{ printData.logisticsCompanyPhone || printData.userPhone || '051-633-1116' }}</div>
-                  <div>팩 스: {{ printData.logisticsCompanyFax || '-' }}</div>
-                </td>
-              </tr>
-              <tr>
-                <td class="header-meta-cell">
-                  <span>일자: {{ formatDate(printData.createdAt) }}</span>
-                  <span class="meta-separator">|</span>
-                  <span>거래No: {{ printData.id || printData.orderNo }}</span>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Order Items Table -->
-            <table class="receipt-items-table">
-              <thead>
-                <tr>
-                  <th width="12%">No</th>
-                  <th width="42%">주문내용</th>
-                  <th width="12%">함량</th>
-                  <th width="13%">실중량</th>
-                  <th width="10%">주문수량</th>
-                  <th width="11%">공임비</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in paddedOrderItems(printData.orderItems, 6)" :key="item.id">
-                  <template v-if="!item.isDummy">
-                    <td align="center">{{ item.productNo || item.id }}</td>
-                    <td>
-                      <div class="item-info-flex">
-                        <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
-                        <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
-                      </div>
-                    </td>
-                    <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
-                    <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
-                    <td align="center">{{ item.quantity }}개</td>
-                    <td align="right">{{ formatPrice(isMfg ? ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1) : (item.settlementAmount || item.totalPrice || 0)) }}</td>
-                  </template>
-                  <template v-else>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                  </template>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Purity Summary Table -->
-            <table class="receipt-purity-table">
-              <thead>
-                <tr>
-                  <th width="33%">14K 합계(g)</th>
-                  <th width="33%">18K 합계(g)</th>
-                  <th width="34%">순금(24K) 합계(g)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td align="right">{{ getPurityTotals(printData.orderItems).p14.toFixed(2) }}g</td>
-                  <td align="right">{{ getPurityTotals(printData.orderItems).p18.toFixed(2) }}g</td>
-                  <td align="right">{{ getPurityTotals(printData.orderItems).pure.toFixed(2) }}g</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Settlement Balance Table -->
-            <table class="receipt-balance-table">
-              <thead>
-                <tr>
-                  <th width="30%"></th>
-                  <th width="22%">순금(g)</th>
-                  <th width="24%">공임 및 현금</th>
-                  <th width="24%">금액 합계</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="row-label">최근 결제</td>
-                  <td></td>
-                  <td></td>
-                  <td align="center" style="font-size: 9px;">{{ formatDate(printData.createdAt) }}</td>
-                </tr>
-                <tr>
-                  <td class="row-label">거래 전 미수(A)</td>
-                  <td align="right">{{ (printData.beforeWeight || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(printData.beforeAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">판매(B)</td>
-                  <td align="right">{{ (calculateOrderTotalPureWeight(printData) || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(calculateOrderTotalSettlement(printData) || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">결제(C)</td>
-                  <td align="right">{{ (printData.paidWeight || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(printData.paidAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">할인(D)</td>
-                  <td align="right">0.00</td>
-                  <td align="right">{{ formatPrice(printData.discountAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr class="after-balance-row">
-                  <td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td>
-                  <td align="right"><strong>{{ ((printData.beforeWeight || 0) + (calculateOrderTotalPureWeight(printData) || 0) - (printData.paidWeight || 0)).toFixed(2) }}</strong></td>
-                  <td align="right"><strong>{{ formatPrice((printData.beforeAmount || 0) + (calculateOrderTotalSettlement(printData) || 0) - (printData.paidAmount || 0) - (printData.discountAmount || 0)) }}</strong></td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <div id="print-area-combined" v-if="combinedPrintData" style="display: none;">
-      <div class="receipt-double-container">
-        <template v-for="copyType in ['고객용', '보관용']" :key="copyType">
-          <div class="receipt-copy-block">
-            <!-- Header Table -->
-            <table class="receipt-header-table">
-              <tr>
-                <td class="header-title-cell">
-                  <span class="company-tag">[{{ combinedPrintData.partnerTitle }}]</span>
-                  <span class="main-title">일괄 거래 명세서</span>
-                  <span class="copy-badge" :class="{ 'blue-badge': copyType === '고객용' }">({{ copyType }})</span>
-                </td>
-                <td class="supplier-info-cell" rowspan="2">
-                  <div>공급자: {{ isMfg ? '제조사' : '골든바' }}</div>
-                  <div>전 화: 051-633-1116</div>
-                  <div>총 거래: {{ combinedPrintData.orderCount }}건</div>
-                </td>
-              </tr>
-              <tr>
-                <td class="header-meta-cell">
-                  <span>기간/일자: {{ combinedPrintData.dateTitle }}</span>
-                  <span class="meta-separator">|</span>
-                  <span>출력일시: {{ parseTime(new Date(), '{y}-{m}-{d} {h}:{i}') }}</span>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Order Items Table -->
-            <table class="receipt-items-table">
-              <thead>
-                <tr>
-                  <th width="12%">No</th>
-                  <th width="42%">주문내용</th>
-                  <th width="12%">함량</th>
-                  <th width="13%">실중량</th>
-                  <th width="10%">주문수량</th>
-                  <th width="11%">공임/금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, idx) in combinedPrintData.items" :key="idx">
-                  <template v-if="!item.isDummy">
-                    <td align="center">{{ item.productNo || (idx + 1) }}</td>
-                    <td>
-                      <div class="item-info-flex">
-                        <img v-if="item.photoUrl" :src="item.photoUrl" class="item-img" />
-                        <span class="item-name">{{ item.productName || item.productSetTitle }}</span>
-                      </div>
-                    </td>
-                    <td align="center">{{ codeMap[item.purity] || item.purity || '-' }}</td>
-                    <td align="right">{{ (item.actualWeight || item.requestedWeight || 0).toFixed(3) }}g</td>
-                    <td align="center">{{ item.quantity || 1 }}개</td>
-                    <td align="right">{{ formatPrice(item.settlementPrice || 0) }}</td>
-                  </template>
-                  <template v-else>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                    <td>&nbsp;</td>
-                  </template>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Purity Summary Table -->
-            <table class="receipt-purity-table">
-              <thead>
-                <tr>
-                  <th width="33%">14K 합계(g)</th>
-                  <th width="33%">18K 합계(g)</th>
-                  <th width="34%">순금(24K) 합계(g)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td align="right">{{ getPurityTotals(combinedPrintData.items).p14.toFixed(2) }}g</td>
-                  <td align="right">{{ getPurityTotals(combinedPrintData.items).p18.toFixed(2) }}g</td>
-                  <td align="right">{{ getPurityTotals(combinedPrintData.items).pure.toFixed(2) }}g</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Settlement Balance Table -->
-            <table class="receipt-balance-table">
-              <thead>
-                <tr>
-                  <th width="30%"></th>
-                  <th width="22%">순금(g)</th>
-                  <th width="24%">공임 및 현금</th>
-                  <th width="24%">금액 합계</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="row-label">최근 결제</td>
-                  <td></td>
-                  <td></td>
-                  <td align="center" style="font-size: 9px;">{{ combinedPrintData.lastPaymentDate || '-' }}</td>
-                </tr>
-                <tr>
-                  <td class="row-label">거래 전 미수(A)</td>
-                  <td align="right">{{ (combinedPrintData.beforeWeight || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(combinedPrintData.beforeAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">판매(B)</td>
-                  <td align="right">{{ (combinedPrintData.totalFineGold || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(combinedPrintData.totalSettlementAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">결제(C)</td>
-                  <td align="right">{{ (combinedPrintData.paidWeight || 0).toFixed(2) }}</td>
-                  <td align="right">{{ formatPrice(combinedPrintData.paidAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td class="row-label">할인(D)</td>
-                  <td align="right">0.00</td>
-                  <td align="right">{{ formatPrice(combinedPrintData.discountAmount || 0) }}</td>
-                  <td></td>
-                </tr>
-                <tr class="after-balance-row">
-                  <td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td>
-                  <td align="right"><strong>{{ ((combinedPrintData.beforeWeight || 0) + (combinedPrintData.totalFineGold || 0) - (combinedPrintData.paidWeight || 0)).toFixed(2) }}</strong></td>
-                  <td align="right"><strong>{{ formatPrice((combinedPrintData.beforeAmount || 0) + (combinedPrintData.totalSettlementAmount || 0) - (combinedPrintData.paidAmount || 0) - (combinedPrintData.discountAmount || 0)) }}</strong></td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </template>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -655,10 +469,8 @@
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { getAllOrders, getSettlementSummary } from '@/api/order';
 import { getPayables, getPaymentApplications, getCompanySummaries, updatePayable, deletePayable, getLedgerBefore } from '@/api/payable';
-import { Printer } from '@element-plus/icons-vue';
+import { getReceivables, getUserSummaries, updateReceivable, getLedgerBefore as getReceivableLedgerBefore } from '@/api/receivable';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import useCodeStore from '@/store/modules/code';
@@ -670,27 +482,21 @@ import PayableEditDialog from './components/PayableEditDialog.vue';
 import PaymentApplicationEditDialog from './components/PaymentApplicationEditDialog.vue';
 
 const { isMobile } = useMobile();
-const router = useRouter();
 const userStore = useUserStore();
 const isMfg = computed(() => userStore.companyType === 'MFG');
-// DCC's own settled-order history now lives in the retail-style branch below (scoped to
-// their own orders via the backend's automatic LogisticsCompanyId filter for DCC users),
-// same as RTL/admin - only MFG still needs the separate payment-transaction ledger.
+// DCC's own settled-order history shares the same charge-centric Receivable branch below as
+// RTL/admin (each scoped to their own data by the backend) - only MFG needs the separate
+// Payable-based ledger, since it's a different pair of parties (MFG-DCC, not DCC-RTL).
 const isPayableSide = computed(() => userStore.companyType === 'MFG');
 
-const listLoading = ref(true);
-const summaryLoading = ref(true);
-const list = ref<any[]>([]);
-const total = ref(0);
 const codeStore = useCodeStore();
 const codeMap = computed(() => codeStore.codeMap);
 const defaultImage = '/thumb_no_img.png';
 
-const summaryData = reactive({
-  totalActualWeight: 0,
-  totalFineGold: 0,
-  totalSettlementAmount: 0
-});
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  return parseTime(new Date(dateStr), '{y}-{m}-{d} {h}:{i}');
+};
 
 const end = new Date();
 const start = new Date();
@@ -698,430 +504,18 @@ start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
 const defaultStartDate = parseTime(start, '{y}-{m}-{d}');
 const defaultEndDate = parseTime(end, '{y}-{m}-{d}');
 
-const listQuery = reactive({
-  page: 1,
-  pageSize: 20,
-  status: 'SETTLED',
-  orderNo: '',
-  userName: '',
-  companyId: undefined as number | undefined,
-  startDate: defaultStartDate,
-  endDate: defaultEndDate,
-  categoryLarge: '',
-  categoryMedium: '',
-  categorySmall: '',
-  setCategoryLarge: '',
-  setCategoryMedium: '',
-  setCategorySmall: ''
-});
-
-const printData = ref<any>(null);
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  return parseTime(new Date(dateStr), '{y}-{m}-{d} {h}:{i}');
-};
-
-const calculatePurityWeight = (weight: number, purity: string) => {
-  if (!weight) return '0.00';
-  let ratio = 0;
-  switch (purity) {
-    case '14K': ratio = 0.6435; break;
-    case '18K': ratio = 0.825; break;
-    case '24K': ratio = 1.0; break;
-    case 'PT': ratio = 0.95; break;
-    default: ratio = 0;
+// Amount and weight settle a charge together (either side fully paid clears both), so a
+// literal 0 here can mean "this application's own weight pool never had to touch this
+// charge, because the amount side already cleared it" - not "no weight was owed". When the
+// charge is now fully settled but this application recorded 0 weight, show the charge's own
+// weight instead so it doesn't read as unpaid. Shared by both the Payable and Receivable
+// 정산 상세 popups below.
+const getEffectiveAppliedWeight = (item: any) => {
+  if (item.appliedWeight > 0) return item.appliedWeight;
+  if ((item.chargeRemainingWeight || 0) <= 0 && (item.chargeRemainingAmount || 0) <= 0) {
+    return item.chargeWeight || 0;
   }
-  return (weight * ratio).toFixed(2);
-};
-
-const primaryOrderItem = (row: any) => {
-  return row.orderItems && row.orderItems.length > 0 ? row.orderItems[0] : null;
-};
-
-const orderItemCount = (row: any) => {
-  return row.orderItems ? row.orderItems.length : 0;
-};
-
-const productSummaryFormatter = (row: any) => {
-  const item = primaryOrderItem(row);
-  if (!item) return '-';
-  const name = item.productName || item.productSetTitle || '';
-  const extra = orderItemCount(row) > 1 ? ` 외 ${orderItemCount(row) - 1}건` : '';
-  return `${name}${extra}`;
-};
-
-const flattenOrderItems = (orderItems: any[]) => {
-  const result: any[] = [];
-  if (!orderItems) return result;
-  orderItems.forEach(item => {
-    result.push({ ...item, depth: 0 });
-    if (item.children && item.children.length > 0) {
-      item.children.forEach((child: any) => {
-        result.push({ ...child, depth: 1 });
-      });
-    }
-  });
-  return result;
-};
-
-const paddedOrderItems = (orderItems: any[], minCount: number = 6) => {
-  const flattened = flattenOrderItems(orderItems || []);
-  const result = [...flattened];
-  while (result.length < minCount) {
-    result.push({ isDummy: true, id: `dummy-${result.length}` });
-  }
-  return result;
-};
-
-// 14K/18K raw totals plus the true fine-gold (24K-converted) total across every purity,
-// for the retail-side receipt's own print templates (#print-area/#print-area-combined) -
-// same computation as buildStatementPurityRows on the payable side's receipt.
-const getPurityTotals = (items: any[]) => {
-  const flat = flattenOrderItems(items || []).filter((item: any) => !item.isDummy);
-  let p14 = 0;
-  let p18 = 0;
-  let pure = 0;
-  flat.forEach((item: any) => {
-    const weight = (item.actualWeight || item.requestedWeight || 0) * (item.quantity || 1);
-    const purity = (item.purity || '').toUpperCase();
-    if (purity.includes('14K')) p14 += weight;
-    else if (purity.includes('18K')) p18 += weight;
-
-    let ratio = 0;
-    switch (purity) {
-      case '14K': ratio = 0.6435; break;
-      case '18K': ratio = 0.825; break;
-      case '24K': ratio = 1.0; break;
-      case 'PT': ratio = 0.95; break;
-      default: ratio = purity.includes('PURE') ? 1.0 : 0;
-    }
-    pure += weight * ratio;
-  });
-  return { p14, p18, pure };
-};
-
-const calculateOrderTotalSettlement = (order: any) => {
-  if (!order) return 0;
-  if (isMfg.value) {
-    let mfgTotal = 0;
-    if (order.orderItems) {
-      order.orderItems.forEach((item: any) => {
-        mfgTotal += ((item.factoryInputMaterialCost || 0) + (item.factoryInputLaborCost || 0)) * (item.quantity || 1);
-        if (item.children) {
-          item.children.forEach((c: any) => {
-            mfgTotal += ((c.factoryInputMaterialCost || 0) + (c.factoryInputLaborCost || 0)) * (c.quantity || 1);
-          });
-        }
-      });
-    }
-    return mfgTotal;
-  }
-
-  let total = 0;
-  if (order.orderItems && order.orderItems.length > 0) {
-    order.orderItems.forEach((item: any) => {
-      const itemPrice = item.settlementAmount || item.totalPrice || item.price || item.laborCost ||
-        (((item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0) + (item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0)) * (item.quantity || 1));
-      total += itemPrice;
-      if (item.children) {
-        item.children.forEach((c: any) => {
-          const childPrice = c.settlementAmount || c.totalPrice || c.price || c.laborCost ||
-            (((c.retailerConfirmMaterialCost || c.factoryInputMaterialCost || 0) + (c.retailerConfirmLaborCost || c.factoryInputLaborCost || 0)) * (c.quantity || 1));
-          total += childPrice;
-        });
-      }
-    });
-  }
-
-  if (total > 0) {
-    return total;
-  }
-
-  if (order.settlementAmount && order.settlementAmount > 0) {
-    return order.settlementAmount;
-  }
-
-  return order.totalAmount || 0;
-};
-
-const calculateOrderTotalPureWeight = (order: any) => {
-  if (!order || !order.orderItems) return 0;
-  let total = 0;
-  order.orderItems.forEach((item: any) => {
-    const weight = item.actualWeight || item.requestedWeight || item.confirmedWeight || 0;
-    let ratio = 0;
-    switch (item.purity) {
-      case '14K': ratio = 0.6435; break;
-      case '18K': ratio = 0.825; break;
-      case '24K': ratio = 1.0; break;
-      case 'PT': ratio = 0.95; break;
-      default: ratio = 0;
-    }
-    total += weight * ratio * (item.quantity || 1);
-    if (item.children) {
-      item.children.forEach((c: any) => {
-        const cWeight = c.actualWeight || c.requestedWeight || c.confirmedWeight || 0;
-        let cRatio = 0;
-        switch (c.purity) {
-          case '14K': cRatio = 0.6435; break;
-          case '18K': cRatio = 0.825; break;
-          case '24K': cRatio = 1.0; break;
-          case 'PT': cRatio = 0.95; break;
-          default: cRatio = 0;
-        }
-        total += cWeight * cRatio * (c.quantity || 1);
-      });
-    }
-  });
-  return total;
-};
-
-const fetchSummary = async () => {
-  summaryLoading.value = true;
-  try {
-    const res = await getSettlementSummary(listQuery);
-    Object.assign(summaryData, res.data);
-  } catch (error) {
-    console.error('Failed to fetch summary:', error);
-  } finally {
-    summaryLoading.value = false;
-  }
-};
-
-const getList = async () => {
-  listLoading.value = true;
-  try {
-    const [res] = await Promise.all([
-      getAllOrders(listQuery),
-      codeStore.fetchCodes()
-    ]);
-    list.value = res.data.items;
-    total.value = res.data.totalCount;
-    fetchSummary();
-  } catch (error) {
-    console.error('Failed to get orders:', error);
-  } finally {
-    listLoading.value = false;
-  }
-};
-
-const handleFilter = () => {
-  listQuery.page = 1;
-  getList();
-};
-
-const resetQuery = () => {
-  listQuery.orderNo = '';
-  listQuery.userName = '';
-  listQuery.companyId = undefined;
-  listQuery.startDate = undefined;
-  listQuery.endDate = undefined;
-  listQuery.categoryLarge = '';
-  listQuery.categoryMedium = '';
-  listQuery.categorySmall = '';
-  listQuery.setCategoryLarge = '';
-  listQuery.setCategoryMedium = '';
-  listQuery.setCategorySmall = '';
-  handleFilter();
-};
-
-const printStatement = (row: any) => {
-  printData.value = row;
-  setTimeout(() => {
-    const printContents = document.getElementById('print-area')?.innerHTML;
-    if (!printContents) return;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-        <head>
-          <title>거래명세서 - ${row.orderNo || ''}</title>
-          <style>
-            @page { size: A4 landscape; margin: 8mm; }
-            body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #111; margin: 0; padding: 5px; background: #fff; }
-            .receipt-double-container { display: flex; gap: 6mm; width: 100%; box-sizing: border-box; }
-            .receipt-copy-block { flex: 1; min-width: 0; border: 1.5px solid #222; padding: 6px; background: #fff; box-sizing: border-box; }
-
-            .receipt-header-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #333; }
-            .receipt-header-table td { padding: 4px 6px; border: 1px solid #333; vertical-align: top; }
-            .header-title-cell { font-size: 12px; font-weight: bold; }
-            .company-tag { color: #333; margin-right: 4px; }
-            .main-title { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
-            .copy-badge { font-weight: bold; margin-left: 4px; color: #222; }
-            .copy-badge.blue-badge { color: #1d4ed8; }
-            .header-meta-cell { font-size: 10px; color: #444; background: #fafafa; }
-            .meta-separator { margin: 0 4px; color: #aaa; }
-            .supplier-info-cell { font-size: 10px; text-align: left; width: 35%; background: #fff; line-height: 1.3; }
-
-            .receipt-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
-            .receipt-items-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px 2px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-items-table td { border: 1px solid #333; padding: 3px 5px; vertical-align: middle; height: 25px; box-sizing: border-box; }
-            .item-info-flex { display: flex; align-items: center; gap: 4px; }
-            .item-img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; border: 1px solid #ccc; }
-            .item-name { font-weight: 600; }
-
-            .receipt-purity-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
-            .receipt-purity-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-purity-table td { border: 1px solid #333; padding: 3px 5px; }
-
-            .receipt-balance-table { width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10px; }
-            .receipt-balance-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-balance-table td { border: 1px solid #333; padding: 3px 5px; }
-            .receipt-balance-table .row-label { background-color: #fafafa; font-weight: 600; text-align: left; }
-            .receipt-balance-table .after-balance-row td { background-color: #f8f9fa; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-      `);
-      printWindow.document.write(printContents);
-      printWindow.document.write('<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>');
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-    }
-  }, 100);
-};
-
-const combinedPrintData = ref<any>(null);
-
-const printCombinedStatement = () => {
-  if (!list.value || list.value.length === 0) {
-    ElMessage.warning('출력할 거래 내역이 없습니다.');
-    return;
-  }
-
-  let dateTitle = '전체 기간';
-  if (listQuery.startDate && listQuery.endDate) {
-    if (listQuery.startDate === listQuery.endDate) {
-      dateTitle = listQuery.startDate;
-    } else {
-      dateTitle = `${listQuery.startDate} ~ ${listQuery.endDate}`;
-    }
-  } else if (listQuery.startDate) {
-    dateTitle = `${listQuery.startDate} ~`;
-  } else if (listQuery.endDate) {
-    dateTitle = `~ ${listQuery.endDate}`;
-  }
-
-  let partnerTitle = '전체 거래처';
-  if (listQuery.companyId) {
-    const firstOrder = list.value[0];
-    partnerTitle = firstOrder?.companyName || firstOrder?.userDisplayName || firstOrder?.userName || '선택 거래처';
-  }
-
-  let totalActualWeight = 0;
-  let totalFineGold = 0;
-  let totalSettlementAmount = 0;
-  let beforeWeight = list.value[0]?.beforeWeight || 0;
-  let beforeAmount = list.value[0]?.beforeAmount || 0;
-  let lastPaymentDate = list.value[0]?.createdAt ? formatDate(list.value[0].createdAt) : '-';
-  let paidWeight = 0;
-  let paidAmount = 0;
-  let discountAmount = 0;
-  const items: any[] = [];
-
-  list.value.forEach((order: any) => {
-    paidWeight += (order.paidWeight || 0);
-    paidAmount += (order.paidAmount || 0);
-    discountAmount += (order.discountAmount || 0);
-    totalSettlementAmount += calculateOrderTotalSettlement(order);
-    if (order.orderItems) {
-      const flattened = flattenOrderItems(order.orderItems);
-      flattened.forEach((item: any) => {
-        const weight = item.actualWeight || item.requestedWeight || 0;
-        const fineStr = calculatePurityWeight(weight, item.purity);
-        totalActualWeight += weight;
-        totalFineGold += parseFloat(fineStr || '0');
-
-        const itemPrice = item.settlementAmount || item.totalPrice || item.price || item.laborCost ||
-          (((item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0) + (item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0)) * (item.quantity || 1));
-
-        items.push({
-          ...item,
-          settlementPrice: itemPrice
-        });
-      });
-    }
-  });
-
-  const paddedItems = paddedOrderItems(items, 6);
-
-  combinedPrintData.value = {
-    dateTitle,
-    partnerTitle,
-    orderCount: list.value.length,
-    items: paddedItems,
-    totalActualWeight,
-    totalFineGold,
-    totalSettlementAmount,
-    beforeWeight,
-    beforeAmount,
-    lastPaymentDate,
-    paidWeight,
-    paidAmount,
-    discountAmount
-  };
-
-  setTimeout(() => {
-    const printContents = document.getElementById('print-area-combined')?.innerHTML;
-    if (!printContents) return;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-        <head>
-          <title>일괄 거래명세서 - ${dateTitle}</title>
-          <style>
-            @page { size: A4 landscape; margin: 8mm; }
-            body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; color: #111; margin: 0; padding: 5px; background: #fff; }
-            .receipt-double-container { display: flex; gap: 6mm; width: 100%; box-sizing: border-box; }
-            .receipt-copy-block { flex: 1; min-width: 0; border: 1.5px solid #222; padding: 6px; background: #fff; box-sizing: border-box; }
-
-            .receipt-header-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #333; }
-            .receipt-header-table td { padding: 4px 6px; border: 1px solid #333; vertical-align: top; }
-            .header-title-cell { font-size: 12px; font-weight: bold; }
-            .company-tag { color: #333; margin-right: 4px; }
-            .main-title { font-size: 13px; font-weight: bold; letter-spacing: 0.5px; }
-            .copy-badge { font-weight: bold; margin-left: 4px; color: #222; }
-            .copy-badge.blue-badge { color: #1d4ed8; }
-            .header-meta-cell { font-size: 10px; color: #444; background: #fafafa; }
-            .meta-separator { margin: 0 4px; color: #aaa; }
-            .supplier-info-cell { font-size: 10px; text-align: left; width: 35%; background: #fff; line-height: 1.3; }
-
-            .receipt-items-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
-            .receipt-items-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px 2px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-items-table td { border: 1px solid #333; padding: 3px 5px; vertical-align: middle; height: 25px; box-sizing: border-box; }
-            .item-info-flex { display: flex; align-items: center; gap: 4px; }
-            .item-img { width: 22px; height: 22px; object-fit: cover; border-radius: 2px; border: 1px solid #ccc; }
-            .item-name { font-weight: 600; }
-
-            .receipt-purity-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1px solid #333; font-size: 10px; }
-            .receipt-purity-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-purity-table td { border: 1px solid #333; padding: 3px 5px; }
-
-            .receipt-balance-table { width: 100%; border-collapse: collapse; border: 1px solid #333; font-size: 10px; }
-            .receipt-balance-table th { background-color: #f2f2f2; border: 1px solid #333; padding: 4px; font-weight: bold; text-align: center; color: #222; }
-            .receipt-balance-table td { border: 1px solid #333; padding: 3px 5px; }
-            .receipt-balance-table .row-label { background-color: #fafafa; font-weight: 600; text-align: left; }
-            .receipt-balance-table .after-balance-row td { background-color: #f8f9fa; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-      `);
-      printWindow.document.write(printContents);
-      printWindow.document.write('<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>');
-      printWindow.document.write('</body></html>');
-      printWindow.document.close();
-    }
-  }, 100);
-};
-
-const productItemInfoFormatter = (row: any) => {
-  const purity = row.purity ? `[${codeMap.value[row.purity] || row.purity}]` : '';
-  const color = row.color ? `[${codeMap.value[row.color] || row.color}]` : '';
-  return `${row.productName || row.productSetTitle}\n${row.productNo}\n${purity} ${color}`;
+  return item.appliedWeight || 0;
 };
 
 // ---- MFG/DCC (Payable) side: relocated from payable-management.vue's old
@@ -1208,17 +602,30 @@ const fetchPaymentApplications = async (paymentId: number) => {
 
 const ledgerDetailVisible = ref(false);
 const ledgerDetailRow = ref<any>(null);
+// getLedgerForRow approximates "before" from TODAY's company balance, which is only
+// correct for the single most recent transaction - any earlier row silently bakes in
+// every payment that happened after it too. This holds the real point-in-time balance
+// (same getAccurateLedger lookup the 거래명세서 flow uses) so A/B here are accurate
+// regardless of how many newer transactions exist for this row.
+const ledgerDetailAccurate = ref<any>(null);
 
-const openLedgerDetail = (row: any) => {
+const ledgerDetailBase = computed(() => {
+  if (ledgerDetailAccurate.value) return ledgerDetailAccurate.value;
+  if (!ledgerDetailRow.value) return { beforeAmount: 0, beforeWeight: 0, newChargeAmount: 0, newChargeWeight: 0 };
+  return { ...getLedgerForRow(ledgerDetailRow.value), newChargeAmount: 0, newChargeWeight: 0 };
+});
+
+const openLedgerDetail = async (row: any) => {
   ledgerDetailRow.value = row;
   ledgerDetailVisible.value = true;
-  if (!row.isCancelled && !paymentApplicationsData[row.id]) {
-    fetchPaymentApplications(row.id);
+  ledgerDetailAccurate.value = null;
+  if (!row.isCancelled) {
+    if (!paymentApplicationsData[row.id]) {
+      await fetchPaymentApplications(row.id);
+    }
+    const rawLedger = await getAccurateLedger(row.id, row);
+    ledgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, paymentApplicationsData[row.id] || []);
   }
-};
-
-const goToOrder = (orderNo: string) => {
-  router.push({ path: '/order/order-tracking', query: { orderNo } });
 };
 
 // company.totalOutstanding already reflects this payment's effect (it's the CURRENT
@@ -1250,19 +657,6 @@ const getPurityBreakdownForRow = (row: any) => {
     pure += weight * ratio;
   });
   return { p14, p18, pure };
-};
-
-// Amount and weight settle a charge together (either side fully paid clears both), so a
-// literal 0 here can mean "this application's own weight pool never had to touch this
-// charge, because the amount side already cleared it" - not "no weight was owed". When
-// the charge is now fully settled but this application recorded 0 weight, show the
-// charge's own weight instead so it doesn't read as unpaid.
-const getEffectiveAppliedWeight = (item: any) => {
-  if (item.appliedWeight > 0) return item.appliedWeight;
-  if ((item.chargeRemainingWeight || 0) <= 0 && (item.chargeRemainingAmount || 0) <= 0) {
-    return item.chargeWeight || 0;
-  }
-  return item.appliedWeight || 0;
 };
 
 const getLedgerForRow = (record: any) => {
@@ -1303,6 +697,46 @@ const getAccurateLedger = async (anchorId: number | undefined, record: any) => {
   }
 };
 
+// getAccurateLedger's newChargeAmount is "every charge that arrived since the last payment,"
+// which over-counts whenever a payment doesn't cover everything that arrived in that window -
+// e.g. a partial payment across several selected orders that (FIFO) only ends up touching the
+// oldest one, leaving the rest completely untouched. 판매(B) must only ever show the charge(s)
+// THIS payment's own applications actually paid toward, in their full original amount;
+// whatever of the walk's total isn't attributable to those specific charges stays folded into
+// A instead, so 거래 전 미수(A) correctly reads as "the rest of what's owed, unrelated to this
+// receipt" rather than silently doubling as part of B too.
+// `record` is optional - pass it (the payment's own static amount/discount) to also get
+// afterAmount/afterWeight recomputed against the adjusted before/B. Omit it for the live-
+// editable 정산 상세 popup, which recomputes "after" itself from the current edit form via
+// getLedgerAfter instead of this fixed record.
+const buildSaleAdjustedLedger = (ledger: any, applications: any[], record?: any) => {
+  const saleAmount = applications.reduce((sum, a) => sum + (a.chargeAmount || 0), 0);
+  const saleWeight = applications.reduce((sum, a) => sum + (a.chargeWeight || 0), 0);
+  // Any portion of a touched charge that was already settled by a DIFFERENT payment before
+  // this one (legacy data from before payments always merged into one growing record per
+  // charge) - surfaced as its own 기 결제 line rather than silently vanishing into A.
+  const alreadyPaidAmount = applications.reduce((sum, a) => sum + Math.max(0, (a.chargeAmount || 0) - (a.appliedAmount || 0) - (a.chargeRemainingAmount || 0)), 0);
+  const alreadyPaidWeight = applications.reduce((sum, a) => sum + Math.max(0, (a.chargeWeight || 0) - (a.appliedWeight || 0) - (a.chargeRemainingWeight || 0)), 0);
+  const totalBefore = (ledger.beforeAmount || 0) + (ledger.newChargeAmount || 0);
+  const totalBeforeWeight = (ledger.beforeWeight || 0) + (ledger.newChargeWeight || 0);
+  const beforeAmount = totalBefore - saleAmount + alreadyPaidAmount;
+  const beforeWeight = totalBeforeWeight - saleWeight + alreadyPaidWeight;
+  const adjusted = {
+    ...ledger,
+    beforeAmount,
+    beforeWeight,
+    newChargeAmount: saleAmount,
+    newChargeWeight: saleWeight,
+    alreadyPaidAmount,
+    alreadyPaidWeight
+  };
+  if (record) {
+    adjusted.afterAmount = beforeAmount + saleAmount - alreadyPaidAmount - (record.amount || 0) - (record.discount || 0);
+    adjusted.afterWeight = beforeWeight + saleWeight - alreadyPaidWeight - (record.weight || 0) - (record.discountWeight || 0);
+  }
+  return adjusted;
+};
+
 // Inline-editable version of the expand ledger recap - C/D start out mirroring the
 // record's own saved values, and 거래 후 미지급 recomputes live from the *edited* form,
 // not the original row, so the user sees the effect of their change before saving.
@@ -1322,11 +756,11 @@ const getLedgerEditForm = (row: any) => {
 };
 
 const getLedgerAfter = (row: any) => {
-  const { beforeAmount, beforeWeight } = getLedgerForRow(row);
+  const base = ledgerDetailBase.value;
   const form = getLedgerEditForm(row);
   return {
-    afterAmount: beforeAmount - (form.amount || 0) - (form.discount || 0),
-    afterWeight: beforeWeight - (form.weight || 0) - (form.discountWeight || 0)
+    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (base.alreadyPaidAmount || 0) - (form.amount || 0) - (form.discount || 0),
+    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (base.alreadyPaidWeight || 0) - (form.weight || 0) - (form.discountWeight || 0)
   };
 };
 
@@ -1409,14 +843,20 @@ const buildStatementPurityRows = (items: any[]) => {
 };
 
 const buildStatementBalanceRows = (ledger: any, record: any) => {
-  const { company, beforeAmount, beforeWeight, afterAmount, afterWeight, newChargeAmount, newChargeWeight } = ledger;
+  const { company, beforeAmount, beforeWeight, afterAmount, afterWeight, newChargeAmount, newChargeWeight, alreadyPaidAmount, alreadyPaidWeight } = ledger;
+  const hasAlreadyPaid = (alreadyPaidAmount || 0) > 0 || (alreadyPaidWeight || 0) > 0;
+  const alreadyPaidRow = hasAlreadyPaid
+    ? `<tr><td class="row-label">기 결제</td><td align="right">${(alreadyPaidWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(alreadyPaidAmount || 0)}</td><td></td></tr>`
+    : '';
+  const afterLabel = hasAlreadyPaid ? '거래 후 미수<br/>(A+B-기결제-C-D)' : '거래 후 미수<br/>(A+B-C-D)';
   return `
     <tr><td class="row-label">최근 결제</td><td></td><td></td><td align="center" style="font-size: 9px;">${company.lastPaymentDate ? formatDate(company.lastPaymentDate) : '-'}</td></tr>
     <tr><td class="row-label">거래 전 미수(A)</td><td align="right">${beforeWeight.toFixed(2)}</td><td align="right">${formatPrice(beforeAmount)}</td><td></td></tr>
     <tr><td class="row-label">판매(B)</td><td align="right">${(newChargeWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(newChargeAmount || 0)}</td><td></td></tr>
+    ${alreadyPaidRow}
     <tr><td class="row-label">결제(C)</td><td align="right">${(record.weight || 0).toFixed(2)}</td><td align="right">${formatPrice(record.amount || 0)}</td><td></td></tr>
     <tr><td class="row-label">할인(D)</td><td align="right">${(record.discountWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(record.discount || 0)}</td><td></td></tr>
-    <tr class="after-balance-row"><td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td><td align="right"><strong>${afterWeight.toFixed(2)}</strong></td><td align="right"><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
+    <tr class="after-balance-row"><td class="row-label"><strong>${afterLabel}</strong></td><td align="right"><strong>${afterWeight.toFixed(2)}</strong></td><td align="right"><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
   `;
 };
 
@@ -1511,9 +951,11 @@ const handleIssueStatement = async (record: any) => {
   if (!paymentApplicationsData[record.id]) {
     await fetchPaymentApplications(record.id);
   }
-  const allItems = (paymentApplicationsData[record.id] || []).flatMap((app: any) => app.items || []);
+  const applications = paymentApplicationsData[record.id] || [];
+  const allItems = applications.flatMap((app: any) => app.items || []);
 
-  const ledger = await getAccurateLedger(record.id, record);
+  const rawLedger = await getAccurateLedger(record.id, record);
+  const ledger = buildSaleAdjustedLedger(rawLedger, applications, record);
   const supplierName = !isMfg.value ? ledger.company.companyName : userStore.companyName || '-';
   const payerName = !isMfg.value ? userStore.companyName || '-' : ledger.company.companyName;
 
@@ -1567,6 +1009,11 @@ const printCombinedPayableStatement = async () => {
   let totalDiscount = 0;
   let totalDiscountWeight = 0;
   const allItems: any[] = [];
+  // A charge touched by more than one payment in this batch (legacy pre-merge data) would
+  // otherwise have its full chargeAmount counted once per payment - merge by chargeId first
+  // so 판매(B) below counts each charge exactly once, regardless of how many payments in the
+  // batch contributed to it.
+  const applicationsByCharge = new Map<number, any>();
 
   combinedList.forEach((p: any) => {
     totalAmount += p.amount || 0;
@@ -1575,8 +1022,16 @@ const printCombinedPayableStatement = async () => {
     totalDiscountWeight += p.discountWeight || 0;
     (paymentApplicationsData[p.id] || []).forEach((app: any) => {
       allItems.push(...(app.items || []));
+      const existing = applicationsByCharge.get(app.chargeId);
+      if (existing) {
+        existing.appliedAmount += app.appliedAmount || 0;
+        existing.appliedWeight += app.appliedWeight || 0;
+      } else {
+        applicationsByCharge.set(app.chargeId, { ...app });
+      }
     });
   });
+  const mergedApplications = Array.from(applicationsByCharge.values());
 
   const pseudoRecord = { weight: totalWeight, amount: totalAmount, discountWeight: totalDiscountWeight, discount: totalDiscount };
 
@@ -1603,15 +1058,8 @@ const printCombinedPayableStatement = async () => {
     }
   }
 
-  const ledger = {
-    company,
-    beforeAmount,
-    beforeWeight,
-    newChargeAmount,
-    newChargeWeight,
-    afterAmount: beforeAmount + newChargeAmount - totalAmount - totalDiscount,
-    afterWeight: beforeWeight + newChargeWeight - totalWeight - totalDiscountWeight
-  };
+  const rawLedger = { company, beforeAmount, beforeWeight, newChargeAmount, newChargeWeight };
+  const ledger = buildSaleAdjustedLedger(rawLedger, mergedApplications, pseudoRecord);
 
   const supplierName = !isMfg.value ? company.companyName : userStore.companyName || '-';
   const payerName = !isMfg.value ? userStore.companyName || '-' : company.companyName;
@@ -1641,13 +1089,25 @@ const printCombinedPayableStatement = async () => {
 // "임가공 거래 명세서" template as handleIssueStatement, but the items table is scoped to
 // just this order's own products instead of every order the payment covered.
 const handleIssueItemStatement = async (item: any, record: any) => {
-  const ledger = await getAccurateLedger(record.id, record);
+  // 결제(C)/할인(D) must reflect only what THIS order's application received, not the full
+  // payment's totals - a single payment can cover multiple orders, and this receipt is
+  // scoped to just one of them. The ledger-before lookup still anchors on the payment's own
+  // chronological position (record.id), since that's when the money actually moved.
+  const itemRecord = {
+    amount: item.appliedAmount || 0,
+    weight: getEffectiveAppliedWeight(item),
+    discount: 0,
+    discountWeight: 0,
+    createdAt: record.createdAt
+  };
+  const rawLedger = await getAccurateLedger(record.id, itemRecord);
+  const ledger = buildSaleAdjustedLedger(rawLedger, [item], itemRecord);
   const supplierName = !isMfg.value ? ledger.company.companyName : userStore.companyName || '-';
   const payerName = !isMfg.value ? userStore.companyName || '-' : ledger.company.companyName;
 
   const itemRows = buildStatementItemRows(item.items || []);
   const purityRows = buildStatementPurityRows(item.items || []);
-  const balanceRows = buildStatementBalanceRows(ledger, record);
+  const balanceRows = buildStatementBalanceRows(ledger, itemRecord);
 
   const bodyHtml = ['고객용', '보관용'].map((label) => buildStatementCopy(label, {
     companyTag: payerName,
@@ -1675,6 +1135,13 @@ const openEditDialog = (record: any) => {
 const onEditSaved = () => {
   fetchPayableList();
   fetchCompanySummaries();
+};
+
+// A payment that never touched any charge and carries no amount at all (a leftover-overpay
+// shell from before ProcessPaymentAsync always carried its own Amount/Discount) has nothing
+// to reverse, so it's safe to delete directly without going through cancel first.
+const isHollowPayment = (row: any) => {
+  return (row.orderCount || 0) === 0 && (row.amount || 0) === 0 && (row.discount || 0) === 0 && (row.weight || 0) === 0 && (row.discountWeight || 0) === 0;
 };
 
 const handleDeletePayable = (record: any) => {
@@ -1715,12 +1182,372 @@ const onApplicationEditSaved = () => {
   fetchCompanySummaries();
 };
 
+// ---- RTL/DCC (Receivable) side: same charge-centric 거래별 보기 pattern as the Payable
+// side above (one row per deposit, 상세 popup with the same A/B/기결제/C/D ledger) - each
+// deposit already carries its own appliedCharges (with full per-order item lists), so unlike
+// the Payable side there's no separate "fetch applications for this row" round-trip needed.
+
+const receivableList = ref<any[]>([]);
+const receivableTotal = ref(0);
+const receivableListLoading = ref(false);
+const receivableQuery = reactive({
+  page: 1,
+  pageSize: 20,
+  type: 'DEPOSIT',
+  companyId: undefined as number | undefined,
+  productName: '',
+  startDate: defaultStartDate,
+  endDate: defaultEndDate
+});
+
+const fetchReceivableList = async () => {
+  receivableListLoading.value = true;
+  try {
+    const res: any = await getReceivables({ ...receivableQuery });
+    receivableList.value = res.data.items;
+    receivableTotal.value = res.data.totalCount;
+  } catch (error) {
+    console.error('Failed to fetch receivable list:', error);
+  } finally {
+    receivableListLoading.value = false;
+  }
+};
+
+const handleReceivableFilter = () => {
+  receivableQuery.page = 1;
+  fetchReceivableList();
+};
+
+const resetReceivableQuery = () => {
+  receivableQuery.companyId = undefined;
+  receivableQuery.productName = '';
+  receivableQuery.startDate = defaultStartDate;
+  receivableQuery.endDate = defaultEndDate;
+  handleReceivableFilter();
+};
+
+const userSummaries = ref<any[]>([]);
+
+const fetchUserSummaries = async () => {
+  try {
+    const res: any = await getUserSummaries({ page: 1, pageSize: 1000 });
+    userSummaries.value = res.data.items || [];
+  } catch (error) {
+    console.error('Failed to fetch user summaries:', error);
+  }
+};
+
+// The counterparty's current outstanding balance isn't on the DEPOSIT row itself, so the
+// statement's "before/after" figures are sourced from the same user-summary list 미수금
+// 관리 already uses - mirrors the Payable side's getCompanyForRow.
+const getUserForReceivableRow = (row: any) => {
+  const found = userSummaries.value.find((u: any) => u.userId === row.userId);
+  if (found) {
+    return {
+      companyName: found.companyName || found.userDisplayName,
+      totalOutstanding: found.totalReceivable || 0,
+      totalOutstandingWeight: found.totalReceivableWeight || 0,
+      lastPaymentDate: found.lastPaymentDate
+    };
+  }
+  return {
+    companyName: row.companyName || row.userDisplayName,
+    totalOutstanding: 0,
+    totalOutstandingWeight: 0,
+    lastPaymentDate: null
+  };
+};
+
+const getLedgerForReceivableRow = (record: any) => {
+  const company = getUserForReceivableRow(record);
+  const afterAmount = company.totalOutstanding || 0;
+  const afterWeight = company.totalOutstandingWeight || 0;
+  const beforeAmount = afterAmount + (record.amount || 0) + (record.discount || 0);
+  const beforeWeight = afterWeight + (record.weight || 0);
+  return { company, afterAmount, afterWeight, beforeAmount, beforeWeight };
+};
+
+// Same reasoning as the Payable side's getAccurateLedger - company.totalOutstanding is
+// *today's* balance, only valid as "before" for the single most recent deposit.
+const getAccurateReceivableLedger = async (anchorId: number | undefined, record: any) => {
+  const fallback = { ...getLedgerForReceivableRow(record), newChargeAmount: 0, newChargeWeight: 0 };
+  if (!anchorId) return fallback;
+  try {
+    const res: any = await getReceivableLedgerBefore(anchorId);
+    const beforeAmount = res.data.beforeAmount ?? fallback.beforeAmount;
+    const beforeWeight = res.data.beforeWeight ?? fallback.beforeWeight;
+    const newChargeAmount = res.data.newChargeAmount || 0;
+    const newChargeWeight = res.data.newChargeWeight || 0;
+    return {
+      ...fallback,
+      beforeAmount,
+      beforeWeight,
+      newChargeAmount,
+      newChargeWeight,
+      afterAmount: beforeAmount + newChargeAmount - (record.amount || 0) - (record.discount || 0),
+      afterWeight: beforeWeight + newChargeWeight - (record.weight || 0)
+    };
+  } catch (error) {
+    console.error('Failed to fetch accurate receivable ledger balance, falling back to approximation:', error);
+    return fallback;
+  }
+};
+
+const getPurityBreakdownForReceivableRow = (row: any) => {
+  const allItems = (row.appliedCharges || []).flatMap((app: any) => app.items || []);
+  let p14 = 0;
+  let p18 = 0;
+  let pure = 0;
+  allItems.forEach((item: any) => {
+    const weight = (item.actualWeight || 0) * (item.quantity || 1);
+    const purity = (item.purity || '').toUpperCase();
+    if (purity.includes('14K')) p14 += weight;
+    else if (purity.includes('18K')) p18 += weight;
+
+    let ratio = 0;
+    switch (purity) {
+      case '14K': ratio = 0.6435; break;
+      case '18K': ratio = 0.825; break;
+      case '24K': ratio = 1.0; break;
+      case 'PT': ratio = 0.95; break;
+      default: ratio = purity.includes('PURE') ? 1.0 : 0;
+    }
+    pure += weight * ratio;
+  });
+  return { p14, p18, pure };
+};
+
+const receivableLedgerDetailVisible = ref(false);
+const receivableLedgerDetailRow = ref<any>(null);
+const receivableLedgerDetailAccurate = ref<any>(null);
+const receivableLedgerLoading = ref(false);
+
+const receivableLedgerDetailBase = computed(() => {
+  if (receivableLedgerDetailAccurate.value) return receivableLedgerDetailAccurate.value;
+  if (!receivableLedgerDetailRow.value) return { beforeAmount: 0, beforeWeight: 0, newChargeAmount: 0, newChargeWeight: 0 };
+  return { ...getLedgerForReceivableRow(receivableLedgerDetailRow.value), newChargeAmount: 0, newChargeWeight: 0 };
+});
+
+const openReceivableLedgerDetail = async (row: any) => {
+  receivableLedgerDetailRow.value = row;
+  receivableLedgerDetailVisible.value = true;
+  receivableLedgerDetailAccurate.value = null;
+  if (!row.isCancelled) {
+    receivableLedgerLoading.value = true;
+    try {
+      const rawLedger = await getAccurateReceivableLedger(row.id, row);
+      receivableLedgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, row.appliedCharges || []);
+    } finally {
+      receivableLedgerLoading.value = false;
+    }
+  }
+};
+
+// Inline-editable version of the ledger recap, same pattern as the Payable side's
+// getLedgerEditForm/getLedgerAfter/saveLedgerEdit - Receivable has no weight-side discount
+// field, so 할인(D) here is amount-only.
+const receivableLedgerEditForm = reactive<Record<number, any>>({});
+const receivableLedgerSaving = ref(false);
+
+const getReceivableLedgerEditForm = (row: any) => {
+  if (!receivableLedgerEditForm[row.id]) {
+    receivableLedgerEditForm[row.id] = {
+      weight: row.weight || 0,
+      amount: row.amount || 0,
+      discount: row.discount || 0
+    };
+  }
+  return receivableLedgerEditForm[row.id];
+};
+
+const getReceivableLedgerAfter = (row: any) => {
+  const base = receivableLedgerDetailBase.value;
+  const form = getReceivableLedgerEditForm(row);
+  return {
+    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (base.alreadyPaidAmount || 0) - (form.amount || 0) - (form.discount || 0),
+    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (base.alreadyPaidWeight || 0) - (form.weight || 0)
+  };
+};
+
+const saveReceivableLedgerEdit = async (row: any) => {
+  const form = getReceivableLedgerEditForm(row);
+  receivableLedgerSaving.value = true;
+  try {
+    await updateReceivable(row.id, {
+      amount: form.amount,
+      weight: form.weight,
+      discount: form.discount,
+      memo: row.memo,
+      settlementMethod: row.settlementMethod
+    });
+    ElMessage.success('수정되었습니다.');
+    delete receivableLedgerEditForm[row.id];
+    await fetchReceivableList();
+    const refreshed = receivableList.value.find((r: any) => r.id === row.id);
+    if (refreshed) {
+      receivableLedgerDetailRow.value = refreshed;
+      const rawLedger = await getAccurateReceivableLedger(refreshed.id, refreshed);
+      receivableLedgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, refreshed.appliedCharges || []);
+    }
+    fetchUserSummaries();
+  } catch (error) {
+    console.error('Failed to update receivable:', error);
+    ElMessage.error('수정에 실패했습니다.');
+  } finally {
+    receivableLedgerSaving.value = false;
+  }
+};
+
+const handleIssueReceivableStatement = async (record: any) => {
+  const allItems = (record.appliedCharges || []).flatMap((app: any) => app.items || []);
+
+  const rawLedger = await getAccurateReceivableLedger(record.id, record);
+  const ledger = buildSaleAdjustedLedger(rawLedger, record.appliedCharges || [], record);
+  const supplierName = userStore.companyName || '-';
+  const payerName = ledger.company.companyName || '-';
+
+  const itemRows = buildStatementItemRows(allItems);
+  const purityRows = buildStatementPurityRows(allItems);
+  const balanceRows = buildStatementBalanceRows(ledger, record);
+
+  const bodyHtml = ['고객용', '보관용'].map((label) => buildStatementCopy(label, {
+    companyTag: payerName,
+    supplierName,
+    date: formatDate(record.createdAt),
+    transactionNo: record.id,
+    itemRows,
+    purityRows,
+    balanceRows
+  })).join('');
+
+  openStatementPrintWindow(`정산 명세서 - ${payerName}`, bodyHtml);
+};
+
+const handleIssueReceivableItemStatement = async (item: any, record: any) => {
+  const itemRecord = {
+    amount: item.appliedAmount || 0,
+    weight: getEffectiveAppliedWeight(item),
+    discount: 0,
+    createdAt: record.createdAt
+  };
+  const rawLedger = await getAccurateReceivableLedger(record.id, itemRecord);
+  const ledger = buildSaleAdjustedLedger(rawLedger, [item], itemRecord);
+  const supplierName = userStore.companyName || '-';
+  const payerName = ledger.company.companyName || '-';
+
+  const itemRows = buildStatementItemRows(item.items || []);
+  const purityRows = buildStatementPurityRows(item.items || []);
+  const balanceRows = buildStatementBalanceRows(ledger, itemRecord);
+
+  const bodyHtml = ['고객용', '보관용'].map((label) => buildStatementCopy(label, {
+    companyTag: payerName,
+    supplierName,
+    date: formatDate(record.createdAt),
+    transactionNo: item.chargeId,
+    itemRows,
+    purityRows,
+    balanceRows
+  })).join('');
+
+  openStatementPrintWindow(`정산 영수증 - ${item.orderNo}`, bodyHtml);
+};
+
+const printCombinedReceivableStatement = async () => {
+  if (!receivableList.value || receivableList.value.length === 0) {
+    ElMessage.warning('출력할 거래 내역이 없습니다.');
+    return;
+  }
+
+  let combinedList = receivableList.value;
+  try {
+    const fullRes: any = await getReceivables({ ...receivableQuery, page: 1, pageSize: 10000 });
+    combinedList = fullRes.data.items || receivableList.value;
+  } catch (error) {
+    console.error('Failed to fetch full receivable list for combined statement, falling back to current page:', error);
+  }
+
+  const company = getUserForReceivableRow(combinedList[0]);
+
+  let totalAmount = 0;
+  let totalWeight = 0;
+  let totalDiscount = 0;
+  const allItems: any[] = [];
+  const applicationsByCharge = new Map<number, any>();
+
+  combinedList.forEach((p: any) => {
+    totalAmount += p.amount || 0;
+    totalWeight += p.weight || 0;
+    totalDiscount += p.discount || 0;
+    (p.appliedCharges || []).forEach((app: any) => {
+      allItems.push(...(app.items || []));
+      const existing = applicationsByCharge.get(app.chargeId);
+      if (existing) {
+        existing.appliedAmount += app.appliedAmount || 0;
+        existing.appliedWeight += app.appliedWeight || 0;
+      } else {
+        applicationsByCharge.set(app.chargeId, { ...app });
+      }
+    });
+  });
+  const mergedApplications = Array.from(applicationsByCharge.values());
+
+  const pseudoRecord = { weight: totalWeight, amount: totalAmount, discount: totalDiscount };
+
+  const earliestRecord = [...combinedList].sort((a: any, b: any) => {
+    const dateDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    return dateDiff !== 0 ? dateDiff : a.id - b.id;
+  })[0];
+
+  let beforeAmount = (company.totalOutstanding || 0) + totalAmount + totalDiscount;
+  let beforeWeight = (company.totalOutstandingWeight || 0) + totalWeight;
+  let newChargeAmount = 0;
+  let newChargeWeight = 0;
+  if (earliestRecord?.id) {
+    try {
+      const res: any = await getReceivableLedgerBefore(earliestRecord.id);
+      beforeAmount = res.data.beforeAmount;
+      beforeWeight = res.data.beforeWeight;
+      newChargeAmount = res.data.newChargeAmount || 0;
+      newChargeWeight = res.data.newChargeWeight || 0;
+    } catch (error) {
+      console.error('Failed to fetch accurate receivable ledger balance, falling back to approximation:', error);
+    }
+  }
+
+  const rawLedger = { company, beforeAmount, beforeWeight, newChargeAmount, newChargeWeight };
+  const ledger = buildSaleAdjustedLedger(rawLedger, mergedApplications, pseudoRecord);
+
+  const supplierName = userStore.companyName || '-';
+  const payerName = company.companyName || '-';
+
+  const dateTitle = receivableQuery.startDate && receivableQuery.endDate
+    ? (receivableQuery.startDate === receivableQuery.endDate ? receivableQuery.startDate : `${receivableQuery.startDate} ~ ${receivableQuery.endDate}`)
+    : '전체 기간';
+
+  const itemRows = buildStatementItemRows(allItems);
+  const purityRows = buildStatementPurityRows(allItems);
+  const balanceRows = buildStatementBalanceRows(ledger, pseudoRecord);
+
+  const bodyHtml = ['고객용', '보관용'].map((label) => buildStatementCopy(label, {
+    companyTag: payerName,
+    supplierName,
+    date: dateTitle,
+    transactionNo: `${combinedList.length}건`,
+    itemRows,
+    purityRows,
+    balanceRows
+  })).join('');
+
+  openStatementPrintWindow(`일괄 정산 명세서 - ${payerName}`, bodyHtml);
+};
+
 onMounted(() => {
   if (isPayableSide.value) {
     fetchCompanySummaries();
     fetchPayableList();
   } else {
-    getList();
+    fetchUserSummaries();
+    fetchReceivableList();
   }
 });
 </script>

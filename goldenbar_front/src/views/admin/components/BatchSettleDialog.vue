@@ -13,10 +13,7 @@
         <tr>
           <th>주문번호</th>
           <th>주문내용</th>
-          <th>함량</th>
           <th>중량</th>
-          <th>실중량</th>
-          <th>주문수량</th>
           <th>주문일자</th>
           <th>공임비</th>
           <th v-if="!singleMode"></th>
@@ -26,19 +23,35 @@
         <tr v-for="item in localItems" :key="item.payableId">
           <td>{{ item.orderNo }}</td>
           <td class="order-item-info">
-            <el-image :src="item.productPhotoUrl || defaultImage" fit="cover" class="order-item-thumb" />
-            <div class="order-item-text">
-              <div class="order-item-name">{{ item.productName }}</div>
-              <div v-if="item.size && item.size !== 'EMPTY'" class="order-item-sub">표준 사이즈 : {{ item.size }}</div>
+            <div v-if="item.items && item.items.length > 0" class="product-info-list">
+              <div v-for="(p, idx) in item.items.slice(0, 3)" :key="idx" class="order-item-info-row">
+                <el-image :src="p.photoUrl || defaultImage" fit="cover" class="order-item-thumb" />
+                <div class="order-item-text">
+                  <div class="order-item-name">
+                    {{ p.productName }}
+                    <span v-if="p.productNo" class="order-item-no">{{ p.productNo }}</span>
+                  </div>
+                  <div class="order-item-sub">함량: {{ p.purity || '-' }} / 중량: {{ (p.actualWeight || 0).toFixed(3) }}g / 수량: {{ p.quantity }}개</div>
+                  <div v-if="p.size && p.size !== 'EMPTY'" class="order-item-sub">표준 사이즈 : {{ p.size }}</div>
+                  <div v-if="p.memo" class="order-item-memo">{{ p.memo }}</div>
+                </div>
+              </div>
+              <div v-if="item.items.length > 3" class="product-more">+{{ item.items.length - 3 }}건 더</div>
               <div v-if="item.manufacturerName" class="order-item-sub">주문정보(공장): {{ item.manufacturerName }}</div>
               <div v-if="item.logisticsCompanyName" class="order-item-sub">주문정보(물류): {{ item.logisticsCompanyName }}</div>
-              <div v-if="item.memo" class="order-item-memo">{{ item.memo }}</div>
             </div>
+            <template v-else>
+              <el-image :src="item.productPhotoUrl || defaultImage" fit="cover" class="order-item-thumb" />
+              <div class="order-item-text">
+                <div class="order-item-name">{{ item.productName }}</div>
+                <div v-if="item.size && item.size !== 'EMPTY'" class="order-item-sub">표준 사이즈 : {{ item.size }}</div>
+                <div v-if="item.manufacturerName" class="order-item-sub">주문정보(공장): {{ item.manufacturerName }}</div>
+                <div v-if="item.logisticsCompanyName" class="order-item-sub">주문정보(물류): {{ item.logisticsCompanyName }}</div>
+                <div v-if="item.memo" class="order-item-memo">{{ item.memo }}</div>
+              </div>
+            </template>
           </td>
-          <td>{{ item.purity || '-' }}</td>
           <td>{{ item.chargeWeight.toFixed(2) }}g</td>
-          <td class="actual-weight">{{ (item.actualWeight || 0).toFixed(3) }}g</td>
-          <td>{{ item.quantity }}개</td>
           <td class="order-date">{{ formatDate(item.orderDate) }}</td>
           <td>
             <el-input-number v-model="item.laborCostOverride" :min="0" :step="1000" size="small" style="width: 110px;" />
@@ -336,6 +349,28 @@ const handleSubmit = () => {
   font-size: 0.75rem;
   color: #67c23a;
   margin-top: 0.125rem;
+}
+.product-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+}
+.order-item-info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.order-item-no {
+  margin-left: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: normal;
+  color: #909399;
+}
+.product-more {
+  font-size: 0.75rem;
+  color: #909399;
 }
 .actual-weight {
   color: #f56c6c;

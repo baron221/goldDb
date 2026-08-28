@@ -338,11 +338,13 @@ public class PayableService : IPayableService
 
         var itemsByOrder = topLevelItems
             .GroupBy(oi => oi.OrderId)
-            .ToDictionary(g => g.Key, g => g.First());
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var summaryItems = charges.Select(c =>
         {
-            itemsByOrder.TryGetValue(c.OrderId ?? 0, out var item);
+            itemsByOrder.TryGetValue(c.OrderId ?? 0, out var orderItems);
+            orderItems ??= new List<OrderItem>();
+            var item = orderItems.FirstOrDefault();
             return new OrderChargeSummaryItemDto
             {
                 PayableId = c.Id,
@@ -362,7 +364,22 @@ public class PayableService : IPayableService
                 RemainingAmount = c.RemainingAmount,
                 OrderDate = c.CreatedAt,
                 ManufacturerName = companyNames.GetValueOrDefault(manufacturerCompanyId),
-                LogisticsCompanyName = companyNames.GetValueOrDefault(logisticsCompanyId)
+                LogisticsCompanyName = companyNames.GetValueOrDefault(logisticsCompanyId),
+                Items = orderItems.Select(oi => new PayableOrderItemSummaryDto
+                {
+                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title,
+                    ProductNo = oi.Product?.ProductNo,
+                    PhotoUrl = oi.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
+                        ?? oi.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
+                    Purity = oi.Purity,
+                    Color = oi.Color,
+                    Size = oi.Size,
+                    Memo = oi.Memo,
+                    Quantity = oi.Quantity,
+                    ActualWeight = GetEffectiveWeight(oi.ConfirmedWeight, oi.ActualWeight, oi.OrderWeight),
+                    MaterialCost = oi.FactoryInputMaterialCost ?? 0,
+                    LaborCost = oi.FactoryInputLaborCost ?? 0
+                }).ToList()
             };
         }).OrderByDescending(i => i.OrderDate).ToList();
 
@@ -1020,8 +1037,15 @@ public class PayableService : IPayableService
 
     // Cash and gold weight are two views of the same underlying charge, not independent
     // debts - once a payment fully covers either side of a charge, the whole charge is
-    // considered settled and the other side is cleared too.
-    private static List<PayableApplication> ApplyToChargeList(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight)
+    // considered settled and the other side is cleared too. Whatever was still outstanding
+    // on that other side at that moment is added to forgivenAmount/forgivenWeight so the
+    // caller can fold it into the payment's own Discount/DiscountWeight - without that, the
+    // charge's real debt silently disappears from RemainingAmount/RemainingWeight while the
+    // payment's own recorded Amount/Discount stays unchanged, permanently corrupting any
+    // later chronological ledger walk (거래명세서's A/B totals, which trust Payment.Amount+
+    // Discount to know how much debt a payment actually cleared) with debt that no longer
+    // exists anywhere in the live charge data.
+    private static List<PayableApplication> ApplyToChargeList(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
     {
         var applications = new List<PayableApplication>();
 
@@ -1068,6 +1092,8 @@ public class PayableService : IPayableService
 
             if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
             {
+                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
+                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
                 charge.RemainingAmount = 0;
                 charge.RemainingWeight = 0;
             }
@@ -1078,6 +1104,73 @@ public class PayableService : IPayableService
             }
         }
 
+        return applications;
+    }
+
+    // A deliberately-grouped batch settlement (specific orders checked together and settled
+    // as one action) should never leave some of those orders completely untouched just
+    // because the payment wasn't enough to cover the oldest one in full first - every charge
+    // in the group gets touched, proportional to its own share of the group's total, so all
+    // of them leave the 정산처리 worklist together (moving into 미수금 관리 for whatever
+    // remains) instead of the payment being fully consumed by the first charge alone.
+    private static List<PayableApplication> ApplyProportionally(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
+    {
+        var applications = new List<PayableApplication>();
+        if (charges.Count == 0) return applications;
+
+        var totalChargeAmount = charges.Sum(c => c.RemainingAmount);
+        var totalChargeWeight = charges.Sum(c => c.RemainingWeight);
+        var poolAmount = Math.Min(remainingAmount, totalChargeAmount);
+        var poolWeight = Math.Min(remainingWeight, totalChargeWeight);
+
+        decimal allocatedAmount = 0;
+        decimal allocatedWeight = 0;
+
+        for (var i = 0; i < charges.Count; i++)
+        {
+            var charge = charges[i];
+            var isLast = i == charges.Count - 1;
+
+            // Cash and gold weight are two views of the same underlying charge, not
+            // independent debts (same rule ApplyToChargeList already applies) - "touched"
+            // tracks whether THIS side actually had anything in the pool to begin with, so
+            // fully paying off one side (e.g. all cash, zero weight) still closes out the
+            // whole charge instead of leaving the untouched side looking perpetually unpaid.
+            var touchedAmount = poolAmount > 0 && charge.RemainingAmount > 0;
+            var touchedWeight = poolWeight > 0 && charge.RemainingWeight > 0;
+
+            // The last charge absorbs whatever proportional rounding left over, so the sum
+            // of applied amounts always exactly equals the pool - never a few won/grams short.
+            // Non-last shares are capped at the charge's own remaining so rounding can never
+            // overshoot it.
+            var shareAmount = isLast
+                ? poolAmount - allocatedAmount
+                : (totalChargeAmount > 0 ? Math.Min(charge.RemainingAmount, Math.Round(poolAmount * (charge.RemainingAmount / totalChargeAmount), 0, MidpointRounding.AwayFromZero)) : 0);
+            var shareWeight = isLast
+                ? poolWeight - allocatedWeight
+                : (totalChargeWeight > 0 ? Math.Min(charge.RemainingWeight, Math.Round(poolWeight * (charge.RemainingWeight / totalChargeWeight), 2, MidpointRounding.AwayFromZero)) : 0);
+
+            allocatedAmount += shareAmount;
+            allocatedWeight += shareWeight;
+            charge.RemainingAmount -= shareAmount;
+            charge.RemainingWeight -= shareWeight;
+
+            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
+            {
+                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
+                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
+                charge.RemainingAmount = 0;
+                charge.RemainingWeight = 0;
+            }
+
+            if (shareAmount != 0 || shareWeight != 0)
+            {
+                applications.Add(new PayableApplication { ChargeId = charge.Id, AppliedAmount = shareAmount, AppliedWeight = shareWeight });
+            }
+        }
+
+        remainingAmount -= poolAmount;
+        remainingWeight -= poolWeight;
         return applications;
     }
 
@@ -1146,6 +1239,8 @@ public class PayableService : IPayableService
         // create an inert payment record that never closes the charge out).
         var hasTargetOrders = (request.OrderIds != null && request.OrderIds.Count > 0) || request.OrderId.HasValue;
         var isZeroWriteOff = remainingAmountToApply <= 0 && remainingWeightToApply <= 0 && hasTargetOrders;
+        decimal forgivenAmount = 0m;
+        decimal forgivenWeight = 0m;
 
         if (request.OrderIds != null && request.OrderIds.Count > 0)
         {
@@ -1163,7 +1258,7 @@ public class PayableService : IPayableService
                 remainingAmountToApply += writeOffAmount;
                 remainingWeightToApply += writeOffWeight;
             }
-            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply));
+            applications.AddRange(ApplyProportionally(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
         }
         else if (request.OrderId.HasValue)
         {
@@ -1180,7 +1275,7 @@ public class PayableService : IPayableService
                 remainingAmountToApply += writeOffAmount;
                 remainingWeightToApply += writeOffWeight;
             }
-            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply));
+            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
         }
 
         if (remainingAmountToApply > 0 || remainingWeightToApply > 0)
@@ -1190,8 +1285,14 @@ public class PayableService : IPayableService
                     && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
-            applications.AddRange(ApplyToChargeList(outstandingCharges, ref remainingAmountToApply, ref remainingWeightToApply));
+            applications.AddRange(ApplyToChargeList(outstandingCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
         }
+
+        // Fold anything the either-side-clears-the-whole-charge rule just forgave into the
+        // payment's own discount, so it's honestly recorded rather than only ever showing up
+        // as a live RemainingAmount/RemainingWeight change with no paper trail.
+        discount += forgivenAmount;
+        discountWeight += forgivenWeight;
 
         // A charge that was already partially settled before (i.e. it's sitting in 미수금
         // 관리, not the fresh 정산처리 worklist) already has its own running payment record -
@@ -1259,7 +1360,10 @@ public class PayableService : IPayableService
 
         // Anything left after covering every outstanding charge is an overpayment - keep it
         // on a payment record instead of discarding it, so it stays visible/traceable rather
-        // than silently vanishing, even if every charge this action touched was a top-up.
+        // than silently vanishing, even if every charge this action touched was a top-up (in
+        // which case this shell would otherwise carry no Amount/Discount at all, since the
+        // loop above only ever credits a payment for the portion of an application it
+        // received - the leftover was never part of any application to begin with).
         if (remainingAmountToApply > 0 || remainingWeightToApply > 0)
         {
             newPayment ??= new Payable
@@ -1271,6 +1375,12 @@ public class PayableService : IPayableService
                 Memo = request.Memo,
                 SettlementMethod = request.SettlementMethod
             };
+            var leftoverCash = remainingAmountToApply * cashRatio;
+            var leftoverCashWeight = remainingWeightToApply * cashRatioWeight;
+            newPayment.Amount += leftoverCash;
+            newPayment.Discount += remainingAmountToApply - leftoverCash;
+            newPayment.Weight += leftoverCashWeight;
+            newPayment.DiscountWeight += remainingWeightToApply - leftoverCashWeight;
         }
 
         if (newPayment != null)
@@ -1317,7 +1427,14 @@ public class PayableService : IPayableService
         decimal newAmountToApply = request.Amount + newDiscount;
         decimal newWeightToApply = (request.Weight ?? 0m) + newDiscountWeight;
         var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
-        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply);
+        decimal editForgivenAmount = 0m;
+        decimal editForgivenWeight = 0m;
+        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, ref editForgivenAmount, ref editForgivenWeight);
+        if (editForgivenAmount > 0 || editForgivenWeight > 0)
+        {
+            payment.Discount += editForgivenAmount;
+            payment.DiscountWeight += editForgivenWeight;
+        }
         foreach (var application in newApplications)
         {
             application.Payment = payment;
@@ -1357,15 +1474,20 @@ public class PayableService : IPayableService
 
     // Cancelling a payment already reverses its effect on the charges and clears its
     // applications (CancelPaymentAsync above) - deleting it afterward is purely removing
-    // the now-inert record from the list, so it's only ever allowed once a payment is
-    // already cancelled, never on a live one still backing real settlement amounts.
+    // the now-inert record from the list, so it's normally only allowed once a payment is
+    // already cancelled, never on a live one still backing real settlement amounts. The one
+    // exception is a "hollow" payment that never touched any charge and carries no amount at
+    // all (a leftover-overpay shell from before this was fixed to always carry its own
+    // Amount/Discount) - there's nothing there to reverse, so it's safe to delete directly.
     public async Task<ApiResponse<bool>> DeletePaymentAsync(int id)
     {
         var payment = await _payableRepository.GetByIdAsync(id);
         if (payment == null || payment.Type != "PAYMENT") return ApiResponse<bool>.Failure("정산 내역을 찾을 수 없습니다.", 404);
-        if (!payment.IsCancelled) return ApiResponse<bool>.Failure("취소된 거래만 삭제할 수 있습니다.", 400);
 
         var remainingApplications = await _dbContext.PayableApplications.Where(a => a.PaymentId == id).ToListAsync();
+        var isHollow = remainingApplications.Count == 0 && payment.Amount == 0 && payment.Discount == 0 && payment.Weight == 0 && payment.DiscountWeight == 0;
+        if (!payment.IsCancelled && !isHollow) return ApiResponse<bool>.Failure("취소된 거래만 삭제할 수 있습니다.", 400);
+
         if (remainingApplications.Count > 0)
         {
             _dbContext.PayableApplications.RemoveRange(remainingApplications);

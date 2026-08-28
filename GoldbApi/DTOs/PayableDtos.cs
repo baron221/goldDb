@@ -398,6 +398,13 @@ public class OrderChargeSummaryItemDto
     public string? ManufacturerName { get; set; }
 
     public string? LogisticsCompanyName { get; set; }
+
+    // An order can bundle several distinct products, not just one - the singular
+    // ProductName/Purity/Quantity/ActualWeight fields above only ever reflected the first
+    // top-level item, silently dropping the rest for a multi-product order. This carries
+    // every top-level item so the settlement dialog can list them all, same as the plain
+    // order-history table already does.
+    public List<PayableOrderItemSummaryDto> Items { get; set; } = new();
 }
 
 public class OrderIdsQueryDto

@@ -11,6 +11,12 @@ public class ReceivableDto
 
     public string? UserDisplayName { get; set; }
 
+    // The retailer's own RTL company name (falls back to their first company if they have no
+    // RTL membership) - mirrors UserReceivableSummaryDto.CompanyName, so 정산 완료 내역's
+    // "거래처" column shows the same identity 미수금 관리 already does, not just the raw
+    // user display name.
+    public string? CompanyName { get; set; }
+
     public int? OrderId { get; set; }
 
     public string? OrderNo { get; set; }
@@ -55,6 +61,15 @@ public class ReceivableDto
     public decimal OutstandingChargeAmount { get; set; }
 
     public decimal OutstandingChargeWeight { get; set; }
+
+    // Mirrors PayableDto's OrderCount - how many distinct orders a DEPOSIT's applications
+    // touched, for the "거래 주문 수량" column.
+    public int OrderCount { get; set; }
+
+    // Mirrors PayableDto's IsMostRecentPayment - true only for a DEPOSIT row that has no
+    // later (non-cancelled) DEPOSIT for the same retailer, since editing an older one after a
+    // newer one already exists would invalidate later chronological ledger calculations.
+    public bool IsMostRecentPayment { get; set; }
 }
 
 public class AppliedChargeDto
@@ -153,6 +168,12 @@ public class ReceivableChargeSummaryItemDto
     public decimal RemainingAmount { get; set; }
 
     public DateTime OrderDate { get; set; }
+
+    // An order can bundle several distinct products, not just one - the singular
+    // ProductName/Purity/Quantity/ActualWeight fields above only ever reflected the first
+    // top-level item, silently dropping the rest for a multi-product order. This carries
+    // every top-level item so the settlement dialog can list them all.
+    public List<ReceivableOrderItemSummaryDto> Items { get; set; } = new();
 }
 
 public class PuritySummaryDto
@@ -175,6 +196,11 @@ public class ReceivableQueryDto
     public int PageSize { get; set; } = 20;
 
     public int? UserId { get; set; }
+
+    // The 거래처/소매점 filter (SettlementHistoryFilter's <company-select category="RTL">)
+    // picks a Company, not a User - resolved server-side to that company's user(s) since
+    // Receivable rows are keyed by UserId, not CompanyId.
+    public int? CompanyId { get; set; }
 
     public string? Type { get; set; }
 
@@ -330,6 +356,13 @@ public class ReceivableOrderItemSummaryDto
     public int Quantity { get; set; }
 
     public decimal? ActualWeight { get; set; }
+
+    // Retailer-facing cost (falls back to the factory's own input cost when the retailer
+    // hasn't confirmed one) - needed for 거래명세서's "공임비" column, same convention
+    // GetReceivableChargeSummaryAsync's purity/sale-amount totals already use.
+    public decimal MaterialCost { get; set; }
+
+    public decimal LaborCost { get; set; }
 }
 
 public class ReceivableOrderHistorySummaryDto

@@ -477,11 +477,13 @@ public class ReceivableService : IReceivableService
             .OrderByDescending(b => b.Weight)
             .ToList();
 
-        var itemsByOrder = topLevelItems.GroupBy(oi => oi.OrderId).ToDictionary(g => g.Key, g => g.First());
+        var itemsByOrder = topLevelItems.GroupBy(oi => oi.OrderId).ToDictionary(g => g.Key, g => g.ToList());
 
         var summaryItems = charges.Select(c =>
         {
-            itemsByOrder.TryGetValue(c.OrderId ?? 0, out var item);
+            itemsByOrder.TryGetValue(c.OrderId ?? 0, out var orderItems);
+            orderItems ??= new List<OrderItem>();
+            var item = orderItems.FirstOrDefault();
             return new ReceivableChargeSummaryItemDto
             {
                 ReceivableId = c.Id,
@@ -499,7 +501,22 @@ public class ReceivableService : IReceivableService
                 ChargeWeight = c.Weight,
                 ActualWeight = item != null ? GetEffectiveWeight(item.ConfirmedWeight, item.ActualWeight, item.OrderWeight) : null,
                 RemainingAmount = c.RemainingAmount,
-                OrderDate = c.CreatedAt
+                OrderDate = c.CreatedAt,
+                Items = orderItems.Select(oi => new ReceivableOrderItemSummaryDto
+                {
+                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title,
+                    ProductNo = oi.Product?.ProductNo,
+                    PhotoUrl = oi.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
+                        ?? oi.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
+                    Purity = oi.Purity,
+                    Color = oi.Color,
+                    Size = oi.Size,
+                    Memo = oi.Memo,
+                    Quantity = oi.Quantity,
+                    ActualWeight = GetEffectiveWeight(oi.ConfirmedWeight, oi.ActualWeight, oi.OrderWeight),
+                    MaterialCost = oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0,
+                    LaborCost = oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0
+                }).ToList()
             };
         }).OrderByDescending(i => i.OrderDate).ToList();
 
@@ -556,6 +573,15 @@ public class ReceivableService : IReceivableService
                         .ToListAsync();
                 }
             }
+        }
+
+        if (query.CompanyId.HasValue)
+        {
+            var companyUserIds = await _dbContext.Users
+                .Where(u => u.UserCompanies.Any(uc => uc.CompanyId == query.CompanyId.Value))
+                .Select(u => u.Id)
+                .ToListAsync();
+            allowedUserIds = allowedUserIds != null ? allowedUserIds.Intersect(companyUserIds).ToList() : companyUserIds;
         }
 
         var (items, totalCount) = await _receivableRepository.GetReceivablesPagedAsync(query, allowedUserIds);
@@ -1017,8 +1043,14 @@ public class ReceivableService : IReceivableService
     // used both when applying a new deposit and when re-applying one during an edit.
     // Cash and gold weight are two views of the same underlying charge, not independent
     // debts - once a payment fully covers either side of a charge, the whole charge is
-    // considered settled and the other side is cleared too.
-    private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight)
+    // considered settled and the other side is cleared too. Whatever was still outstanding
+    // on that other side at that moment is added to forgivenAmount/forgivenWeight so the
+    // caller can fold it into the deposit's own Discount/DiscountWeight - without that, the
+    // charge's real debt silently disappears from RemainingAmount/RemainingWeight while the
+    // deposit's own recorded Amount/Discount stays unchanged, permanently corrupting any
+    // later chronological ledger walk with debt that no longer exists anywhere in the live
+    // charge data.
+    private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
     {
         var applications = new List<ReceivableApplication>();
 
@@ -1065,6 +1097,8 @@ public class ReceivableService : IReceivableService
 
             if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
             {
+                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
+                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
                 charge.RemainingAmount = 0;
                 charge.RemainingWeight = 0;
             }
@@ -1075,6 +1109,73 @@ public class ReceivableService : IReceivableService
             }
         }
 
+        return applications;
+    }
+
+    // A deliberately-grouped batch settlement (specific orders checked together and settled
+    // as one action, via 미수금 관리's batch-settle dialog) should never leave some of those
+    // orders completely untouched just because the deposit wasn't enough to cover the oldest
+    // one in full first - every charge in the group gets touched, proportional to its own
+    // share of the group's total, so all of them leave the outstanding-charge state together
+    // instead of the deposit being fully consumed by the first charge alone.
+    private static List<ReceivableApplication> ApplyProportionally(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
+    {
+        var applications = new List<ReceivableApplication>();
+        if (charges.Count == 0) return applications;
+
+        var totalChargeAmount = charges.Sum(c => c.RemainingAmount);
+        var totalChargeWeight = charges.Sum(c => c.RemainingWeight);
+        var poolAmount = Math.Min(remainingAmount, totalChargeAmount);
+        var poolWeight = Math.Min(remainingWeight, totalChargeWeight);
+
+        decimal allocatedAmount = 0;
+        decimal allocatedWeight = 0;
+
+        for (var i = 0; i < charges.Count; i++)
+        {
+            var charge = charges[i];
+            var isLast = i == charges.Count - 1;
+
+            // Cash and gold weight are two views of the same underlying charge, not
+            // independent debts (same rule ApplyToChargeList already applies) - "touched"
+            // tracks whether THIS side actually had anything in the pool to begin with, so
+            // fully paying off one side (e.g. all cash, zero weight) still closes out the
+            // whole charge instead of leaving the untouched side looking perpetually unpaid.
+            var touchedAmount = poolAmount > 0 && charge.RemainingAmount > 0;
+            var touchedWeight = poolWeight > 0 && charge.RemainingWeight > 0;
+
+            // The last charge absorbs whatever proportional rounding left over, so the sum
+            // of applied amounts always exactly equals the pool - never a few won/grams short.
+            // Non-last shares are capped at the charge's own remaining so rounding can never
+            // overshoot it.
+            var shareAmount = isLast
+                ? poolAmount - allocatedAmount
+                : (totalChargeAmount > 0 ? Math.Min(charge.RemainingAmount, Math.Round(poolAmount * (charge.RemainingAmount / totalChargeAmount), 0, MidpointRounding.AwayFromZero)) : 0);
+            var shareWeight = isLast
+                ? poolWeight - allocatedWeight
+                : (totalChargeWeight > 0 ? Math.Min(charge.RemainingWeight, Math.Round(poolWeight * (charge.RemainingWeight / totalChargeWeight), 2, MidpointRounding.AwayFromZero)) : 0);
+
+            allocatedAmount += shareAmount;
+            allocatedWeight += shareWeight;
+            charge.RemainingAmount -= shareAmount;
+            charge.RemainingWeight -= shareWeight;
+
+            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
+            {
+                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
+                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
+                charge.RemainingAmount = 0;
+                charge.RemainingWeight = 0;
+            }
+
+            if (shareAmount != 0 || shareWeight != 0)
+            {
+                applications.Add(new ReceivableApplication { ChargeId = charge.Id, AppliedAmount = shareAmount, AppliedWeight = shareWeight });
+            }
+        }
+
+        remainingAmount -= poolAmount;
+        remainingWeight -= poolWeight;
         return applications;
     }
 
@@ -1099,28 +1200,30 @@ public class ReceivableService : IReceivableService
     // A DCC batch-settling several retail orders at once (정산 대상 내역's checkbox flow) needs
     // to target all of them in one deposit, mirroring PayableService.ApplyToChargeList's
     // OrderIds branch - orderIds takes priority over the single orderId when both are present.
-    private async Task<(List<ReceivableApplication> Applications, decimal RemainingAmount, decimal RemainingWeight)> ApplyDepositToChargesAsync(int userId, int? orderId, List<int>? orderIds, decimal amountToApply, decimal weightToApply)
+    private async Task<(List<ReceivableApplication> Applications, decimal RemainingAmount, decimal RemainingWeight, decimal ForgivenAmount, decimal ForgivenWeight)> ApplyDepositToChargesAsync(int userId, int? orderId, List<int>? orderIds, decimal amountToApply, decimal weightToApply)
     {
         var applications = new List<ReceivableApplication>();
+        decimal forgivenAmount = 0m;
+        decimal forgivenWeight = 0m;
 
         if (orderIds != null && orderIds.Count > 0)
         {
             var targetCharges = await _receivableRepository.GetTargetChargesForOrdersAsync(userId, orderIds);
-            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply));
+            applications.AddRange(ApplyProportionally(targetCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
         }
         else if (orderId.HasValue)
         {
             var targetCharges = await _receivableRepository.GetTargetChargesAsync(userId, orderId.Value);
-            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply));
+            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
         }
 
         if (amountToApply > 0 || weightToApply > 0)
         {
             var outstandingCharges = await _receivableRepository.GetOutstandingChargesAsync(userId);
-            applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply));
+            applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
         }
 
-        return (applications, amountToApply, weightToApply);
+        return (applications, amountToApply, weightToApply, forgivenAmount, forgivenWeight);
     }
 
     public async Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request)
@@ -1132,40 +1235,105 @@ public class ReceivableService : IReceivableService
             return ApiResponse<bool>.Failure("입금액, 할인액 또는 순금 중량 중 하나는 0보다 커야 합니다.", 400);
         }
 
-        var deposit = new Receivable
-        {
-            UserId = request.UserId,
-            OrderId = request.OrderId,
-            Type = "DEPOSIT",
-            Amount = request.Amount,
-            RemainingAmount = 0,
-            Weight = request.Weight ?? 0m,
-            RemainingWeight = 0,
-            Memo = request.Memo,
-            SettlementMethod = request.SettlementMethod,
-            Discount = discount
-        };
-        await _receivableRepository.AddAsync(deposit);
-
         // Discount reduces outstanding charges the same way cash does, it's just
         // tracked separately on the deposit record so the ledger can show how much
         // of the settlement was actual payment vs. a discount write-off.
-        var (applications, remainingAmount, remainingWeight) = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.OrderIds, request.Amount + discount, request.Weight ?? 0m);
+        var (applications, remainingAmount, remainingWeight, forgivenAmount, forgivenWeight) = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.OrderIds, request.Amount + discount, request.Weight ?? 0m);
 
-        // Record which charge(s) this deposit actually paid off, so the history table
-        // can show where a payment went instead of just leaving charges mysteriously
-        // cleared with no visible link back to the deposit that paid them.
+        // Fold anything the either-side-clears-the-whole-charge rule just forgave into the
+        // discount pool below, so it's honestly recorded rather than only ever showing up as
+        // a live RemainingAmount change with no paper trail. Receivable has no weight-side
+        // discount field (unlike Payable), so a forgiven weight amount still can't be
+        // recorded here - a smaller, pre-existing gap this fix doesn't extend to.
+        discount += forgivenAmount;
+        _ = forgivenWeight;
+
+        // A charge that was already partially settled before (i.e. it's sitting in 미수금
+        // 관리, not the fresh worklist) already has its own running deposit record - route
+        // any further money toward it into THAT SAME deposit/거래번호 instead of opening a
+        // new one, so 정산 완료 내역 keeps exactly one row per order as it accumulates
+        // payments over time. Only a charge that has never been touched before gets a brand
+        // new deposit record. Cash and discount are attributed to each application using the
+        // request's own overall cash:discount ratio, since the two pools were never tracked
+        // separately per charge to begin with.
+        var chargeIds = applications.Select(a => a.ChargeId).Distinct().ToList();
+        var priorApplications = chargeIds.Count > 0
+            ? await _dbContext.ReceivableApplications
+                .Include(a => a.Deposit)
+                .Where(a => chargeIds.Contains(a.ChargeId) && a.Deposit != null && a.Deposit.Type == "DEPOSIT" && !a.Deposit.IsCancelled)
+                .ToListAsync()
+            : new List<ReceivableApplication>();
+        var existingApplicationByCharge = priorApplications
+            .GroupBy(a => a.ChargeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.Deposit!.CreatedAt).First());
+
+        var totalPool = request.Amount + discount;
+        var cashRatio = totalPool > 0 ? request.Amount / totalPool : 0m;
+
+        Receivable? newDeposit = null;
+        var newApplications = new List<ReceivableApplication>();
+
         foreach (var application in applications)
         {
-            application.Deposit = deposit;
-            _dbContext.ReceivableApplications.Add(application);
+            var cashPortion = application.AppliedAmount * cashRatio;
+            var discountPortion = application.AppliedAmount - cashPortion;
+
+            if (existingApplicationByCharge.TryGetValue(application.ChargeId, out var existingApplication))
+            {
+                var existingDeposit = existingApplication.Deposit!;
+                existingDeposit.Amount += cashPortion;
+                existingDeposit.Discount += discountPortion;
+                existingDeposit.Weight += application.AppliedWeight;
+                existingApplication.AppliedAmount += application.AppliedAmount;
+                existingApplication.AppliedWeight += application.AppliedWeight;
+            }
+            else
+            {
+                newDeposit ??= new Receivable
+                {
+                    UserId = request.UserId,
+                    OrderId = request.OrderId,
+                    Type = "DEPOSIT",
+                    Memo = request.Memo,
+                    SettlementMethod = request.SettlementMethod
+                };
+                newDeposit.Amount += cashPortion;
+                newDeposit.Discount += discountPortion;
+                newDeposit.Weight += application.AppliedWeight;
+                newApplications.Add(application);
+            }
         }
 
         // Anything left after covering every outstanding charge is an overpayment - keep it
-        // on the deposit record instead of discarding it, so it stays visible/traceable
-        // rather than silently vanishing.
-        deposit.RemainingAmount = remainingAmount;
-        deposit.RemainingWeight = remainingWeight;
+        // on a deposit record instead of discarding it, so it stays visible/traceable rather
+        // than silently vanishing, even if every charge this action touched was a top-up.
+        if (remainingAmount > 0 || remainingWeight > 0)
+        {
+            newDeposit ??= new Receivable
+            {
+                UserId = request.UserId,
+                OrderId = request.OrderId,
+                Type = "DEPOSIT",
+                Memo = request.Memo,
+                SettlementMethod = request.SettlementMethod
+            };
+            var leftoverCash = remainingAmount * cashRatio;
+            newDeposit.Amount += leftoverCash;
+            newDeposit.Discount += remainingAmount - leftoverCash;
+            newDeposit.Weight += remainingWeight;
+        }
+
+        if (newDeposit != null)
+        {
+            newDeposit.RemainingAmount = remainingAmount;
+            newDeposit.RemainingWeight = remainingWeight;
+            await _receivableRepository.AddAsync(newDeposit);
+            foreach (var application in newApplications)
+            {
+                application.Deposit = newDeposit;
+                _dbContext.ReceivableApplications.Add(application);
+            }
+        }
 
         await _receivableRepository.SaveChangesAsync();
 
@@ -1200,7 +1368,13 @@ public class ReceivableService : IReceivableService
         decimal newAmountToApply = request.Amount + newDiscount;
         decimal newWeightToApply = request.Weight ?? 0m;
         var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
-        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply);
+        decimal editForgivenAmount = 0m;
+        decimal editForgivenWeight = 0m;
+        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, ref editForgivenAmount, ref editForgivenWeight);
+        if (editForgivenAmount > 0)
+        {
+            deposit.Discount += editForgivenAmount;
+        }
         foreach (var application in newApplications)
         {
             application.Deposit = deposit;

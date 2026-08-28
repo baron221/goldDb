@@ -182,6 +182,10 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 UserId = r.UserId,
                 UserName = r.User != null ? r.User.Username : null,
                 UserDisplayName = r.User != null ? r.User.Name : null,
+                CompanyName = r.User != null
+                    ? (r.User.UserCompanies.Where(uc => uc.Company != null && uc.Company.Category == "RTL").Select(uc => uc.Company!.Name).FirstOrDefault()
+                        ?? r.User.UserCompanies.Select(uc => uc.Company!.Name).FirstOrDefault())
+                    : null,
                 OrderId = r.OrderId,
                 OrderNo = r.Order != null ? r.Order.OrderNo : null,
                 ProductName = r.Order != null
@@ -233,7 +237,9 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                                         Size = oi.Size,
                                         Memo = oi.Memo,
                                         Quantity = oi.Quantity,
-                                        ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight
+                                        ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight,
+                                        MaterialCost = oi.RetailerConfirmMaterialCost ?? oi.FactoryInputMaterialCost ?? 0,
+                                        LaborCost = oi.RetailerConfirmLaborCost ?? oi.FactoryInputLaborCost ?? 0
                                     }).ToList()
                                 : new List<ReceivableOrderItemSummaryDto>()
                         })
@@ -244,7 +250,14 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                     : 0,
                 OutstandingChargeWeight = r.Type == "DEPOSIT"
                     ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.RemainingWeight).Sum()
-                    : 0
+                    : 0,
+                OrderCount = r.Type == "DEPOSIT"
+                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.OrderId).Distinct().Count()
+                    : 0,
+                IsMostRecentPayment = r.Type == "DEPOSIT" && !Context.Receivables.Any(other =>
+                    other.Type == "DEPOSIT" && !other.IsCancelled &&
+                    other.UserId == r.UserId &&
+                    (other.CreatedAt > r.CreatedAt || (other.CreatedAt == r.CreatedAt && other.Id > r.Id)))
             })
             .ToListAsync();
 
