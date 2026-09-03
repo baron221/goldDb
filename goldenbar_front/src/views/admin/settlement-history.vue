@@ -1032,7 +1032,8 @@ const handleIssueStatement = async (record: any) => {
     transactionNo: record.id,
     itemRows,
     purityRows,
-    balanceRows
+    balanceRows,
+    showProducts: !record.isOverdueSettlement
   })).join('');
 
   openStatementPrintWindow(`정산 명세서 - ${payerName}`, bodyHtml);

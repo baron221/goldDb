@@ -2284,6 +2284,11 @@ namespace GoldbApi.Migrations
                         .HasColumnName("is_mfg_processed")
                         .HasComment("공장 정산 처리 여부 (실제 입금 확인이 아닌 공장측 확인 표시)");
 
+                    b.Property<bool>("IsOverdueSettlement")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_overdue_settlement")
+                        .HasComment("미수금 관리에서 발생한 단순 정산 여부");
+
                     b.Property<int>("LogisticsCompanyId")
                         .HasColumnType("integer")
                         .HasColumnName("logistics_company_id");

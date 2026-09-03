@@ -305,8 +305,24 @@ public class PayableService : IPayableService
             .Select(p => (DateTime?)p.CreatedAt)
             .FirstOrDefault();
 
-        var saleAmount = charges.Sum(p => p.RemainingAmount);
-        var saleWeight = charges.Sum(p => p.RemainingWeight);
+        // 판매(B) is only ever a charge's own remaining amount when the charge has NEVER been
+        // touched by 정산처리 before (fresh out of 정산 내역's worklist - that's a genuinely
+        // new sale). A charge already sitting in 미수금 관리 has an application on file already
+        // (even a 0-value acknowledgement counts, see ProcessPaymentAsync) - for that one
+        // there's no new sale happening here, just old debt being collected, so its remaining
+        // amount belongs folded into 거래 전 미수(A) instead of being double-labeled as a
+        // fresh 판매(B) every time more of it gets paid off. Mirrors
+        // ReceivableService.GetReceivableChargeSummaryAsync's identical fix.
+        var chargeIdListForTouchCheck = charges.Select(c => c.Id).ToList();
+        var touchedChargeIds = (await _dbContext.PayableApplications
+            .Where(a => chargeIdListForTouchCheck.Contains(a.ChargeId))
+            .Select(a => a.ChargeId)
+            .Distinct()
+            .ToListAsync())
+            .ToHashSet();
+
+        var saleAmount = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(p => p.RemainingAmount);
+        var saleWeight = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(p => p.RemainingWeight);
 
         var selectedOrderIds = charges.Where(p => p.OrderId.HasValue).Select(p => p.OrderId!.Value).Distinct().ToList();
 
@@ -951,7 +967,8 @@ public class PayableService : IPayableService
                     (other.CreatedAt > p.CreatedAt || (other.CreatedAt == p.CreatedAt && other.Id > p.Id))),
                 // 거래일자 shows the effective/last-touched date, not necessarily when this
                 // row was first inserted - see the sort comment above for why.
-                CreatedAt = p.UpdatedAt ?? p.CreatedAt
+                CreatedAt = p.UpdatedAt ?? p.CreatedAt,
+                IsOverdueSettlement = p.IsOverdueSettlement
             })
             .ToListAsync();
 
@@ -1314,6 +1331,40 @@ public class PayableService : IPayableService
             return ApiResponse<bool>.Success(true);
         }
 
+        // A charge only ever reaches 미수금 관리 once it already has an application on file
+        // (even a 0-value acknowledgement counts - see the isAllZero branch above and
+        // GetPayableOrderHistoryAsync's worklist filter, which excludes any charge with one).
+        // So if EVERY charge this request targets is already touched, this action can only
+        // have come from 미수금 관리's 정산처리 - a pure debt collection, not a new sale - and
+        // must open as its own new 거래 row rather than merging into whichever payment
+        // originally introduced that charge. Mirrors ReceivableService.ProcessDepositAsync's
+        // identical check.
+        List<int> targetChargeIdsForOverdueCheck;
+        if (request.OrderIds != null && request.OrderIds.Count > 0)
+        {
+            targetChargeIdsForOverdueCheck = await _payableRepository.GetQueryable()
+                .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
+                    && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value)
+                    && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                .Select(p => p.Id)
+                .ToListAsync();
+        }
+        else if (request.OrderId.HasValue)
+        {
+            targetChargeIdsForOverdueCheck = await _payableRepository.GetQueryable()
+                .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
+                    && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                .Select(p => p.Id)
+                .ToListAsync();
+        }
+        else
+        {
+            targetChargeIdsForOverdueCheck = new List<int>();
+        }
+        var isOverdueSettlement = targetChargeIdsForOverdueCheck.Count > 0 &&
+            (await _dbContext.PayableApplications.Where(a => targetChargeIdsForOverdueCheck.Contains(a.ChargeId)).Select(a => a.ChargeId).Distinct().CountAsync())
+                == targetChargeIdsForOverdueCheck.Count;
+
         var forgivenAmountByCharge = new Dictionary<int, decimal>();
         var forgivenWeightByCharge = new Dictionary<int, decimal>();
 
@@ -1394,13 +1445,14 @@ public class PayableService : IPayableService
         discountWeight += forgivenWeight;
 
         // A charge that was already partially settled before (i.e. it's sitting in 미수금
-        // 관리, not the fresh 정산처리 worklist) already has its own running payment record -
-        // route any further money toward it into THAT SAME payment/거래번호 instead of opening
-        // a new one, so 거래별 보기 keeps exactly one row per order as it accumulates payments
-        // over time. Only a charge that has never been touched before gets a brand new
-        // payment record.
+        // 관리, not the fresh 정산처리 worklist) normally already has its own running payment
+        // record, and further money toward it would route into THAT SAME payment/거래번호
+        // instead of opening a new one. But per isOverdueSettlement above, when EVERY targeted
+        // charge is already-touched debt collection, this request must always become its own
+        // fresh row - skip the lookup entirely (empty dictionary) so nothing below can merge
+        // into an existing payment.
         var chargeIds = applications.Select(a => a.ChargeId).Distinct().ToList();
-        var priorApplications = chargeIds.Count > 0
+        var priorApplications = (!isOverdueSettlement && chargeIds.Count > 0)
             ? await _dbContext.PayableApplications
                 .Include(a => a.Payment)
                 .Where(a => chargeIds.Contains(a.ChargeId) && a.Payment != null && a.Payment.Type == "PAYMENT" && !a.Payment.IsCancelled)
@@ -1459,7 +1511,8 @@ public class PayableService : IPayableService
                     OrderId = request.OrderId,
                     Type = "PAYMENT",
                     Memo = request.Memo,
-                    SettlementMethod = request.SettlementMethod
+                    SettlementMethod = request.SettlementMethod,
+                    IsOverdueSettlement = isOverdueSettlement
                 };
                 newPayment.Amount += cashPortion;
                 newPayment.Discount += discountPortion;
@@ -1484,7 +1537,8 @@ public class PayableService : IPayableService
                 OrderId = request.OrderId,
                 Type = "PAYMENT",
                 Memo = request.Memo,
-                SettlementMethod = request.SettlementMethod
+                SettlementMethod = request.SettlementMethod,
+                IsOverdueSettlement = isOverdueSettlement
             };
             var leftoverCash = remainingAmountToApply * cashRatio;
             var leftoverCashWeight = remainingWeightToApply * cashRatioWeight;

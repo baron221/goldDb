@@ -64,6 +64,12 @@ public class PayableDto
     public bool IsMostRecentPayment { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
+    // True for a PAYMENT created via 미수금 관리's 정산처리 (collecting an already-charged,
+    // already-touched balance) rather than a fresh sale straight out of 정산 내역's worklist -
+    // the frontend uses this to print a plain balance-only 거래명세서 with no product table,
+    // since this transaction never introduced a new product charge.
+    public bool IsOverdueSettlement { get; set; }
 }
 
 public class CompanyPayableSummaryDto
