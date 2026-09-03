@@ -545,6 +545,23 @@ public class OrderService : IOrderService
                 await _receivableService.CreateOrderSettlementChargesAsync(order.Id, request.Status);
             }
 
+            // A "물류사 자체 재고용 주문" (self-purchase) order never gets a Receivable charge
+            // (CreateOrderSettlementChargesAsync's own isSelfPurchase guard skips it) and has
+            // no retailer to deliver to, so making it wait through PROCESSING/SETTLED/
+            // DELIVERY_*/Completed before counting as stock (the normal order's own path,
+            // triggered above at Completed) makes no sense - the moment it physically
+            // arrives (물류도착/PENDING) it already IS inventory.
+            if (oldStatus != request.Status && request.Status == "PENDING")
+            {
+                var isSelfPurchase = await _dbContext.UserCompanies.AnyAsync(uc =>
+                    uc.UserId == order.UserId && uc.Company != null &&
+                    (uc.Company.Category == "DCC" || uc.Company.Category == "LOG"));
+                if (isSelfPurchase)
+                {
+                    await _stockService.AddOrderItemsToStockAsync(id);
+                }
+            }
+
             if (oldStatus != request.Status && request.Status == "SETTLED")
             {
                 if (request.SettlementAmount.HasValue && request.SettlementAmount.Value > 0)

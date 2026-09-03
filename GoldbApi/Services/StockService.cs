@@ -414,6 +414,15 @@ public class StockService : IStockService
 
         if (order == null) return ApiResponse<string>.Failure("Order not found", 404);
 
+        // Called from two independent trigger points (a self-purchase order at PENDING/물류도착,
+        // any order at Completed) - an order that hits both (or a retried/duplicate call) must
+        // not double-stock the same items. Idempotent: once this order has ever produced stock,
+        // do nothing on a later call.
+        if (await _stockRepository.GetQueryable().AnyAsync(s => s.SourceOrderId == orderId))
+        {
+            return ApiResponse<string>.Success("already stocked");
+        }
+
         var userCompany = await _stockRepository.GetUserCompanyAsync(order.UserId);
         if (userCompany == null) return ApiResponse<string>.Failure("Ordering user has no associated company", 400);
 
