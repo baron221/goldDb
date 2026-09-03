@@ -50,6 +50,7 @@
         v-model="overdueBatchSettleDialogVisible"
         :order-ids="overdueOrderIds"
         :single-mode="false"
+        :hide-products="true"
         @saved="onOverdueSettleSaved"
       />
     </el-card>
@@ -107,6 +108,7 @@
         v-model="receivableOverdueBatchSettleDialogVisible"
         :order-ids="receivableOverdueOrderIds"
         :single-mode="false"
+        :hide-products="true"
         @saved="onReceivableOverdueSettleSaved"
       />
     </el-card>

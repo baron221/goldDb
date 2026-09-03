@@ -295,7 +295,10 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 // OrderId/RemainingAmount/RemainingWeight is only counted once.
                 var distinctCharges = group.GroupBy(a => a.ChargeId).Select(g => g.First()).ToList();
                 var dto = items.First(i => i.Id == group.Key);
-                dto.OrderCount = distinctCharges.Select(c => c.OrderId).Distinct().Count();
+                // An overdue-settlement row (미수금 관리's 입금처리) is a pure debt collection,
+                // not tied to any specific order from the user's point of view - showing a real
+                // order count here would misleadingly suggest this was a fresh multi-order sale.
+                dto.OrderCount = dto.IsOverdueSettlement ? 0 : distinctCharges.Select(c => c.OrderId).Distinct().Count();
                 dto.OutstandingChargeAmount = distinctCharges.Sum(c => c.RemainingAmount);
                 dto.OutstandingChargeWeight = distinctCharges.Sum(c => c.RemainingWeight);
             }

@@ -1,14 +1,14 @@
 <template>
-<base-popup v-model="visible" title="정산 처리" width="900px" @close="handleClose">
+<base-popup v-model="visible" :title="hideProducts ? '입금 처리' : '정산 처리'" width="900px" @close="handleClose">
     <div v-if="summary" style="margin-bottom: 1.25rem; padding: 0.9375rem; border-radius: 2px; background: #fafafa;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
         <div><strong>거래처</strong> {{ summary.companyName }}</div>
         <div v-if="summary.lastPaymentDate" style="color: #909399; font-size: 0.875rem;">최근 결제: {{ formatDate(summary.lastPaymentDate) }}</div>
       </div>
-      <div style="font-size: 0.875rem; color: #606266;">{{ singleMode ? '단일 주문 정산' : `선택된 주문 ${localItems.length}건` }}</div>
+      <div v-if="!hideProducts" style="font-size: 0.875rem; color: #606266;">{{ singleMode ? '단일 주문 정산' : `선택된 주문 ${localItems.length}건` }}</div>
     </div>
 
-    <div v-if="localItems.length > 0" style="margin-bottom: 1.25rem;">
+    <div v-if="!hideProducts && localItems.length > 0" style="margin-bottom: 1.25rem;">
       <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">주문내용</div>
       <table class="ledger-table">
         <thead>
@@ -43,7 +43,7 @@
       </table>
     </div>
 
-    <table v-if="summary && summary.purityBreakdown && summary.purityBreakdown.length > 0" class="ledger-table" style="margin-bottom: 1.25rem;">
+    <table v-if="!hideProducts && summary && summary.purityBreakdown && summary.purityBreakdown.length > 0" class="ledger-table" style="margin-bottom: 1.25rem;">
       <thead>
         <tr>
           <th>함량</th>
@@ -139,6 +139,16 @@ const props = defineProps({
   singleMode: {
     type: Boolean,
     default: false
+  },
+  // True when this dialog is opened from 미수금 관리's 입금처리 action - a pure collection
+  // against an already-charged, already-touched balance, not a fresh sale. Every order this
+  // targets is by definition already showing in 미수금 관리 (it got there by having ≥1
+  // application on file already), so its product/order info is old news here and only
+  // clutters what should read as "paying down a balance" - hide the 주문내용/purity tables
+  // and the order-count wording so this reads as a plain debt payment.
+  hideProducts: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -223,7 +233,9 @@ const handleSubmit = () => {
   if (!summary.value) return;
 
   ElMessageBox.confirm(
-    `${summary.value.companyName}에 ₩${formatPrice(settleForm.amount)} 정산 처리하시겠습니까? (주문 ${localItems.value.length}건)`,
+    props.hideProducts
+      ? `${summary.value.companyName}에 ₩${formatPrice(settleForm.amount)} 입금 처리하시겠습니까?`
+      : `${summary.value.companyName}에 ₩${formatPrice(settleForm.amount)} 정산 처리하시겠습니까? (주문 ${localItems.value.length}건)`,
     '정산 처리 확인',
     { confirmButtonText: '확인', cancelButtonText: '취소', type: 'warning' }
   ).then(async () => {
