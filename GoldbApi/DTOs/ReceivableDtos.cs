@@ -72,6 +72,12 @@ public class ReceivableDto
     // later (non-cancelled) DEPOSIT for the same retailer, since editing an older one after a
     // newer one already exists would invalidate later chronological ledger calculations.
     public bool IsMostRecentPayment { get; set; }
+
+    // True for a DEPOSIT created via 미수금 관리's 입금처리 (collecting an already-charged,
+    // already-touched balance) rather than a fresh sale straight out of 정산 대상 내역's
+    // worklist - the frontend uses this to print a plain balance-only 거래명세서 with no
+    // product table, since this transaction never introduced a new product charge.
+    public bool IsOverdueSettlement { get; set; }
 }
 
 public class AppliedChargeDto

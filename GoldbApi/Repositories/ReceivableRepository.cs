@@ -273,7 +273,8 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 IsMostRecentPayment = r.Type == "DEPOSIT" && !Context.Receivables.Any(other =>
                     other.Type == "DEPOSIT" && !other.IsCancelled &&
                     other.UserId == r.UserId &&
-                    (other.CreatedAt > r.CreatedAt || (other.CreatedAt == r.CreatedAt && other.Id > r.Id)))
+                    (other.CreatedAt > r.CreatedAt || (other.CreatedAt == r.CreatedAt && other.Id > r.Id))),
+                IsOverdueSettlement = r.IsOverdueSettlement
             })
             .ToListAsync();
 

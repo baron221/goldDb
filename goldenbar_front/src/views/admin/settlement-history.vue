@@ -916,7 +916,11 @@ const buildStatementBalanceRows = (ledger: any, record: any) => {
   `;
 };
 
-const buildStatementCopy = (copyLabel: string, opts: { companyTag: string; supplierName: string; date: string; transactionNo: string | number; itemRows: string; purityRows: string; balanceRows: string }) => `
+// showProducts=false (used for a 미수금 관리 debt-collection deposit - see
+// IsOverdueSettlement) omits the 주문내용/함량 순도 tables entirely, not just their rows -
+// this transaction never introduced a new product charge, just collected an already-billed
+// balance, so there's nothing product-related to itemize on its own receipt.
+const buildStatementCopy = (copyLabel: string, opts: { companyTag: string; supplierName: string; date: string; transactionNo: string | number; itemRows: string; purityRows: string; balanceRows: string; showProducts?: boolean }) => `
   <div class="receipt-copy-block">
     <table class="receipt-header-table">
       <tr>
@@ -939,6 +943,7 @@ const buildStatementCopy = (copyLabel: string, opts: { companyTag: string; suppl
         </td>
       </tr>
     </table>
+    ${opts.showProducts === false ? '' : `
     <table class="receipt-items-table">
       <thead><tr><th width="12%">No</th><th width="42%">주문내용</th><th width="12%">함량</th><th width="13%">실중량</th><th width="10%">주문수량</th><th width="11%">공임비</th></tr></thead>
       <tbody>${opts.itemRows}</tbody>
@@ -947,6 +952,7 @@ const buildStatementCopy = (copyLabel: string, opts: { companyTag: string; suppl
       <thead><tr><th width="33%">14K 합계(g)</th><th width="33%">18K 합계(g)</th><th width="34%">순금(24K) 합계(g)</th></tr></thead>
       <tbody>${opts.purityRows}</tbody>
     </table>
+    `}
     <table class="receipt-balance-table">
       <thead><tr><th width="30%"></th><th width="22%">순금(g)</th><th width="24%">공임 및 현금</th><th width="24%">금액 합계</th></tr></thead>
       <tbody>${opts.balanceRows}</tbody>
@@ -1172,7 +1178,8 @@ const handleIssueItemStatement = async (item: any, record: any) => {
     transactionNo: item.chargeId,
     itemRows,
     purityRows,
-    balanceRows
+    balanceRows,
+    showProducts: !record.isOverdueSettlement
   })).join('');
 
   openStatementPrintWindow(`정산 영수증 - ${item.orderNo}`, bodyHtml);
@@ -1482,7 +1489,8 @@ const handleIssueReceivableStatement = async (record: any) => {
     transactionNo: record.id,
     itemRows,
     purityRows,
-    balanceRows
+    balanceRows,
+    showProducts: !record.isOverdueSettlement
   })).join('');
 
   openStatementPrintWindow(`정산 명세서 - ${payerName}`, bodyHtml);
@@ -1511,7 +1519,8 @@ const handleIssueReceivableItemStatement = async (item: any, record: any) => {
     transactionNo: item.chargeId,
     itemRows,
     purityRows,
-    balanceRows
+    balanceRows,
+    showProducts: !record.isOverdueSettlement
   })).join('');
 
   openStatementPrintWindow(`정산 영수증 - ${item.orderNo}`, bodyHtml);

@@ -502,8 +502,23 @@ public class ReceivableService : IReceivableService
             .Select(r => (DateTime?)r.CreatedAt)
             .FirstOrDefault();
 
-        var saleAmount = charges.Sum(c => c.RemainingAmount);
-        var saleWeight = charges.Sum(c => c.RemainingWeight);
+        // 판매(B) is only ever a charge's own full/remaining amount when the charge has NEVER
+        // been touched by 정산처리 before (fresh out of 정산 대상 내역's worklist - that's a
+        // genuinely new sale). A charge already sitting in 미수금 관리 has an application on
+        // file already (even a 0-value acknowledgement counts, see ProcessDepositAsync) - for
+        // that one there's no new sale happening here, just old debt being collected, so its
+        // remaining amount belongs folded into 거래 전 미수(A) instead of being double-labeled
+        // as a fresh 판매(B) every time more of it gets paid off.
+        var chargeIdList = charges.Select(c => c.Id).ToList();
+        var touchedChargeIds = (await _dbContext.ReceivableApplications
+            .Where(a => chargeIdList.Contains(a.ChargeId))
+            .Select(a => a.ChargeId)
+            .Distinct()
+            .ToListAsync())
+            .ToHashSet();
+
+        var saleAmount = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(c => c.RemainingAmount);
+        var saleWeight = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(c => c.RemainingWeight);
 
         var selectedOrderIds = charges.Where(c => c.OrderId.HasValue).Select(c => c.OrderId!.Value).Distinct().ToList();
 
@@ -1338,6 +1353,38 @@ public class ReceivableService : IReceivableService
             return ApiResponse<bool>.Success(true);
         }
 
+        // A charge only ever reaches 미수금 관리 once it already has an application on file
+        // (even a 0-value acknowledgement counts - see the isAllZero branch above and
+        // GetReceivableOrderHistoryAsync's worklist filter, which excludes any charge with
+        // one). So if EVERY charge this request targets is already touched, this action can
+        // only have come from 미수금 관리's 입금처리 - a pure debt collection, not a new sale -
+        // and must open as its own new 거래 row rather than merging into whichever deposit
+        // originally introduced that charge.
+        List<int> targetChargeIdsForOverdueCheck;
+        if (request.OrderIds != null && request.OrderIds.Count > 0)
+        {
+            targetChargeIdsForOverdueCheck = await _dbContext.Receivables
+                .Where(r => r.UserId == request.UserId && r.OrderId.HasValue && request.OrderIds.Contains(r.OrderId.Value)
+                    && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+                .Select(r => r.Id)
+                .ToListAsync();
+        }
+        else if (request.OrderId.HasValue)
+        {
+            targetChargeIdsForOverdueCheck = await _dbContext.Receivables
+                .Where(r => r.UserId == request.UserId && r.OrderId == request.OrderId.Value
+                    && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+                .Select(r => r.Id)
+                .ToListAsync();
+        }
+        else
+        {
+            targetChargeIdsForOverdueCheck = new List<int>();
+        }
+        var isOverdueSettlement = targetChargeIdsForOverdueCheck.Count > 0 &&
+            (await _dbContext.ReceivableApplications.Where(a => targetChargeIdsForOverdueCheck.Contains(a.ChargeId)).Select(a => a.ChargeId).Distinct().CountAsync())
+                == targetChargeIdsForOverdueCheck.Count;
+
         // Discount reduces outstanding charges the same way cash does, it's just
         // tracked separately on the deposit record so the ledger can show how much
         // of the settlement was actual payment vs. a discount write-off.
@@ -1372,13 +1419,14 @@ public class ReceivableService : IReceivableService
         discountWeight += forgivenWeight;
 
         // A charge that was already partially settled before (i.e. it's sitting in 미수금
-        // 관리, not the fresh worklist) already has its own running deposit record - route
-        // any further money toward it into THAT SAME deposit/거래번호 instead of opening a
-        // new one, so 정산 완료 내역 keeps exactly one row per order as it accumulates
-        // payments over time. Only a charge that has never been touched before gets a brand
-        // new deposit record.
+        // 관리, not the fresh worklist) normally already has its own running deposit record,
+        // and further money toward it would route into THAT SAME deposit/거래번호 instead of
+        // opening a new one. But per isOverdueSettlement above, when EVERY targeted charge is
+        // already-touched debt collection, this request must always become its own fresh row -
+        // skip the lookup entirely (empty dictionary) so nothing below can merge into an
+        // existing deposit.
         var chargeIds = applications.Select(a => a.ChargeId).Distinct().ToList();
-        var priorApplications = chargeIds.Count > 0
+        var priorApplications = (!isOverdueSettlement && chargeIds.Count > 0)
             ? await _dbContext.ReceivableApplications
                 .Include(a => a.Deposit)
                 .Where(a => chargeIds.Contains(a.ChargeId) && a.Deposit != null && a.Deposit.Type == "DEPOSIT" && !a.Deposit.IsCancelled)
@@ -1436,7 +1484,8 @@ public class ReceivableService : IReceivableService
                     OrderId = request.OrderId,
                     Type = "DEPOSIT",
                     Memo = request.Memo,
-                    SettlementMethod = request.SettlementMethod
+                    SettlementMethod = request.SettlementMethod,
+                    IsOverdueSettlement = isOverdueSettlement
                 };
                 newDeposit.Amount += cashPortion;
                 newDeposit.Discount += discountPortion;
@@ -1457,7 +1506,8 @@ public class ReceivableService : IReceivableService
                 OrderId = request.OrderId,
                 Type = "DEPOSIT",
                 Memo = request.Memo,
-                SettlementMethod = request.SettlementMethod
+                SettlementMethod = request.SettlementMethod,
+                IsOverdueSettlement = isOverdueSettlement
             };
             var leftoverCash = remainingAmount * cashRatio;
             var leftoverCashWeight = remainingWeight * cashRatioWeight;
