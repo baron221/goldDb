@@ -1029,6 +1029,14 @@ public class ReceivableService : IReceivableService
     {
         var dbQuery = await BuildReceivableOrderHistoryQueryAsync(query);
 
+        // A charge nobody has ever run through 정산처리 (not even a 0-value acknowledgement)
+        // belongs only to 정산 대상 내역's own worklist - it was never "billed" from this
+        // page's point of view, so counting its full Amount into 총 판매 (and therefore into
+        // 미수금 = 총 판매 - 총 결제) makes a product nobody has touched yet look like
+        // outstanding debt. Same "has an application" gate GetReceivableOverdueSummaryAsync
+        // already uses for 미수금 관리 itself.
+        dbQuery = dbQuery.Where(r => _dbContext.ReceivableApplications.Any(a => a.ChargeId == r.Id));
+
         var summary = await dbQuery
             .GroupBy(r => 1)
             .Select(g => new ReceivableOrderHistorySummaryDto
