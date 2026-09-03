@@ -1389,9 +1389,12 @@ public class ReceivableService : IReceivableService
         {
             targetChargeIdsForOverdueCheck = new List<int>();
         }
-        var isOverdueSettlement = targetChargeIdsForOverdueCheck.Count > 0 &&
+        // The caller (미수금 관리's 입금처리 dialog) can state this outright via
+        // request.IsOverdueCollection - trust that over the heuristic below when given.
+        // Mirrors PayableService.ProcessPaymentAsync's identical override.
+        var isOverdueSettlement = request.IsOverdueCollection ?? (targetChargeIdsForOverdueCheck.Count > 0 &&
             (await _dbContext.ReceivableApplications.Where(a => targetChargeIdsForOverdueCheck.Contains(a.ChargeId)).Select(a => a.ChargeId).Distinct().CountAsync())
-                == targetChargeIdsForOverdueCheck.Count;
+                == targetChargeIdsForOverdueCheck.Count);
 
         // Discount reduces outstanding charges the same way cash does, it's just
         // tracked separately on the deposit record so the ledger can show how much

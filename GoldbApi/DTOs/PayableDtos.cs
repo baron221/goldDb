@@ -335,6 +335,14 @@ public class CreatePaymentDto
     public string? Memo { get; set; }
 
     public string? SettlementMethod { get; set; }
+
+    // Explicit signal from 미수금 관리's 입금처리 dialog that this request is a pure debt
+    // collection, not a fresh sale - takes precedence over ProcessPaymentAsync's own
+    // already-touched-charges heuristic when set, so IsOverdueSettlement (and everything it
+    // drives: productless receipts, always-new-row, OrderCount=0) is guaranteed exact for the
+    // one caller that's actually 입금처리, instead of relying purely on inference for every
+    // other caller too. Left null (falls back to the heuristic) by every other caller.
+    public bool? IsOverdueCollection { get; set; }
 }
 
 public class MfgProcessDto

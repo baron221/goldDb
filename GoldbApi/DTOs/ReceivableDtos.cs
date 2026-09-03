@@ -251,6 +251,11 @@ public class CreateDepositDto
     public string? Memo { get; set; }
 
     public string? SettlementMethod { get; set; }
+
+    // Explicit signal from 미수금 관리's 입금처리 dialog that this request is a pure debt
+    // collection, not a fresh sale - takes precedence over ProcessDepositAsync's own
+    // already-touched-charges heuristic when set. Mirrors CreatePaymentDto's identical field.
+    public bool? IsOverdueCollection { get; set; }
 }
 
 public class UpdateDepositDto

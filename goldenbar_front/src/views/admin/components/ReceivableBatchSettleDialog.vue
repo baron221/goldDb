@@ -244,7 +244,8 @@ const handleSubmit = () => {
         weight: settleForm.weight,
         discount: settleForm.discount,
         discountWeight: settleForm.discountWeight,
-        memo: settleForm.memo
+        memo: settleForm.memo,
+        isOverdueCollection: props.hideProducts
       });
       ElMessage.success('정산 처리되었습니다.');
       visible.value = false;

@@ -1364,9 +1364,14 @@ public class PayableService : IPayableService
         {
             targetChargeIdsForOverdueCheck = new List<int>();
         }
-        var isOverdueSettlement = targetChargeIdsForOverdueCheck.Count > 0 &&
+        // The caller (미수금 관리's 입금처리 dialog) can state this outright via
+        // request.IsOverdueCollection - trust that over the heuristic below when given, so
+        // OrderCount/productless-receipt/always-new-row only ever fire for that one actual
+        // action rather than for anything else that happens to match the touched-charges
+        // pattern. Every other caller leaves it null and falls back to the heuristic.
+        var isOverdueSettlement = request.IsOverdueCollection ?? (targetChargeIdsForOverdueCheck.Count > 0 &&
             (await _dbContext.PayableApplications.Where(a => targetChargeIdsForOverdueCheck.Contains(a.ChargeId)).Select(a => a.ChargeId).Distinct().CountAsync())
-                == targetChargeIdsForOverdueCheck.Count;
+                == targetChargeIdsForOverdueCheck.Count);
 
         var forgivenAmountByCharge = new Dictionary<int, decimal>();
         var forgivenWeightByCharge = new Dictionary<int, decimal>();
