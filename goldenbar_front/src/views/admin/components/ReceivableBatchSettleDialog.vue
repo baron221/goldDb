@@ -8,6 +8,41 @@
       <div style="font-size: 0.875rem; color: #606266;">{{ singleMode ? '단일 주문 정산' : `선택된 주문 ${localItems.length}건` }}</div>
     </div>
 
+    <div v-if="localItems.length > 0" style="margin-bottom: 1.25rem;">
+      <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.875rem;">주문내용</div>
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th style="width: 160px;">주문번호</th>
+            <th>제품정보</th>
+            <th style="width: 130px;">청구액</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="orderItem in localItems" :key="orderItem.receivableId ?? orderItem.orderId">
+            <td class="ledger-readonly">{{ orderItem.orderNo }}</td>
+            <td style="text-align: left;">
+              <div v-if="orderItem.items && orderItem.items.length > 0" class="product-info-list">
+                <div v-for="(p, idx) in orderItem.items.slice(0, 3)" :key="idx" class="product-info-cell">
+                  <el-image :src="p.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 40px; height: 40px;" />
+                  <div class="product-text">
+                    <div class="product-name">
+                      {{ p.productName || '-' }}
+                      <span v-if="p.productNo" class="product-no-code">{{ p.productNo }}</span>
+                    </div>
+                    <div class="product-spec">함량: {{ p.purity || '-' }} / 수량: {{ p.quantity }}개</div>
+                  </div>
+                </div>
+                <div v-if="orderItem.items.length > 3" class="product-more">+{{ orderItem.items.length - 3 }}건 더</div>
+              </div>
+              <span v-else>-</span>
+            </td>
+            <td class="ledger-readonly">₩ {{ formatPrice(orderItem.remainingAmount) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <table v-if="summary && summary.purityBreakdown && summary.purityBreakdown.length > 0" class="ledger-table" style="margin-bottom: 1.25rem;">
       <thead>
         <tr>
@@ -244,5 +279,41 @@ const handleSubmit = () => {
 }
 .ledger-total-row .ledger-readonly {
   color: #f56c6c;
+}
+.product-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+}
+.product-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.product-thumb {
+  border-radius: 2px;
+  border: 1px solid #ebeef5;
+  flex-shrink: 0;
+}
+.product-text {
+  min-width: 0;
+}
+.product-name {
+  font-weight: 600;
+}
+.product-no-code {
+  color: #409eff;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+.product-spec {
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 0.125rem;
+}
+.product-more {
+  font-size: 0.75rem;
+  color: #409eff;
 }
 </style>
