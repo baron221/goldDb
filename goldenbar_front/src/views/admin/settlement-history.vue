@@ -127,6 +127,10 @@
             이 정산은 취소되어 적용된 제품 내역이 없습니다. 취소 시 연결된 청구 금액이 원래대로 복구되었습니다.
           </el-alert>
           <template v-else>
+          <el-alert v-if="receivableLedgerDetailRow.isOverdueSettlement" type="info" :closable="false" show-icon style="margin-bottom: 1.25rem;">
+            미수금 관리를 통한 채무 정산 내역입니다. 특정 제품과 연결되지 않습니다.
+          </el-alert>
+          <template v-else>
           <h4>적용 제품 내역</h4>
           <base-table :data="receivableLedgerDetailRow.appliedCharges || []" border size="small" style="width: 100%" row-key="chargeId">
             <el-table-column label="주문번호" width="180" align="center" prop="orderNo" />
@@ -186,6 +190,7 @@
               </tr>
             </tbody>
           </table>
+          </template>
 
           <table class="ledger-table expand-ledger">
             <thead>
@@ -383,6 +388,13 @@
             이 정산은 취소되어 적용된 제품 내역이 없습니다. 취소 시 연결된 청구 금액이 원래대로 복구되었습니다.
           </el-alert>
           <template v-else>
+          <!-- 미수금 관리의 입금처리로 발생한 거래는 이미 청구된 잔액을 정리하는 것일
+               뿐 새로운 판매가 아니므로, 어떤 제품과도 연결짓지 않고 거래처의 채무
+               정산이라는 사실만 보여준다. -->
+          <el-alert v-if="ledgerDetailRow.isOverdueSettlement" type="info" :closable="false" show-icon style="margin-bottom: 1.25rem;">
+            미수금 관리를 통한 채무 정산 내역입니다. 특정 제품과 연결되지 않습니다.
+          </el-alert>
+          <template v-else>
           <h4>적용 제품 내역</h4>
           <base-table :data="paymentApplicationsData[ledgerDetailRow.id] || []" border size="small" style="width: 100%" row-key="chargeId">
             <el-table-column label="주문번호" width="180" align="center" prop="orderNo" />
@@ -445,6 +457,7 @@
               </tr>
             </tbody>
           </table>
+          </template>
 
           <table class="ledger-table expand-ledger">
             <thead>
@@ -693,7 +706,15 @@ const openLedgerDetail = async (row: any) => {
       await fetchPaymentApplications(row.id);
     }
     const rawLedger = await getAccurateLedger(row.id, row);
-    ledgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, paymentApplicationsData[row.id] || []);
+    // The sale-adjustment below re-attributes each touched charge's FULL original amount
+    // to 판매(B), which is correct for a fresh sale but double-counts an overdue-settlement
+    // payment's charges - those were already properly excluded from the raw chronological
+    // walk's own "new charge since last payment" the moment an EARLIER payment first
+    // touched them, so re-subtracting their full amount here just corrupts 거래 전 미수(A)
+    // with a phantom negative. Use the raw (already-correct) ledger as-is for these rows.
+    ledgerDetailAccurate.value = row.isOverdueSettlement
+      ? rawLedger
+      : buildSaleAdjustedLedger(rawLedger, paymentApplicationsData[row.id] || []);
   }
 };
 
@@ -1017,7 +1038,11 @@ const handleIssueStatement = async (record: any) => {
   const allItems = applications.flatMap((app: any) => app.items || []);
 
   const rawLedger = await getAccurateLedger(record.id, record);
-  const ledger = buildSaleAdjustedLedger(rawLedger, applications, record);
+  // See openLedgerDetail's identical guard - an overdue-settlement payment's charges were
+  // already excluded from the raw ledger's own "new charge" tracking by whichever earlier
+  // payment first touched them, so skip the sale-adjustment for these instead of
+  // double-subtracting their full original amount into a phantom negative A.
+  const ledger = record.isOverdueSettlement ? rawLedger : buildSaleAdjustedLedger(rawLedger, applications, record);
   const supplierName = !isMfg.value ? ledger.company.companyName : userStore.companyName || '-';
   const payerName = !isMfg.value ? userStore.companyName || '-' : ledger.company.companyName;
 
@@ -1083,6 +1108,11 @@ const printCombinedPayableStatement = async () => {
     totalWeight += p.weight || 0;
     totalDiscount += p.discount || 0;
     totalDiscountWeight += p.discountWeight || 0;
+    // An overdue-settlement payment's applications still carry real product/charge data
+    // (the charge itself is a real order), but it's old debt being collected, not a new
+    // sale - its amount/discount above still counts toward the combined total, but it
+    // must not contribute products or a chargeAmount toward 판매(B)'s breakdown.
+    if (p.isOverdueSettlement) return;
     (paymentApplicationsData[p.id] || []).forEach((app: any) => {
       allItems.push(...(app.items || []));
       const existing = applicationsByCharge.get(app.chargeId);
@@ -1407,7 +1437,12 @@ const openReceivableLedgerDetail = async (row: any) => {
     receivableLedgerLoading.value = true;
     try {
       const rawLedger = await getAccurateReceivableLedger(row.id, row);
-      receivableLedgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, row.appliedCharges || []);
+      // See Payable's openLedgerDetail for the full rationale - skip the sale-adjustment
+      // for an overdue-settlement deposit so its already-correct raw before/after isn't
+      // corrupted by re-subtracting its charges' full original amount a second time.
+      receivableLedgerDetailAccurate.value = row.isOverdueSettlement
+        ? rawLedger
+        : buildSaleAdjustedLedger(rawLedger, row.appliedCharges || []);
     } finally {
       receivableLedgerLoading.value = false;
     }
@@ -1460,7 +1495,9 @@ const saveReceivableLedgerEdit = async (row: any) => {
     if (refreshed) {
       receivableLedgerDetailRow.value = refreshed;
       const rawLedger = await getAccurateReceivableLedger(refreshed.id, refreshed);
-      receivableLedgerDetailAccurate.value = buildSaleAdjustedLedger(rawLedger, refreshed.appliedCharges || []);
+      receivableLedgerDetailAccurate.value = refreshed.isOverdueSettlement
+        ? rawLedger
+        : buildSaleAdjustedLedger(rawLedger, refreshed.appliedCharges || []);
     }
     fetchUserSummaries();
   } catch (error) {
@@ -1475,7 +1512,7 @@ const handleIssueReceivableStatement = async (record: any) => {
   const allItems = (record.appliedCharges || []).flatMap((app: any) => app.items || []);
 
   const rawLedger = await getAccurateReceivableLedger(record.id, record);
-  const ledger = buildSaleAdjustedLedger(rawLedger, record.appliedCharges || [], record);
+  const ledger = record.isOverdueSettlement ? rawLedger : buildSaleAdjustedLedger(rawLedger, record.appliedCharges || [], record);
   const supplierName = userStore.companyName || '-';
   const payerName = ledger.company.companyName || '-';
 
@@ -1555,6 +1592,10 @@ const printCombinedReceivableStatement = async () => {
     totalWeight += p.weight || 0;
     totalDiscount += p.discount || 0;
     totalDiscountWeight += p.discountWeight || 0;
+    // See printCombinedPayableStatement's identical guard - an overdue-settlement deposit's
+    // amount still counts toward the combined total above, but its charges must not
+    // contribute products or a chargeAmount toward 판매(B)'s breakdown.
+    if (p.isOverdueSettlement) return;
     (p.appliedCharges || []).forEach((app: any) => {
       allItems.push(...(app.items || []));
       const existing = applicationsByCharge.get(app.chargeId);
