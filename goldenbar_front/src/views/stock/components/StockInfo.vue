@@ -22,20 +22,20 @@
         </span>
       </div>
       <div class="spec-item">
-        <span class="spec-label">{{ $t('stockDetail.purity') }}</span>
+        <span class="spec-label">{{ $t('stock.stockDetail.purity') }}</span>
         <span class="spec-value">{{ codeMap[stock.purity] || stock.purity || '-' }}</span>
       </div>
       <div class="spec-item" v-if="stock.color">
-        <span class="spec-label">{{ $t('stockDetail.color') }}</span>
+        <span class="spec-label">{{ $t('stock.stockDetail.color') }}</span>
         <span class="spec-value">{{ codeMap[stock.color] || stock.color }}</span>
       </div>
       <div class="spec-item">
-        <span class="spec-label">{{ $t('stockDetail.actualWeight') }}</span>
+        <span class="spec-label">{{ $t('stock.stockDetail.actualWeight') }}</span>
         <span class="spec-value weight-highlight">{{ stock.actualWeight }}<em>g</em></span>
       </div>
-      <div class="spec-item" v-if="stock.size">
+      <div class="spec-item">
         <span class="spec-label">{{ $t('productDetail.labels.productSize') }}</span>
-        <span class="spec-value">{{ codeMap[stock.size] || stock.size }}</span>
+        <span class="spec-value">{{ stock.size ? (codeMap[stock.size] || stock.size) : '-' }}</span>
       </div>
       <div class="spec-item" v-if="stock.quantity > 1">
         <span class="spec-label">수량</span>
@@ -99,7 +99,7 @@
         class="btn-order btn-jovenca"
         @click="$emit('go-to-order', stock.sourceOrderNo)"
       >
-        {{ $t('stockDetail.actions.save') }} ({{ stock.sourceOrderNo }})
+        {{ $t('stock.stockDetail.actions.save') }} ({{ stock.sourceOrderNo }})
       </el-button>
     </div>
 
@@ -111,16 +111,16 @@
 
       <el-collapse-item name="order" v-if="stock.sourceOrderId">
         <template #title>
-          <span class="accordion-title">{{ $t('stockDetail.originInfo') }} (STOCK IN)</span>
+          <span class="accordion-title">{{ $t('stock.stockDetail.originInfo') }} (STOCK IN)</span>
         </template>
         <div class="accordion-body">
           <div class="info-grid-2col">
             <div class="info-block">
-              <div class="block-label">{{ $t('stockDetail.logistics') }}</div>
+              <div class="block-label">{{ $t('stock.stockDetail.logistics') }}</div>
               <div class="block-row"><span class="bl">{{ $t('sys.company.labels.name') }}</span><span class="bv">{{ stock.logisticsCompanyName || '-' }}</span></div>
             </div>
             <div class="info-block">
-              <div class="block-label">{{ $t('stockDetail.manufacturer') }}</div>
+              <div class="block-label">{{ $t('stock.stockDetail.manufacturer') }}</div>
               <div class="block-row"><span class="bl">{{ $t('sys.company.labels.name') }}</span><span class="bv">{{ stock.companyName || '-' }}</span></div>
             </div>
           </div>
@@ -139,7 +139,7 @@
 
       <el-collapse-item name="history" v-if="stock.orderHistory && stock.orderHistory.length > 0">
         <template #title>
-          <span class="accordion-title">{{ $t('stockDetail.history') }} (ORDER HISTORY)</span>
+          <span class="accordion-title">{{ $t('stock.stockDetail.history') }} (ORDER HISTORY)</span>
         </template>
         <div class="accordion-body">
           <div class="timeline-list">

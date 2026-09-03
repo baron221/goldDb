@@ -70,11 +70,9 @@
                 {{ formatDateTime(scope.row.createdAt) }}
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="상태" width="120" align="center" :excel-formatter="scope => getOrderStatusName(scope.status)">
+            <el-table-column prop="orderMemo" label="메모" min-width="150" show-overflow-tooltip>
               <template #default="scope">
-                <el-tag :type="getOrderStatusTag(scope.row.status)" size="small">
-                  {{ getOrderStatusName(scope.row.status) }}
-                </el-tag>
+                {{ scope.row.orderMemo || '-' }}
               </template>
             </el-table-column>
             <el-table-column prop="totalAmount" label="총 주문금액" align="right" :excel-formatter="scope => formatPrice(scope.totalAmount)">
@@ -162,28 +160,5 @@ const formatPrice = (value: number) => {
   return value.toLocaleString();
 };
 
-const getOrderStatusName = (status: string) => {
-  switch (status) {
-    case 'ORDERED': return '주문접수';
-    case 'FactoryRequested': return '공장의뢰';
-    case 'LogisticsApproved': return '물류승인';
-    case 'Inspected': return '검수완료';
-    case 'SETTLED': return '정산완료';
-    case 'CANCELLED': return '주문취소';
-    default: return status;
-  }
-};
-
-const getOrderStatusTag = (status: string) => {
-  switch (status) {
-    case 'ORDERED': return 'info';
-    case 'FactoryRequested': return 'warning';
-    case 'LogisticsApproved': return 'primary';
-    case 'Inspected': return 'success';
-    case 'SETTLED': return 'success';
-    case 'CANCELLED': return 'danger';
-    default: return 'info';
-  }
-};
 </script>
 

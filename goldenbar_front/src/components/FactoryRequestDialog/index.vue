@@ -42,6 +42,17 @@
         </el-table-column>
         <el-table-column label="수량" width="70" align="center" prop="quantity" header-align="center" />
 
+        <el-table-column label="메모" min-width="160" header-align="center" :excel-formatter="scope => scope.requestedMemo">
+          <template #default="scope">
+            <el-input
+              v-model="scope.row.requestedMemo"
+              type="textarea"
+              :rows="2"
+              placeholder="공장에 전달할 메모"
+            />
+          </template>
+        </el-table-column>
+
         <el-table-column label="AS여부" width="80" align="center" header-align="center" :excel-formatter="scope => scope.isAsOrder ? 'Y' : 'N'">
           <template #default="scope">
             <el-checkbox v-model="scope.row.isAsOrder" />

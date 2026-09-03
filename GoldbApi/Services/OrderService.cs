@@ -133,7 +133,7 @@ public class OrderService : IOrderService
         }
 
         List<CartItem> cartItems;
-        if (request.DirectProductId.HasValue || request.DirectProductSetId.HasValue)
+        if (request.DirectProductId.HasValue || request.DirectProductSetId.HasValue || !string.IsNullOrWhiteSpace(request.DirectProductName))
         {
             var item = new CartItem
             {
@@ -144,7 +144,9 @@ public class OrderService : IOrderService
                 Purity = request.DirectPurity,
                 Color = request.DirectColor,
                 Size = request.DirectSize,
-                Memo = request.DirectMemo
+                Memo = request.DirectMemo,
+                CustomFactoryPrice = request.DirectFactoryPrice,
+                CustomLaborCost = request.DirectLaborCost
             };
             if (item.ProductId.HasValue)
             {
@@ -178,7 +180,7 @@ public class OrderService : IOrderService
         var groupOrderNo = $"GRP-{DateTime.Now:yyyyMMddHHmmss}-{userId}";
 
         var itemsByManufacturer = cartItems.GroupBy(ci =>
-            ci.Product?.CompanyId ?? ci.ProductSet?.CompanyId ?? 0);
+            ci.Product?.CompanyId ?? ci.ProductSet?.CompanyId ?? request.DirectManufacturerCompanyId ?? 0);
 
         var createdOrders = new List<Order>();
 
@@ -217,6 +219,16 @@ public class OrderService : IOrderService
                         .FirstOrDefault(ow => ow.Purity == cartItem.Purity && ow.Color == cartItem.Color);
                     requestedWeight = optWeight != null ? optWeight.Weight : cartItem.Product.Weight;
                 }
+                else if (!cartItem.ProductId.HasValue && !cartItem.ProductSetId.HasValue)
+                {
+                    // No catalog product to derive a weight from at all - 주문 수기 등록's
+                    // free-text product path, where the weight has to be entered directly.
+                    requestedWeight = request.DirectWeight;
+                }
+
+                // A free-text (no catalog product) item needs its own display name and
+                // manufacturer, since there's no Product/ProductSet to derive either from.
+                var isCustomProductItem = !cartItem.ProductId.HasValue && !cartItem.ProductSetId.HasValue;
 
                 var orderItem = new OrderItem
                 {
@@ -230,7 +242,9 @@ public class OrderService : IOrderService
                     Color = cartItem.Color,
                     Size = cartItem.Size,
                     Memo = cartItem.Memo,
-                    OrderWeight = requestedWeight
+                    OrderWeight = requestedWeight,
+                    CustomProductName = isCustomProductItem ? request.DirectProductName : null,
+                    CustomManufacturerCompanyId = isCustomProductItem ? request.DirectManufacturerCompanyId : null
                 };
 
                 if (cartItem.ProductSetId.HasValue)
@@ -374,6 +388,30 @@ public class OrderService : IOrderService
             return ApiResponse<bool>.Failure("주문접수 상태인 주문만 취소할 수 있습니다.", 400);
         }
 
+        // 물류도착 (InspectionDialog's "검수 완료 및 정산 시작") submits status "PENDING" directly -
+        // this is the one DCC action that marks goods as arrived AND starts settlement in the
+        // same step. Business rule: this order's own Payable charge (created one step earlier,
+        // when MFG marked 제품출고/InspectedRequested) must have been through 정산처리 at least
+        // once (a 0-value acknowledgement counts) before DCC can mark it as arrived - a strictly
+        // sequential per-order gate: 제품출고 -> 정산처리 -> 물류도착.
+        if (oldStatus != request.Status && request.Status == "PENDING")
+        {
+            var backlogMessage = await _receivableService.GetManufacturerSettlementBacklogBlockAsync(id, order.LogisticsCompanyId);
+            if (backlogMessage != null)
+            {
+                return ApiResponse<bool>.Failure(backlogMessage, 400);
+            }
+        }
+
+        // Everything below writes to Orders/OrderItems/OrderStatusHistories, and can also
+        // cascade into Stock creation (AddOrderItemsToStockAsync), Receivable/Payable charge
+        // creation (CreateOrderSettlementChargesAsync), and a Receivable deposit (ProcessDepositAsync)
+        // - each of which commits with its own SaveChangesAsync call on this same DbContext.
+        // Without a transaction spanning all of them, a failure partway through (e.g. the final
+        // SaveChangesAsync below) can leave stock already created for an order whose status
+        // change never actually persisted - wrapping the whole thing here makes it all-or-nothing.
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
         order.Status = request.Status;
 
         if (request.FactoryRemarks != null) order.FactoryRemarks = request.FactoryRemarks;
@@ -504,18 +542,34 @@ public class OrderService : IOrderService
                 // SETTLED transition lets 정산처리 (SettlementDialog) correct the retailer's
                 // charge using the DCC-confirmed per-item SettlementAmount, since the
                 // 물류도착 draft charge may no longer match what was actually confirmed.
-                await _receivableService.CreateOrderSettlementChargesAsync(order.Id);
+                await _receivableService.CreateOrderSettlementChargesAsync(order.Id, request.Status);
             }
 
             if (oldStatus != request.Status && request.Status == "SETTLED")
             {
                 if (request.SettlementAmount.HasValue && request.SettlementAmount.Value > 0)
                 {
+                    // 실수납 금액 (request.SettlementAmount) may be less than the charge's full
+                    // amount - the retailer only confirmed a partial collection. The weight side
+                    // must close by the SAME ratio: sending 0 would leave the whole gold-weight
+                    // debt untouched even though part of the cash was collected, while sending
+                    // the full remaining weight would fully clear it and trigger
+                    // ApplyToChargeList's "either side clears both" rule, silently forgiving the
+                    // uncollected cash remainder as an unrequested discount.
+                    var settledCharge = await _dbContext.Receivables.FirstOrDefaultAsync(r => r.OrderId == order.Id && r.Type == "CHARGE");
+                    decimal? depositWeight = null;
+                    if (settledCharge != null && settledCharge.RemainingAmount > 0 && settledCharge.RemainingWeight > 0)
+                    {
+                        var collectedRatio = Math.Min(1m, request.SettlementAmount.Value / settledCharge.RemainingAmount);
+                        depositWeight = Math.Round(settledCharge.RemainingWeight * collectedRatio, 2, MidpointRounding.AwayFromZero);
+                    }
+
                     await _receivableService.ProcessDepositAsync(new CreateDepositDto
                     {
                         UserId = order.UserId,
                         OrderId = order.Id,
                         Amount = request.SettlementAmount.Value,
+                        Weight = depositWeight,
                         Memo = $"주문({order.OrderNo}) 정산 확인 시 실수납 처리"
                     });
                 }
@@ -523,6 +577,7 @@ public class OrderService : IOrderService
         }
 
         await _orderRepository.SaveChangesAsync();
+        await transaction.CommitAsync();
         return ApiResponse<bool>.Success(true);
     }
 

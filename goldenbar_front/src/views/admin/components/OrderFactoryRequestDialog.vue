@@ -38,7 +38,7 @@
                 :min="0"
                 style="width: 130px"
               />
-              <el-select v-model="scope.row.purity" size="small" style="width: 130px" :placeholder="$t('stockDetail.purity')">
+              <el-select v-model="scope.row.purity" size="small" style="width: 130px" :placeholder="$t('stock.stockDetail.purity')">
                 <el-option label="14K" value="14K" />
                 <el-option label="18K" value="18K" />
                 <el-option label="24K" value="24K" />

@@ -1,15 +1,18 @@
 <template>
 <div class="user-filter-container">
     <div class="filter-row">
-      <common-select
+      <el-select
         v-model="localQuery.companyType"
-        group-code="COMPANY_TYPE"
-        show-all
+        clearable
         :placeholder="$t('userManage.companyTypeAll')"
         style="width: 140px;"
         @change="onFilter"
-        @options-loaded="onCompanyTypesLoaded"
-      />
+      >
+        <el-option :label="$t('userManage.admin')" value="ADMIN" />
+        <el-option :label="$t('userManage.manufacturer')" value="MFG" />
+        <el-option :label="$t('userManage.logistics')" value="DCC" />
+        <el-option :label="$t('userManage.retailer')" value="RTL" />
+      </el-select>
       <el-input
         v-model="localQuery.searchText"
         :placeholder="$t('userManage.searchPlaceholder')"
@@ -41,7 +44,6 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
 import { Search } from '@element-plus/icons-vue';
-import CommonSelect from '@/components/CommonSelect/index.vue';
 
 const props = defineProps<{
   query: any;
@@ -58,14 +60,6 @@ watch(() => props.query, (newVal) => {
 watch(localQuery, (newVal) => {
   emit('update:query', newVal);
 }, { deep: true });
-
-const onCompanyTypesLoaded = (options: any[]) => {
-
-  if (options && options.length > 0 && !localQuery.companyType) {
-    localQuery.companyType = options[0].code;
-    onFilter();
-  }
-};
 
 const onFilter = () => {
   emit('update:query', localQuery);

@@ -92,7 +92,12 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
                 Status = s.Status,
                 Purity = s.Purity ?? (s.Product != null ? (s.Product.Purity ?? string.Empty) : string.Empty),
                 Color = s.Color,
+                Size = s.Size,
                 ActualWeight = s.ActualWeight,
+                Quantity = s.Quantity,
+                ProductionDate = s.ProductionDate,
+                SourceOrderId = s.SourceOrderId,
+                SourceOrderItemId = s.SourceOrderItemId,
                 CompanyName = s.Product != null && s.Product.Company != null ? s.Product.Company.Name : 
                               (s.ProductSet != null && s.ProductSet.Company != null ? s.ProductSet.Company.Name : null),
                 OwnerCompanyName = s.Company != null ? s.Company.Name : null,
@@ -171,6 +176,9 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
         return await Context.Orders
             .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Children)
+                    .ThenInclude(c => c.Product)
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
             .FirstOrDefaultAsync(o => o.Id == orderId);
     }
 

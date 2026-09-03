@@ -140,6 +140,18 @@ public class OrderItem : BaseModel
 
     public ProductSet? ProductSet { get; set; }
 
+    // 주문 수기 등록에서 카탈로그에 없는 제품명을 자유 입력했을 때만 쓰인다 -
+    // ProductId/ProductSetId가 둘 다 null인 경우의 표시용 이름 폴백.
+    [Description("수기 입력 제품명")]
+    [MaxLength(200)]
+    public string? CustomProductName { get; set; }
+
+    // 위와 같은 경우, Payable(제조사 청구) 생성 시 제조사를 Product.CompanyId에서
+    // 얻을 수 없으므로 수기로 지정한 제조사 회사 ID - CreateOrderSettlementChargesAsync의
+    // 제조사별 그룹핑이 이 값으로 폴백한다.
+    [Description("수기 등록 제조사 회사 ID")]
+    public int? CustomManufacturerCompanyId { get; set; }
+
     [Description("상위 주문 상세 ID")]
     public int? ParentId { get; set; }
 

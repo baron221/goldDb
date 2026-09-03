@@ -30,8 +30,10 @@ public class OrderStatusHistory : BaseModel
 
     public User? User { get; set; }
 
-    [MaxLength(500)]
     [Description("메모")]
 
+    // Auto-built from a status-change note plus one detail line per updated order item -
+    // a bulk multi-item update (e.g. 물류 승인 confirming several items at once) can easily
+    // produce more than 500 characters, so this must stay unbounded rather than a fixed cap.
     public string? Remarks { get; set; }
 }

@@ -74,12 +74,6 @@
         <div class="manufacturer-badge" v-if="item.companyName && userStore.companyType !== 'RTL' && userStore.companyType !== 'MFG'">
           {{ item.companyName }}
         </div>
-        <div class="category-meta-wrap" :title="getCategoryName()">
-          <template v-for="(part, i) in getCategoryParts()" :key="i">
-            <span class="category-part">{{ part }}</span>
-            <i v-if="i < getCategoryParts().length - 1" class="fas fa-chevron-right category-sep"></i>
-          </template>
-        </div>
       </div>
 
       <div class="product-attributes-footer">
@@ -105,7 +99,6 @@
 <script setup lang="ts">
 import { Star, StarFilled, ShoppingCart } from '@element-plus/icons-vue';
 import { getThumbnailUrl } from '@/utils';
-import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
 
 const props = defineProps<{
@@ -116,22 +109,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['click', 'favorite', 'add-to-cart']);
 
-const codeStore = useCodeStore();
 const userStore = useUserStore();
-
-const getCategoryName = () => {
-  const parts = [];
-  if (props.item.categoryLarge) parts.push(codeStore.getName(props.item.categoryLarge));
-  if (props.item.categoryMedium) parts.push(codeStore.getName(props.item.categoryMedium));
-  return parts.join(' > ');
-};
-
-const getCategoryParts = () => {
-  const parts = [];
-  if (props.item.categoryLarge) parts.push(codeStore.getName(props.item.categoryLarge));
-  if (props.item.categoryMedium) parts.push(codeStore.getName(props.item.categoryMedium));
-  return parts;
-};
 
 const getPurityWeight = (purityCode: string): string | null => {
   const list = props.item.purityWeights || props.item.optionWeights;
@@ -169,8 +147,6 @@ const getPurityWeight = (purityCode: string): string | null => {
 .product-details-box { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; justify-content: space-between; border-top: 1px solid #f9f8f6; }
 .product-name-title { font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem 0; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .manufacturer-badge { display: inline-block; font-size: 0.7rem; color: #c5a880; font-weight: 600; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
-.category-meta-wrap { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #999999; margin-bottom: 0.75rem; overflow: hidden; }
-.category-sep { font-size: 0.6rem; color: #dddddd; }
 
 .product-attributes-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; }
 .attr-badges { display: flex; flex-wrap: wrap; gap: 4px; }

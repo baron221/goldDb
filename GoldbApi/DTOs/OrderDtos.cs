@@ -212,6 +212,27 @@ public class CreateOrderDto
     public string? DirectSize { get; set; }
 
     public string? DirectMemo { get; set; }
+
+    // Per-order override of the product's own baked-in cost, for 주문 수기 등록 (manual
+    // order registration) - mirrors CartItem.CustomFactoryPrice/CustomLaborCost. Left null
+    // to fall back to the selected product's own FactoryPrice/LaborCost, same as any other
+    // direct order.
+    public decimal? DirectFactoryPrice { get; set; }
+
+    public decimal? DirectLaborCost { get; set; }
+
+    // 주문 수기 등록에서 카탈로그에 없는 제품을 자유 입력으로 등록할 때 쓰인다.
+    // DirectProductId/DirectProductSetId가 둘 다 없을 때만 유효하며, 그 경우
+    // DirectWeight도 함께 입력받아야 한다 (카탈로그 제품이 없으니 중량을 산정할
+    // Product.OptionWeights/Weight가 없다).
+    public string? DirectProductName { get; set; }
+
+    public decimal? DirectWeight { get; set; }
+
+    // Required alongside DirectProductName: with no catalog product there's no
+    // Product.CompanyId to derive the manufacturer from, and without one the order
+    // item is silently excluded from Payable (제조사 청구) creation entirely.
+    public int? DirectManufacturerCompanyId { get; set; }
 }
 
 public class SettlementHistorySummaryDto
@@ -260,6 +281,13 @@ public class OrderQueryDto
     // widening ExcludeCompleted, since other pages (e.g. logistics-approval) already
     // depend on ExcludeCompleted meaning only "Completed".
     public bool? ExcludePostInspected { get; set; }
+
+    // Narrower than ExcludePostInspected: hides only Inspected (물류도착) onward, but keeps
+    // InspectedRequested (제품출고, awaiting the 물류도착 action itself) visible. Used by
+    // logistics-approval's default worklist view so an order drops off that page the moment
+    // it arrives and becomes a settlement charge, without hiding the orders still awaiting
+    // that very action. Same "default/broad view only" guard as ExcludePostInspected.
+    public bool? ExcludeArrived { get; set; }
 
     public bool? IsAsOnly { get; set; }
 

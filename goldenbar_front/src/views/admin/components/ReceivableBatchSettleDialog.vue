@@ -8,57 +8,6 @@
       <div style="font-size: 0.875rem; color: #606266;">{{ singleMode ? '단일 주문 정산' : `선택된 주문 ${localItems.length}건` }}</div>
     </div>
 
-    <table v-if="localItems.length > 0" class="ledger-table order-item-table" style="margin-bottom: 1.25rem;">
-      <thead>
-        <tr>
-          <th>주문번호</th>
-          <th>주문내용</th>
-          <th>중량</th>
-          <th>주문일자</th>
-          <th>공임비</th>
-          <th v-if="!singleMode"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in localItems" :key="item.receivableId">
-          <td>{{ item.orderNo }}</td>
-          <td class="order-item-info">
-            <div v-if="item.items && item.items.length > 0" class="product-info-list">
-              <div v-for="(p, idx) in item.items.slice(0, 3)" :key="idx" class="order-item-info-row">
-                <el-image :src="p.photoUrl || defaultImage" fit="cover" class="order-item-thumb" />
-                <div class="order-item-text">
-                  <div class="order-item-name">
-                    {{ p.productName }}
-                    <span v-if="p.productNo" class="order-item-no">{{ p.productNo }}</span>
-                  </div>
-                  <div class="order-item-sub">함량: {{ p.purity || '-' }} / 중량: {{ (p.actualWeight || 0).toFixed(3) }}g / 수량: {{ p.quantity }}개</div>
-                  <div v-if="p.size && p.size !== 'EMPTY'" class="order-item-sub">표준 사이즈 : {{ p.size }}</div>
-                  <div v-if="p.memo" class="order-item-memo">{{ p.memo }}</div>
-                </div>
-              </div>
-              <div v-if="item.items.length > 3" class="product-more">+{{ item.items.length - 3 }}건 더</div>
-            </div>
-            <template v-else>
-              <el-image :src="item.productPhotoUrl || defaultImage" fit="cover" class="order-item-thumb" />
-              <div class="order-item-text">
-                <div class="order-item-name">{{ item.productName }}</div>
-                <div v-if="item.size && item.size !== 'EMPTY'" class="order-item-sub">표준 사이즈 : {{ item.size }}</div>
-                <div v-if="item.memo" class="order-item-memo">{{ item.memo }}</div>
-              </div>
-            </template>
-          </td>
-          <td>{{ item.chargeWeight.toFixed(2) }}g</td>
-          <td class="order-date">{{ formatDate(item.orderDate) }}</td>
-          <td>
-            <el-input-number v-model="item.laborCostOverride" :min="0" :step="1000" size="small" style="width: 110px;" />
-          </td>
-          <td v-if="!singleMode">
-            <el-icon class="remove-icon" @click="removeItem(item)"><Close /></el-icon>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
     <table v-if="summary && summary.purityBreakdown && summary.purityBreakdown.length > 0" class="ledger-table" style="margin-bottom: 1.25rem;">
       <thead>
         <tr>
@@ -106,7 +55,9 @@
         </tr>
         <tr>
           <td class="ledger-label">할인(D)</td>
-          <td class="ledger-readonly">-</td>
+          <td>
+            <el-input-number v-model="settleForm.discountWeight" :min="0" :precision="2" :step="0.1" size="small" style="width: 100%;" />
+          </td>
           <td>
             <el-input-number v-model="settleForm.discount" :min="0" :step="1000" size="small" style="width: 100%;" />
           </td>
@@ -134,7 +85,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Close } from '@element-plus/icons-vue';
 import { getReceivableChargeSummary, processDeposit } from '@/api/receivable';
 import BasePopup from '@/components/BasePopup/index.vue';
 import { formatPrice } from '@/utils/format';
@@ -163,19 +113,18 @@ const submitting = ref(false);
 const loading = ref(false);
 const summary = ref<any>(null);
 
-// Mutable working copy of the selected orders - lets DCC drop a row (X icon) out of THIS
-// settlement action without closing the dialog, and gives each row an editable 공임비.
+// Working copy of the selected order ids actually submitted to processDeposit; localItems
+// is kept only for the order-count text and confirm-dialog message below.
 const localOrderIds = ref<number[]>([]);
 const localItems = ref<any[]>([]);
 
-const effectiveSaleAmount = computed(() =>
-  localItems.value.reduce((sum, item) => sum + (item.laborCostOverride || 0), 0)
-);
+const effectiveSaleAmount = computed(() => summary.value?.saleAmount || 0);
 
 const settleForm = reactive({
   amount: 0,
   weight: 0,
   discount: 0,
+  discountWeight: 0,
   memo: ''
 });
 
@@ -188,7 +137,7 @@ const afterAmount = computed(() => {
 const afterWeight = computed(() => {
   const a = props.singleMode ? 0 : (summary.value?.totalReceivableWeight || 0);
   const b = summary.value?.saleWeight || 0;
-  return a + b - (settleForm.weight || 0);
+  return a + b - (settleForm.weight || 0) - (settleForm.discountWeight || 0);
 });
 
 const formatDate = (dateStr: string) => {
@@ -202,10 +151,7 @@ const fetchSummary = async () => {
   try {
     const res: any = await getReceivableChargeSummary(localOrderIds.value);
     summary.value = res.data;
-    localItems.value = (res.data?.items || []).map((item: any) => ({
-      ...item,
-      laborCostOverride: item.remainingAmount || 0
-    }));
+    localItems.value = res.data?.items || [];
   } catch (error) {
     console.error('Failed to fetch receivable charge summary:', error);
     ElMessage.error('정산 정보를 불러오는 중 오류가 발생했습니다.');
@@ -214,21 +160,13 @@ const fetchSummary = async () => {
   }
 };
 
-const removeItem = (item: any) => {
-  if (localItems.value.length <= 1) {
-    ElMessage.warning('최소 한 건의 주문은 남아있어야 합니다.');
-    return;
-  }
-  localOrderIds.value = localOrderIds.value.filter((id) => id !== item.orderId);
-  fetchSummary();
-};
-
 watch(() => props.modelValue, (val) => {
   visible.value = val;
   if (val) {
     settleForm.amount = 0;
     settleForm.weight = 0;
     settleForm.discount = 0;
+    settleForm.discountWeight = 0;
     settleForm.memo = '';
     summary.value = null;
     localItems.value = [];
@@ -261,6 +199,7 @@ const handleSubmit = () => {
         amount: settleForm.amount,
         weight: settleForm.weight,
         discount: settleForm.discount,
+        discountWeight: settleForm.discountWeight,
         memo: settleForm.memo
       });
       ElMessage.success('정산 처리되었습니다.');
@@ -305,75 +244,5 @@ const handleSubmit = () => {
 }
 .ledger-total-row .ledger-readonly {
   color: #f56c6c;
-}
-.order-item-table td {
-  vertical-align: middle;
-}
-.order-item-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: left;
-}
-.order-item-thumb {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  border: 1px solid #eae6df;
-}
-.order-item-text {
-  min-width: 0;
-}
-.order-item-name {
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-.order-item-sub {
-  font-size: 0.75rem;
-  color: #909399;
-}
-.order-item-memo {
-  font-size: 0.75rem;
-  color: #67c23a;
-  margin-top: 0.125rem;
-}
-.product-info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  text-align: left;
-  width: 100%;
-}
-.order-item-info-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.order-item-no {
-  margin-left: 0.375rem;
-  font-size: 0.75rem;
-  font-weight: normal;
-  color: #909399;
-}
-.product-more {
-  font-size: 0.75rem;
-  color: #909399;
-}
-.actual-weight {
-  color: #f56c6c;
-  font-weight: bold;
-}
-.order-date {
-  font-size: 0.8125rem;
-  color: #606266;
-}
-.remove-icon {
-  cursor: pointer;
-  color: #f56c6c;
-  font-size: 1rem;
-}
-.remove-icon:hover {
-  color: #d73a3a;
 }
 </style>

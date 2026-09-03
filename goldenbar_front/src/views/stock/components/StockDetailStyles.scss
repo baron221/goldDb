@@ -20,7 +20,9 @@
   }
 
   /* ─── Gallery ─── */
-  .gallery-container {
+  /* StockGallery.vue is a separate child component - same :deep() reasoning
+     as .stock-info-section below. */
+  :deep(.gallery-container) {
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -155,7 +157,10 @@
   }
 
   /* ─── Stock Info ─── */
-  .stock-info-section {
+  /* StockInfo.vue is a separate child component - only its OWN root node
+     automatically receives this file's scoped attribute, so every selector
+     nested here needs :deep() to actually reach the child's inner markup. */
+  :deep(.stock-info-section) {
     padding-left: 0.625rem;
 
     .meta-info-row {

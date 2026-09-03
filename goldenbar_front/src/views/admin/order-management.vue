@@ -144,23 +144,6 @@
               >
                 {{ $t('order.status.FactoryRequested') }}
               </el-button>
-              <el-button
-                v-else-if="row.status === 'InspectedRequested'"
-                type="success"
-                size="small"
-                @click="handleStatusUpdate(row, 'Inspected')"
-              >
-                {{ $t('order.status.Inspected') }}
-              </el-button>
-              <el-button
-                v-else-if="row.status === 'Inspected'"
-                type="info"
-                size="small"
-                @click="handleStatusUpdate(row, 'Completed')"
-              >
-                {{ $t('order.status.Completed') }}
-              </el-button>
-
               <el-dropdown trigger="click" class="more-actions-dropdown">
                 <el-button size="small" :icon="MoreFilled" circle />
                 <template #dropdown>

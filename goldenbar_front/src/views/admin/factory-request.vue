@@ -15,7 +15,13 @@
       <el-button type="success" :icon="Printer" @click="handlePrintApprovedList">공장승인 목록 인쇄</el-button>
     </div>
 
+    <div v-if="selectedRows.length > 0" class="batch-approve-bar">
+      <span>{{ selectedRows.length }}건 선택됨</span>
+      <el-button type="success" @click="handleBatchFactoryApprove">일괄 발주 확인</el-button>
+    </div>
+
     <order-table-list
+      ref="orderTableListRef"
       :loading="listLoading"
       :data="list"
       :total="total"
@@ -25,12 +31,15 @@
       :code-map="codeMap"
       :order-status-codes="orderStatusCodes"
       :user-category="store.user().companyType"
+      selectable
+      :selectable-row="isRowApprovable"
       @refresh="getList"
       @order-no-click="handleOrderNoClick"
       @factory-approve="handleFactoryApprove"
       @inspection-request="openCompleteDialog"
       @close-by-agreement="handleCloseByAgreement"
       @show-history="openHistoryDialog"
+      @selection-change="handleSelectionChange"
     />
 
     <InspectionRequestDialog
@@ -281,6 +290,47 @@ const handleFactoryApprove = (order: any) => {
     } catch (error) {
       ElMessage.error('발주 확인 처리 중 오류가 발생했습니다.');
     }
+  }).catch(() => {});
+};
+
+// Matches OrderActionButtons.vue's own condition for showing the row-level 발주 확인
+// button - only these two statuses are actually eligible for the transition, so only
+// they get a checkbox at all.
+const orderTableListRef = ref<any>(null);
+const selectedRows = ref<any[]>([]);
+
+const isRowApprovable = (row: any) => row.status === 'LogisticsApproved' || row.status === 'FactoryRequested';
+
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows;
+};
+
+const handleBatchFactoryApprove = () => {
+  const targets = selectedRows.value;
+  if (targets.length === 0) return;
+
+  ElMessageBox.confirm(`선택한 ${targets.length}건의 주문을 일괄 발주 확인 하시겠습니까?`, '일괄 발주 확인', {
+    confirmButtonText: '확인',
+    cancelButtonText: '취소',
+    type: 'success'
+  }).then(async () => {
+    const results = await Promise.allSettled(
+      targets.map((order) => updateOrderStatus(order.id, { status: 'FactoryApproved' }))
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const succeeded = results.length - failed;
+
+    if (failed === 0) {
+      ElMessage.success(`${succeeded}건 발주 확인이 완료되었습니다.`);
+    } else if (succeeded === 0) {
+      ElMessage.error('발주 확인 처리 중 오류가 발생했습니다.');
+    } else {
+      ElMessage.warning(`${succeeded}건 성공, ${failed}건 실패했습니다.`);
+    }
+
+    selectedRows.value = [];
+    orderTableListRef.value?.clearSelection?.();
+    getList();
   }).catch(() => {});
 };
 

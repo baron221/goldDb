@@ -97,7 +97,6 @@ import { useRoute } from 'vue-router';
 import { getAllOrders, updateOrderStatus, saveOrderStatement, getOrderStatement } from '@/api/order';
 import { getCompanies } from '@/api/company';
 import { getPayableSummaryForOrder } from '@/api/payable';
-import { processDeposit, getReceivableChargeSummary } from '@/api/receivable';
 import useCodeStore from '@/store/modules/code';
 import { ElMessage, ElLoading } from 'element-plus';
 import { parseTime } from '@/utils';
@@ -162,6 +161,11 @@ const listQuery = reactive({
   endDate: defaultEndDate,
   excludeCancelled: true,
   excludeCompleted: false,
+  // Once an order passes 물류도착 it becomes a settlement charge and belongs on
+  // settlement-management/payable-management instead - keep it off this worklist's
+  // default view (a caller who explicitly picks the 물류도착 tab still sees it, per the
+  // backend guard on this flag).
+  excludeArrived: true,
   isAsOnly: false,
   isPayableSettled: undefined as boolean | undefined,
   categoryLarge: '',
@@ -327,32 +331,14 @@ const onSettlementConfirmed = async (order: any) => {
       });
     }
 
+    // updateOrderStatus itself creates the DEPOSIT for the confirmed 실수납 금액 (proportional
+    // amount/weight, both server-side) as part of the SETTLED transition - a second explicit
+    // processDeposit call here used to double-credit the retailer's cash and separately send
+    // the charge's full weight, which together silently forgave whatever cash wasn't collected.
     await updateOrderStatus(order.id, {
       status: 'SETTLED',
       settlementAmount: order.settlementAmount
     });
-
-    // The dialog's own helper text promises "입력된 금액만큼 즉시 입금(DEPOSIT) 처리됩니다"
-    // but nothing here ever actually recorded a deposit - the retailer's charge stayed fully
-    // outstanding and 결제(C) always read ₩0 regardless of what was confirmed as 실수납 금액.
-    // Apply the confirmed cash amount as a real DEPOSIT against this order's Receivable
-    // charge (using the charge's own weight so the gold-weight side closes out together).
-    if (order.settlementAmount > 0) {
-      try {
-        const summaryRes: any = await getReceivableChargeSummary([order.id]);
-        const chargeWeight = summaryRes.data?.saleWeight || 0;
-        await processDeposit({
-          userId: order.userId,
-          orderId: order.id,
-          amount: order.settlementAmount,
-          weight: chargeWeight,
-          memo: '정산 확인 요청을 통한 자동 입금 처리'
-        });
-      } catch (depositError) {
-        console.error('Failed to process deposit for confirmed settlement:', depositError);
-        ElMessage.warning('정산은 완료되었으나 입금 처리 중 오류가 발생했습니다. 미수금 관리에서 수동으로 확인해주세요.');
-      }
-    }
 
     ElMessage.success(t('admin.settlement.messages.settlementSuccess'));
     settlementConfirmDialogVisible.value = false;

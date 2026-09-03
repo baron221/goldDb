@@ -87,7 +87,12 @@ builder.Services.AddScoped<GoldbApi.Services.IOrderService, GoldbApi.Services.Or
 builder.Services.AddScoped<GoldbApi.Services.IReceivableService, GoldbApi.Services.ReceivableService>();
 builder.Services.AddScoped<GoldbApi.Services.IPayableService, GoldbApi.Services.PayableService>();
 builder.Services.AddScoped<GoldbApi.Services.ISearchService, GoldbApi.Services.SearchService>();
-builder.Services.AddHostedService<GoldbApi.Services.MaterializedViewRefreshService>();
+// MaterializedViewRefreshService disabled: the 5 mv_* tables it tried to REFRESH were never
+// real PostgreSQL materialized views (just plain, permanently-empty tables - the refresh has
+// failed on every single cycle since day one). DashboardService now computes the admin
+// dashboard and partner-retailer stats live from the base tables instead of reading from those
+// always-empty tables, so this background job no longer serves any purpose.
+// builder.Services.AddHostedService<GoldbApi.Services.MaterializedViewRefreshService>();
 builder.Services.AddHostedService<GoldbApi.Services.LogisticsAutoApprovalService>();
 
 builder.Services.AddCors(options =>

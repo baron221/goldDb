@@ -41,6 +41,8 @@ public class ReceivableDto
 
     public decimal Discount { get; set; }
 
+    public decimal DiscountWeight { get; set; }
+
     public bool IsCancelled { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -238,6 +240,8 @@ public class CreateDepositDto
 
     public decimal? Discount { get; set; }
 
+    public decimal? DiscountWeight { get; set; }
+
     public string? Memo { get; set; }
 
     public string? SettlementMethod { get; set; }
@@ -251,6 +255,8 @@ public class UpdateDepositDto
     public decimal? Weight { get; set; }
 
     public decimal? Discount { get; set; }
+
+    public decimal? DiscountWeight { get; set; }
 
     public string? Memo { get; set; }
 
@@ -291,6 +297,14 @@ public class ReceivableOrderHistoryQueryDto
 
     public int? UserId { get; set; }
 
+    public int? CompanyId { get; set; }
+
+    public string? OrderNo { get; set; }
+
+    public DateTime? StartDate { get; set; }
+
+    public DateTime? EndDate { get; set; }
+
     public string? ProductName { get; set; }
 
     public string? Remarks { get; set; }
@@ -312,6 +326,10 @@ public class ReceivableOrderRowDto
     public int ProductItemCount { get; set; }
 
     public List<ReceivableOrderItemSummaryDto> Items { get; set; } = new();
+
+    // First non-empty item memo on the order - shown as its own 비고 column in the
+    // worklist, matching what the 비고 search filter (oi.Memo) actually searches.
+    public string? Remarks { get; set; }
 
     public int UserId { get; set; }
 
@@ -402,6 +420,11 @@ public class ReceivableOverdueRowDto
 
     // Oldest still-outstanding charge's own date - what 연체 일수 counts forward from.
     public DateTime SaleDate { get; set; }
+
+    // Most recent activity (charge OR deposit, whichever is later) across this retailer's
+    // whole ledger, not just the still-outstanding charges - lets 미수금 관리 show "마지막거래일자"
+    // (last transaction date) distinct from SaleDate's "oldest overdue charge" meaning.
+    public DateTime? LastTransactionDate { get; set; }
 
     public decimal SaleAmount { get; set; }
 

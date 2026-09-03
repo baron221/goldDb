@@ -139,6 +139,7 @@ public class StockService : IStockService
             else if (purity.Contains("18K")) summary.Total18KWeight += weight;
             else if (purity.Contains("14K")) summary.Total14KWeight += weight;
             else if (purity.Contains("PT") || purity.Contains("PLATINUM")) summary.TotalPtWeight += weight;
+            else if (purity.Contains("SILVER") || purity.Contains("은")) summary.TotalSilverWeight += weight;
         }
 
         summary.TotalCalculatedPureGoldWeight = (summary.Total14KWeight * 0.6435m) + (summary.Total18KWeight * 0.825m) + summary.TotalPureGoldWeight + (summary.TotalPtWeight * 0.95m);
@@ -271,8 +272,14 @@ public class StockService : IStockService
             if (manualExhaustionOrder == null) return ApiResponse<string>.Failure("소진 처리할 주문을 찾을 수 없습니다.");
             if (manualExhaustionOrder.Status != "LogisticsApproved") return ApiResponse<string>.Failure("물류승인 상태인 주문만 판매 소진 처리가 가능합니다.");
 
+            // Same 물류도착 settlement-backlog gate OrderService.UpdateOrderStatusAsync enforces
+            // on the normal PENDING transition - this manual "판매 소진" shortcut jumps straight
+            // to PENDING too and must not be a way around it.
+            var backlogMessage = await _receivableService.GetManufacturerSettlementBacklogBlockAsync(manualExhaustionOrder.Id, manualExhaustionOrder.LogisticsCompanyId);
+            if (backlogMessage != null) return ApiResponse<string>.Failure(backlogMessage, 400);
+
             manualExhaustionOrder.Status = "PENDING";
-            await _receivableService.CreateOrderSettlementChargesAsync(manualExhaustionOrder.Id);
+            await _receivableService.CreateOrderSettlementChargesAsync(manualExhaustionOrder.Id, "PENDING");
         }
 
         var autoLinkedOrderIds = new HashSet<int>();
@@ -427,6 +434,7 @@ public class StockService : IStockService
                     Status = "IN_STOCK",
                     Purity = item.Purity,
                     Color = item.Color,
+                    Size = item.Size ?? item.Product?.ProductSize,
                     ActualWeight = item.ConfirmedWeight ?? item.ActualWeight ?? 0,
                     ProductionDate = item.ProductionDate,
                     Note = $"주문({order.OrderNo})을 통한 자동 입고",
@@ -452,6 +460,7 @@ public class StockService : IStockService
                             Status = "IN_STOCK",
                             Purity = child.Purity,
                             Color = child.Color,
+                            Size = child.Size ?? child.Product?.ProductSize,
                             ActualWeight = child.ConfirmedWeight ?? child.ActualWeight ?? 0,
                             ProductionDate = child.ProductionDate,
                             Note = $"세트 구성품 자동 입고 (상위: {stock.StockNo})",
@@ -523,8 +532,12 @@ public class StockService : IStockService
     // Orders that reach "Completed" have every item awaiting sale at the retailer; once each
     // item's stock has been individually marked exhausted (sold), the order is ready for
     // settlement. Shared by the per-item exhaustion flow and the regular stock "판매" flow so
-    // both paths reach settlement the same way.
-    private static readonly string[] AlreadyPastPendingStatuses = { "PENDING", "PROCESSING", "SETTLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
+    // both paths reach settlement the same way. InspectedRequested/Inspected are included here
+    // too (not just PENDING-or-later) - this shortcut is for stock that already physically
+    // exists and is being sold through, not for an order still mid-way through the normal
+    // MFG dispatch/물류도착 pipeline; letting it fire on those statuses would jump the order
+    // straight to PENDING without ever passing through the 물류도착 settlement-backlog gate.
+    private static readonly string[] AlreadyPastPendingStatuses = { "InspectedRequested", "Inspected", "PENDING", "PROCESSING", "SETTLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
 
     private async Task TryTransitionToPendingIfFullyExhaustedAsync(int orderId)
     {
@@ -556,6 +569,12 @@ public class StockService : IStockService
 
         if (allExhausted)
         {
+            // Same 물류도착 settlement-backlog gate the normal PENDING transition enforces -
+            // this auto-transition-on-full-exhaustion shortcut must not be a silent way around
+            // it either, in case a manufacturer charge already exists for this order.
+            var backlogMessage = await _receivableService.GetManufacturerSettlementBacklogBlockAsync(order.Id, order.LogisticsCompanyId);
+            if (backlogMessage != null) return;
+
             order.Status = "PENDING";
 
             var history = new OrderStatusHistory
@@ -567,7 +586,7 @@ public class StockService : IStockService
             await _stockRepository.AddOrderStatusHistoryAsync(history);
             await _stockRepository.SaveChangesAsync();
 
-            await _receivableService.CreateOrderSettlementChargesAsync(order.Id);
+            await _receivableService.CreateOrderSettlementChargesAsync(order.Id, "PENDING");
         }
     }
 }

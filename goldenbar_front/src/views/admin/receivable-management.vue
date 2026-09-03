@@ -26,29 +26,17 @@
       </el-form>
 
       <base-table v-loading="overdueLoading" :data="overdueList" border row-key="logisticsCompanyId" style="width: 100%; margin-top: 1.25rem;">
-        <el-table-column label="거래처명" width="160" align="center" prop="companyName" />
-        <el-table-column label="매출일자" width="130" align="center">
-          <template #default="{row}">{{ formatDate(row.saleDate) }}</template>
+        <el-table-column label="거래처" width="160" align="center" prop="companyName" />
+        <el-table-column label="마지막거래일자" width="150" align="center">
+          <template #default="{row}">{{ formatDate(row.lastTransactionDate || row.saleDate) }}</template>
         </el-table-column>
-        <el-table-column label="매출" min-width="150" align="right">
+        <el-table-column label="순금/수공" min-width="170" align="right">
           <template #default="{row}">
-            <div>공임: ₩{{ formatPrice(row.saleAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.saleWeight.toFixed(2) }}g</div>
+            <div style="color: #f56c6c; font-weight: bold;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
+            <div style="color: #f56c6c;">수공: ₩{{ formatPrice(row.outstandingAmount) }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="수금" min-width="150" align="right">
-          <template #default="{row}">
-            <div style="color: #67c23a;">공임: ₩{{ formatPrice(row.collectedAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.collectedWeight.toFixed(2) }}g</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="미수" min-width="150" align="right">
-          <template #default="{row}">
-            <div style="color: #f56c6c; font-weight: bold;">공임: ₩{{ formatPrice(row.outstandingAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="연체 일수" width="100" align="center">
+        <el-table-column label="연체일수" width="100" align="center">
           <template #default="{row}">{{ row.overdueDays }}일</template>
         </el-table-column>
         <el-table-column label="작업" width="110" align="center">
@@ -93,31 +81,19 @@
       </el-form>
 
       <base-table v-loading="receivableOverdueLoading" :data="receivableOverdueList" border row-key="userId" style="width: 100%; margin-top: 1.25rem;">
-        <el-table-column label="소매점" width="160" align="center">
+        <el-table-column label="거래처" width="160" align="center">
           <template #default="{row}">{{ row.companyName || row.userDisplayName }}</template>
         </el-table-column>
-        <el-table-column label="매출일자" width="130" align="center">
-          <template #default="{row}">{{ formatDate(row.saleDate) }}</template>
+        <el-table-column label="마지막거래일자" width="150" align="center">
+          <template #default="{row}">{{ formatDate(row.lastTransactionDate || row.saleDate) }}</template>
         </el-table-column>
-        <el-table-column label="매출" min-width="150" align="right">
+        <el-table-column label="순금/수공" min-width="170" align="right">
           <template #default="{row}">
-            <div>공임: ₩{{ formatPrice(row.saleAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.saleWeight.toFixed(2) }}g</div>
+            <div style="color: #f56c6c; font-weight: bold;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
+            <div style="color: #f56c6c;">수공: ₩{{ formatPrice(row.outstandingAmount) }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="수금" min-width="150" align="right">
-          <template #default="{row}">
-            <div style="color: #67c23a;">공임: ₩{{ formatPrice(row.collectedAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.collectedWeight.toFixed(2) }}g</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="미수" min-width="150" align="right">
-          <template #default="{row}">
-            <div style="color: #f56c6c; font-weight: bold;">공임: ₩{{ formatPrice(row.outstandingAmount) }}</div>
-            <div style="color: #909399; font-size: 0.8125rem;">순금: {{ row.outstandingWeight.toFixed(2) }}g</div>
-          </template>
-        </el-table-column>
-        <el-table-column label="연체 일수" width="100" align="center">
+        <el-table-column label="연체일수" width="100" align="center">
           <template #default="{row}">{{ row.overdueDays }}일</template>
         </el-table-column>
         <el-table-column label="작업" width="110" align="center">
@@ -135,7 +111,7 @@
       />
     </el-card>
 
-    <el-card v-if="!isMfg && !isDcc" shadow="never" class="filter-card">
+    <el-card v-if="!isMfg && (!isDcc || isAdmin)" shadow="never" class="filter-card">
       <el-form :inline="true" :model="listQuery" class="demo-form-inline">
         <el-form-item label="사용자 검색">
           <el-input v-model="listQuery.search" placeholder="이름 또는 아이디" clearable @keyup.enter="handleFilter" />
@@ -147,7 +123,7 @@
       </el-form>
     </el-card>
 
-    <el-card v-if="!isMfg && !isDcc" shadow="never" style="margin-top: 1.25rem;">
+    <el-card v-if="!isMfg && (!isDcc || isAdmin)" shadow="never" style="margin-top: 1.25rem;">
       <base-table
         v-loading="listLoading"
         :data="list"
@@ -238,7 +214,6 @@
                     <div v-if="item.row.type === 'DEPOSIT'" style="display: flex; gap: 0.375rem; justify-content: center;">
                       <el-button size="small" @click="handlePrintReceipt(item.row, row)">영수증 출력</el-button>
                       <template v-if="!item.row.isCancelled && !item.row.sourcePaymentId">
-                        <el-button size="small" type="warning" @click="openEditDialog(item.row)">수정</el-button>
                         <el-button size="small" type="danger" @click="handleCancelReceivable(item.row, row.userId)">정산취소</el-button>
                       </template>
                       <span v-else-if="!item.row.isCancelled && item.row.sourcePaymentId" style="font-size: 0.75rem; color: #909399;">정산처리 연동</span>
@@ -306,11 +281,6 @@
       @saved="onDepositSaved"
     />
 
-    <receivable-edit-dialog
-      v-model="editDialogVisible"
-      :record="editingRecord"
-      @saved="onEditSaved"
-    />
   </div>
 </template>
 
@@ -327,7 +297,6 @@ import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import DepositDialog from './components/DepositDialog.vue';
-import ReceivableEditDialog from './components/ReceivableEditDialog.vue';
 import BatchSettleDialog from './components/BatchSettleDialog.vue';
 import ReceivableBatchSettleDialog from './components/ReceivableBatchSettleDialog.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
@@ -338,6 +307,12 @@ const router = useRouter();
 const defaultImage = '/thumb_no_img.png';
 
 const isDcc = computed(() => userStore.companyType === 'DCC' || userStore.roles.includes('admin'));
+
+// isDcc folds admin into the DCC-aggregate branch above, but admin also needs the detailed
+// per-user table below (정산취소/거래명세서 출력/general 입금 처리) - a plain DCC viewer never
+// gets that table (they use the aggregate one instead), but admin shouldn't lose it just
+// because they also satisfy isDcc. See the two `!isMfg && (!isDcc || isAdmin)` guards below.
+const isAdmin = computed(() => userStore.roles.includes('admin'));
 
 // MFG's own 미수금 관리 - tracks partially-paid Payable charges (DCC owes this factory) by
 // DCC partner. This page is otherwise entirely Receivable-focused (DCC<->retailer), but the
@@ -502,23 +477,6 @@ const onDepositSaved = () => {
   getList();
   if (currentUser.value && historyData[currentUser.value.userId]) {
     fetchHistory(currentUser.value.userId);
-  }
-};
-
-const editDialogVisible = ref(false);
-const editingRecord = ref<any>(null);
-const editingUserId = ref<number | null>(null);
-
-const openEditDialog = (record: any) => {
-  editingRecord.value = record;
-  editingUserId.value = record.userId;
-  editDialogVisible.value = true;
-};
-
-const onEditSaved = () => {
-  getList();
-  if (editingUserId.value && historyData[editingUserId.value]) {
-    fetchHistory(editingUserId.value);
   }
 };
 

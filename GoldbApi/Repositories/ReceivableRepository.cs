@@ -173,7 +173,14 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id)
+            // A DEPOSIT sitting in 미수금 관리 that gets more money merged into it (see
+            // ProcessDepositAsync) never gets a new row - its own Amount just grows in place,
+            // dated by whenever it was FIRST created. Sorted purely by CreatedAt, a deposit
+            // touched again today stays buried under its original (possibly old) date instead
+            // of surfacing at the top where "I just paid this" is expected. UpdatedAt (already
+            // maintained on every save, see AppDbContext's SaveChanges override) reflects the
+            // most recent touch, so sort and the displayed 거래일자 below both use it.
+            .OrderByDescending(r => r.UpdatedAt ?? r.CreatedAt).ThenByDescending(r => r.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(r => new ReceivableDto
@@ -190,7 +197,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 OrderNo = r.Order != null ? r.Order.OrderNo : null,
                 ProductName = r.Order != null
                     ? r.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = r.Order != null
@@ -207,12 +214,26 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                 Memo = r.Memo,
                 SettlementMethod = r.SettlementMethod,
                 Discount = r.Discount,
+                DiscountWeight = r.DiscountWeight,
                 IsCancelled = r.IsCancelled,
-                CreatedAt = r.CreatedAt,
+                // 거래일자 shows the effective/last-touched date, not necessarily when this
+                // row was first inserted - see the sort comment above for why.
+                CreatedAt = r.UpdatedAt ?? r.CreatedAt,
                 SourcePaymentId = r.SourcePaymentId,
+                // IgnoreQueryFilters: when a charge this deposit originally zero-acknowledged
+                // is later actually collected by a DIFFERENT, later deposit, that later
+                // deposit's own application replaces this one - per the soft-delete + replace
+                // pattern, THIS deposit's own application row for that charge gets soft-deleted
+                // (not this deposit itself, and not the charge). Without lifting the filter
+                // here, that deleted row silently drops out of this deposit's own historical
+                // application list, under-counting 판매(B) and inflating 거래 전 미수(A) for
+                // this specific 거래번호 in the detail popup - this is "what did this deposit
+                // touch when it was made", so the historical row belongs regardless of what
+                // later superseded it.
                 AppliedCharges = r.Type == "DEPOSIT"
                     ? Context.ReceivableApplications
-                        .Where(a => a.DepositId == r.Id)
+                        .IgnoreQueryFilters()
+                        .Where(a => a.DepositId == r.Id && !a.Charge!.IsDeleted)
                         .Select(a => new AppliedChargeDto
                         {
                             ChargeId = a.ChargeId,
@@ -228,7 +249,7 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                                 ? a.Charge.Order.OrderItems.Where(oi => oi.ParentId == null)
                                     .Select(oi => new ReceivableOrderItemSummaryDto
                                     {
-                                        ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                                        ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                                         ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                                         PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl
                                             : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl : null),
@@ -245,21 +266,39 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
                         })
                         .ToList()
                     : new List<AppliedChargeDto>(),
-                OutstandingChargeAmount = r.Type == "DEPOSIT"
-                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.RemainingAmount).Sum()
-                    : 0,
-                OutstandingChargeWeight = r.Type == "DEPOSIT"
-                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.RemainingWeight).Sum()
-                    : 0,
-                OrderCount = r.Type == "DEPOSIT"
-                    ? Context.ReceivableApplications.Where(a => a.DepositId == r.Id).Select(a => a.Charge!.OrderId).Distinct().Count()
-                    : 0,
+                // OrderCount/OutstandingChargeAmount/OutstandingChargeWeight are filled in below,
+                // after this page is materialized - a correlated subquery here (even a Distinct
+                // one) was observed to mis-translate to SQL and silently drop a charge from the
+                // aggregate, so this is computed safely in memory instead. See below.
                 IsMostRecentPayment = r.Type == "DEPOSIT" && !Context.Receivables.Any(other =>
                     other.Type == "DEPOSIT" && !other.IsCancelled &&
                     other.UserId == r.UserId &&
                     (other.CreatedAt > r.CreatedAt || (other.CreatedAt == r.CreatedAt && other.Id > r.Id)))
             })
             .ToListAsync();
+
+        var depositIds = items.Where(i => i.Type == "DEPOSIT").Select(i => i.Id).ToList();
+        if (depositIds.Count > 0)
+        {
+            var applicationRows = await Context.ReceivableApplications
+                .Where(a => depositIds.Contains(a.DepositId))
+                .Select(a => new { a.DepositId, a.ChargeId, a.Charge!.OrderId, a.Charge!.RemainingAmount, a.Charge!.RemainingWeight })
+                .ToListAsync();
+
+            var byDeposit = applicationRows.GroupBy(a => a.DepositId);
+            foreach (var group in byDeposit)
+            {
+                // A deposit's applications can include more than one row against the SAME
+                // charge (e.g. an earlier 0-value acknowledgement plus a later real top-up that
+                // merged into this same deposit) - group by ChargeId first so each charge's
+                // OrderId/RemainingAmount/RemainingWeight is only counted once.
+                var distinctCharges = group.GroupBy(a => a.ChargeId).Select(g => g.First()).ToList();
+                var dto = items.First(i => i.Id == group.Key);
+                dto.OrderCount = distinctCharges.Select(c => c.OrderId).Distinct().Count();
+                dto.OutstandingChargeAmount = distinctCharges.Sum(c => c.RemainingAmount);
+                dto.OutstandingChargeWeight = distinctCharges.Sum(c => c.RemainingWeight);
+            }
+        }
 
         return (items, totalCount);
     }

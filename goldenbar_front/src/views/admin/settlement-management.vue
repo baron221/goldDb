@@ -1,207 +1,93 @@
 <template>
 <div class="settlement-management-container app-container">
-
-    <el-card v-if="isDcc" shadow="never" class="filter-card" style="margin-bottom: 1.25rem;">
-      <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.9375rem;">미수 잔액 (이미 정산된 주문 중 잔액이 남은 건)</div>
-      <el-form :inline="true" :model="dccOrderQuery" class="demo-form-inline">
+    <el-card v-if="isDcc" shadow="never" class="filter-card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9375rem;">
+        <div style="font-size: 1.1rem; font-weight: bold;">정산 대상 내역</div>
+        <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">주문 수기 등록</el-button>
+      </div>
+      <el-form :inline="true" :model="orderHistoryQuery" class="demo-form-inline">
         <el-form-item label="소매점">
-          <el-select v-model="dccOrderQuery.userId" placeholder="전체" clearable style="width: 180px;">
-            <el-option v-for="c in dccRetailerList" :key="c.userId" :label="c.companyName || c.userDisplayName" :value="c.userId" />
-          </el-select>
+          <company-select v-model="orderHistoryQuery.companyId" category="RTL" placeholder="전체" style="width: 180px;" @change="handleOrderHistoryFilter" />
+          <el-button style="margin-left: 0.375rem;" @click="handleAllCompanies">전체소매점</el-button>
         </el-form-item>
         <el-form-item label="비고">
-          <el-input v-model="dccOrderQuery.remarks" placeholder="비고" clearable @keyup.enter="handleDccOrderFilter" />
+          <el-input v-model="orderHistoryQuery.remarks" placeholder="비고" clearable @keyup.enter="handleOrderHistoryFilter" />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="handleDccOrderFilter">조회</el-button>
+          <el-button type="primary" :icon="Search" @click="handleOrderHistoryFilter">조회</el-button>
         </el-form-item>
       </el-form>
 
-      <table class="order-history-summary-table" v-loading="dccOrderSummaryLoading">
-        <thead>
-          <tr>
-            <th></th>
-            <th>순금(g)</th>
-            <th>공임 및 현금</th>
-            <th>금액합계</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="summary-label">총 판매</td>
-            <td>{{ (dccOrderSummary.totalChargeWeight || 0).toFixed(2) }}</td>
-            <td>₩ {{ formatPrice(dccOrderSummary.totalChargeAmount) }}</td>
-            <td>0</td>
-          </tr>
-          <tr>
-            <td class="summary-label">총 결제</td>
-            <td>{{ (dccOrderSummary.totalPaidWeight || 0).toFixed(2) }}</td>
-            <td>₩ {{ formatPrice(dccOrderSummary.totalPaidAmount) }}</td>
-            <td>0</td>
-          </tr>
-          <tr>
-            <td class="summary-label">총 미수</td>
-            <td>{{ dccOrderOutstandingWeight.toFixed(2) }}</td>
-            <td>₩ {{ formatPrice(dccOrderOutstandingAmount) }}</td>
-            <td>0</td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-if="selectedOrderRows.length > 0" class="batch-settle-bar">
+        <span>{{ selectedOrderRows.length }}건 선택됨 · 청구 ₩{{ formatPrice(selectedTotalAmount) }} ({{ selectedTotalWeight.toFixed(2) }}g)</span>
+        <el-button type="primary" @click="openBatchSettleDialog">정산</el-button>
+      </div>
 
-    </el-card>
-
-    <div v-if="isDcc" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9375rem;">
-      <div style="font-size: 1.1rem; font-weight: bold;">정산 확인 대기 (아직 확정되지 않은 주문)</div>
-      <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">주문 수기 등록</el-button>
-    </div>
-    <settlement-management-filter
-      :query="listQuery"
-      @update:query="(val) => Object.assign(listQuery, val)"
-      @filter="handleFilter"
-      @reset="resetQuery"
-    />
-
-    <div v-if="selectedRows.length > 0" class="batch-settle-bar">
-      <span>{{ selectedRows.length }}건 선택됨 · 총 {{ formatPrice(selectedTotalAmount) }}원 ({{ selectedTotalWeight.toFixed(2) }}g)</span>
-      <el-button type="primary" @click="openBatchSettlementDialog">선택 항목 일괄 정산</el-button>
-    </div>
-
-    <el-card shadow="never" style="margin-top: 1.25rem;">
       <base-table
-        ref="tableRef"
-        v-loading="listLoading"
-        :data="list"
+        ref="orderHistoryTableRef"
+        v-loading="orderHistoryLoading"
+        :data="orderHistoryList"
+        :total="orderHistoryTotal"
+        v-model:page="orderHistoryQuery.page"
+        v-model:page-size="orderHistoryQuery.pageSize"
         border
-        fit
-        highlight-current-row
-        style="width: 100%"
-        row-key="id"
-        @selection-change="handleSelectionChange"
+        row-key="receivableId"
+        style="width: 100%; margin-top: 1.25rem;"
+        @change="fetchOrderHistory"
+        @selection-change="handleOrderHistorySelectionChange"
       >
-        <el-table-column type="selection" width="45" :selectable="isRowSelectable" />
-        <el-table-column type="expand">
-          <template #default="{row}">
-            <div class="order-detail-expand">
-              <h4>{{ $t('orderDetail.itemSpecifications') }}</h4>
-              <base-table :data="row.orderItems" border style="width: 100%">
-                <el-table-column prop="productName" :label="$t('orderDetail.headers.productInfo')" min-width="250" :excel-formatter="innerProductInfoFormatter">
-                  <template #default="item">
-                    <div class="product-info-cell">
-                      <el-image :src="item.row.photoUrl || defaultImage" fit="cover" class="product-thumb" />
-                      <div class="product-text">
-                        <div v-if="item.row.productSetId" class="set-tag">SET</div>
-                        <div class="product-name">{{ item.row.productName || item.row.productSetTitle }}</div>
-                        <div class="product-no">{{ item.row.productNo }}</div>
-                      </div>
-                    </div>
-                  </template>
-                </el-table-column>
-                <el-table-column :label="$t('orderDetail.headers.qty')" width="70" align="center" prop="quantity" />
-                <el-table-column prop="orderWeight" :label="$t('orderDetail.headers.orderWeight')" width="90" align="center" :excel-formatter="(row) => (row.orderWeight || row.weight) ? (row.orderWeight || row.weight) + 'g' : '-'">
-                  <template #default="item">
-                    <span>{{ (item.row.orderWeight || item.row.weight) ? (item.row.orderWeight || item.row.weight) + 'g' : '-' }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="confirmedWeight" :label="$t('orderDetail.headers.actualWeight')" width="110" align="center" :excel-formatter="(row) => row.confirmedWeight ? row.confirmedWeight + 'g' : '-'">
-                  <template #default="item">
-                    <span style="font-weight: bold; color: #67c23a;">{{ item.row.confirmedWeight ? item.row.confirmedWeight + 'g' : '-' }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="purity" :label="$t('sys.product.headers.purityColor')" width="120" align="center" :excel-formatter="purityColorFormatter">
-                  <template #default="item">
-                    <div style="margin-bottom: 0.125rem;">{{ codeMap[item.row.purity] || item.row.purity }}</div>
-                    <div v-if="item.row.color" style="font-size: 0.8875rem; color: #666; margin-bottom: 0.125rem;">{{ codeMap[item.row.color] || item.row.color }}</div>
-                    <el-tag v-if="item.row.isAsOrder" type="danger" size="small">AS</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="inspectionMemo" :label="$t('orderDetail.memos.orderMemo')" min-width="200" :excel-formatter="memoFormatter">
-                  <template #default="item">
-                    <div style="font-size: 0.8875rem; color: #909399;">{{ $t('home.roles.factory.title') }}: {{ item.row.inspectionMemo || '-' }}</div>
-                    <div style="font-size: 0.8875rem; color: #409EFF;">{{ $t('home.roles.logistics.title') }}: {{ item.row.logisticsMemo || '-' }}</div>
-                  </template>
-                </el-table-column>
-              </base-table>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column :label="$t('order.filters.orderNo')" prop="orderNo" width="200" align="center" />
+        <el-table-column type="selection" width="45" :selectable="isOrderRowSelectable" />
+        <el-table-column label="주문번호" width="200" align="center" prop="orderNo" />
         <el-table-column label="제품정보" min-width="280">
           <template #default="{row}">
-            <div v-if="topLevelItems(row).length > 0" class="product-info-list">
-              <div v-for="(item, idx) in topLevelItems(row).slice(0, 3)" :key="idx" class="product-info-cell">
-                <el-image :src="item.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 36px; height: 36px;" />
+            <div v-if="(row.items || []).length > 0" class="product-info-list">
+              <div v-for="(item, idx) in row.items.slice(0, 3)" :key="idx" class="product-info-cell">
+                <el-image :src="item.photoUrl || defaultImage" fit="cover" class="product-thumb" style="width: 56px; height: 56px;" />
                 <div class="product-text">
-                  <div class="product-name">{{ item.productName || item.productSetTitle || '-' }}</div>
-                  <div class="product-spec">함량: {{ codeMap[item.purity] || item.purity || '-' }} / 수량: {{ item.quantity }}개</div>
+                  <div class="product-name">
+                    {{ item.productName || '-' }}
+                    <span v-if="item.productNo" class="product-no-code">{{ item.productNo }}</span>
+                  </div>
+                  <div class="product-spec">
+                    함량: {{ codeMap[item.purity] || item.purity || '-' }} / 중량: {{ item.actualWeight ? item.actualWeight + 'g' : '-' }} / 수량: {{ item.quantity }}개
+                    <template v-if="item.color && item.color !== 'EMPTY'"> / 색상: {{ codeMap[item.color] || item.color }}</template>
+                    <template v-if="item.size && item.size !== 'EMPTY'"> / 사이즈: {{ item.size }}</template>
+                  </div>
+                  <div v-if="item.memo" class="product-memo">메모: {{ item.memo }}</div>
                 </div>
               </div>
-              <div v-if="topLevelItems(row).length > 3" class="product-more">+{{ topLevelItems(row).length - 3 }}건 더</div>
+              <div v-if="row.items.length > 3" class="product-more">+{{ row.items.length - 3 }}건 더</div>
             </div>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="userDisplayName" :label="$t('sys.company.labels.name')" width="180" align="center" :excel-formatter="userFormatter">
+        <el-table-column label="비고" min-width="160">
           <template #default="{row}">
-            <span>{{ row.userDisplayName }} ({{ row.userName }})</span>
+            <span v-if="row.remarks" style="color: #606266;">{{ row.remarks }}</span>
+            <span v-else style="color: #c0c4cc;">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="totalAmount" :label="$t('order.list.totalAmount')" width="140" align="right" :excel-formatter="amountFormatter">
+        <el-table-column label="소매점" width="160" align="center">
           <template #default="{row}">
-            <span style="font-size: 0.8875rem; color: #909399; margin-right: 0.1875rem; font-weight: normal;">₩</span><span style="font-weight: bold;">{{ formatPrice(getOrderTotalAmount(row)) }}</span>
+            {{ row.retailerCompanyName || row.userDisplayName }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="$t('dashboard.factory.table.status')" width="130" align="center" :excel-formatter="(row) => statusLabel(row.status)">
-          <template #default="{row}">
-            <el-tag :type="getStatusTag(row.status)">{{ statusLabel(row.status) }}</el-tag>
-          </template>
+        <el-table-column label="청구일시" width="160" align="center">
+          <template #default="{row}">{{ formatDate(row.orderDate) }}</template>
         </el-table-column>
-        <el-table-column prop="updatedAt" :label="$t('dashboard.factory.table.requestedAt')" width="160" align="center" :excel-formatter="(row) => formatDate(row.updatedAt || row.createdAt)">
+        <el-table-column label="청구" width="150" align="right">
           <template #default="{row}">
-            <span>{{ formatDate(row.updatedAt || row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="$t('common.action')" min-width="250" align="center" :fixed="!isMobile ? 'right' : false">
-          <template #default="{row}">
-            <div class="action-buttons">
-              <el-button
-                v-if="row.status === 'PENDING' || row.status === 'PROCESSING'"
-                type="success"
-                size="small"
-                @click="openSettlementDialog(row)"
-              >
-                {{ $t('order.list.requestSettlement') }}
-              </el-button>
-              <el-button
-                v-if="row.status === 'SETTLED'"
-                type="info"
-                size="small"
-                disabled
-              >
-                {{ $t('order.status.SETTLED') }}
-              </el-button>
-            </div>
+            <span style="color: #f56c6c; font-weight: bold;">₩ {{ formatPrice(row.chargeAmount) }}</span>
+            <span v-if="row.chargeWeight > 0" style="color: #909399; font-size: 0.8125rem;"> ({{ row.chargeWeight.toFixed(2) }}g)</span>
           </template>
         </el-table-column>
       </base-table>
-
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="listQuery.page"
-          v-model:page-size="listQuery.pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 30, 50]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="getList"
-          @current-change="getList"
-        />
-      </div>
     </el-card>
 
-    <settlement-dialog
-      v-model="settlementDialogVisible"
-      :orders="currentOrders"
-      @saved="onSettlementSaved"
+    <receivable-batch-settle-dialog
+      v-model="batchSettleDialogVisible"
+      :order-ids="selectedOrderRows.map((r) => r.orderId)"
+      @saved="onBatchSettleSaved"
     />
 
     <order-manual-register-dialog
@@ -212,282 +98,111 @@
 </template>
 
 <script setup lang="ts">
-import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { getAllOrders } from '@/api/order';
-import { getReceivableOrderHistorySummary, getUserSummaries } from '@/api/receivable';
+import { getReceivableOrderHistory } from '@/api/receivable';
 import { Search, Plus } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
-import { isPostPendingStatus } from '@/utils/order';
+import CompanySelect from '@/components/CompanySelect/index.vue';
 import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
-import SettlementDialog from './components/SettlementDialog.vue';
-import SettlementManagementFilter from './components/SettlementManagementFilter.vue';
 import OrderManualRegisterDialog from './components/OrderManualRegisterDialog.vue';
+import ReceivableBatchSettleDialog from './components/ReceivableBatchSettleDialog.vue';
 
-const { isMobile } = useMobile();
-const { t } = useI18n();
 const userStore = useUserStore();
-
-const isDcc = computed(() => userStore.companyType === 'DCC' || userStore.roles.includes('admin'));
-
-const listLoading = ref(true);
-const list = ref<any[]>([]);
-const total = ref(0);
 const codeStore = useCodeStore();
 const codeMap = computed(() => codeStore.codeMap);
 const defaultImage = '/thumb_no_img.png';
 
-const settlementDialogVisible = ref(false);
-const currentOrders = ref<any[]>([]);
-const tableRef = ref<any>(null);
-const selectedRows = ref<any[]>([]);
+const isDcc = computed(() => userStore.companyType === 'DCC' || userStore.roles.includes('admin'));
 
-// ---- DCC's own "미수 잔액" worklist - orders that already passed through the
-// PENDING/PROCESSING confirm-and-settle flow below (or were settled some other way) but
-// still have an outstanding Receivable balance (e.g. a partial payment was made). This is
-// deliberately separate from the generic order list above: that one's SettlementDialog
-// both fixes the final settlement amount AND can optionally collect a payment in the same
-// action, so an order only ever needs THIS worklist once it's past that confirm step and
-// still owes money - never for a still-PENDING order, to avoid bypassing the confirm step. ----
-
-const dccRetailerList = ref<any[]>([]);
-const dccOrderQuery = reactive({
-  userId: undefined as number | undefined,
+// Charge-state-based worklist (mirrors MFG's payable-management.vue 정산 내역 table exactly):
+// lists every completely untouched Receivable charge regardless of the underlying order's
+// delivery/logistics status, so a charge can never become invisible just because its order's
+// status moved on without ever being paid. The moment any payment lands on one it drops out
+// of here and into 미수금 관리 instead (GetReceivableOrderHistoryAsync enforces this
+// server-side, and never filters by order status at all).
+const orderHistoryLoading = ref(false);
+const orderHistoryList = ref<any[]>([]);
+const orderHistoryTotal = ref(0);
+const orderHistoryQuery = reactive({
+  page: 1,
+  pageSize: 20,
+  companyId: undefined as number | undefined,
   remarks: ''
 });
 
-const dccOrderSummaryLoading = ref(false);
-const dccOrderSummary = reactive({
-  totalChargeAmount: 0,
-  totalChargeWeight: 0,
-  totalPaidAmount: 0,
-  totalPaidWeight: 0
-});
-const dccOrderOutstandingAmount = computed(() => Math.max(0, (dccOrderSummary.totalChargeAmount || 0) - (dccOrderSummary.totalPaidAmount || 0)));
-const dccOrderOutstandingWeight = computed(() => Math.max(0, (dccOrderSummary.totalChargeWeight || 0) - (dccOrderSummary.totalPaidWeight || 0)));
-
-const fetchDccRetailerList = async () => {
-  try {
-    const res: any = await getUserSummaries({ page: 1, pageSize: 1000 });
-    dccRetailerList.value = res.data.items || [];
-  } catch (error) {
-    console.error('Failed to fetch retailer list:', error);
-  }
+const handleAllCompanies = () => {
+  orderHistoryQuery.companyId = undefined;
+  handleOrderHistoryFilter();
 };
 
-const fetchDccOrderHistorySummary = async () => {
-  dccOrderSummaryLoading.value = true;
-  try {
-    // page/pageSize must still be sent (backend binds them as non-nullable ints - the
-    // request interceptor strips falsy params entirely, and omitting them 400s the whole
-    // request - same bug hit earlier on the Payable side's own summary call).
-    const res: any = await getReceivableOrderHistorySummary({ page: 1, pageSize: 1, userId: dccOrderQuery.userId });
-    Object.assign(dccOrderSummary, res.data);
-  } catch (error) {
-    console.error('Failed to fetch receivable order history summary:', error);
-  } finally {
-    dccOrderSummaryLoading.value = false;
-  }
+const orderHistoryTableRef = ref<any>(null);
+const selectedOrderRows = ref<any[]>([]);
+
+const selectedTotalAmount = computed(() => selectedOrderRows.value.reduce((sum, r) => sum + (r.remainingAmount || 0), 0));
+const selectedTotalWeight = computed(() => selectedOrderRows.value.reduce((sum, r) => sum + (r.remainingWeight || 0), 0));
+
+const handleOrderHistorySelectionChange = (rows: any[]) => {
+  selectedOrderRows.value = rows;
 };
 
-const handleDccOrderFilter = () => {
-  fetchDccOrderHistorySummary();
+// A batch settlement is scoped to a single retailer, so once one row is picked, only
+// rows from that same retailer remain selectable - prevents silently mixing different
+// retailers' charges into one deposit.
+const isOrderRowSelectable = (row: any) => {
+  if (row.remainingAmount <= 0 && row.remainingWeight <= 0) return false;
+  if (selectedOrderRows.value.length === 0) return true;
+  return row.userId === selectedOrderRows.value[0].userId;
 };
 
-const listQuery = reactive({
-  page: 1,
-  pageSize: 20,
-  status: 'PENDING', 
-  orderNo: '',
-  userName: '',
-  companyId: undefined as number | undefined,
-  logisticsCompanyId: undefined as number | undefined,
-  factoryCompanyId: undefined as number | undefined,
-  categoryLarge: '',
-  categoryMedium: '',
-  categorySmall: '',
-  setCategoryLarge: '',
-  setCategoryMedium: '',
-  setCategorySmall: '',
-  startDate: undefined as string | undefined,
-  endDate: undefined as string | undefined
-});
+const batchSettleDialogVisible = ref(false);
+const manualOrderDialogVisible = ref(false);
+
+const openBatchSettleDialog = () => {
+  if (selectedOrderRows.value.length === 0) return;
+  batchSettleDialogVisible.value = true;
+};
+
+const onBatchSettleSaved = () => {
+  selectedOrderRows.value = [];
+  orderHistoryTableRef.value?.clearSelection?.();
+  fetchOrderHistory();
+};
+
+// A manually-registered order still has to pass through logistics approval/inspection
+// before it becomes a settleable charge, so it won't show up in this worklist yet -
+// nothing here needs to refresh.
+const onManualOrderSaved = () => {};
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   return parseTime(new Date(dateStr), '{y}-{m}-{d} {h}:{i}');
 };
 
-const statusLabel = (status: string) => {
-  const name = codeStore.getCodeName(status);
-  if (name !== status) return name;
-  return t(`order.status.${status}`);
-};
-
-const getStatusTag = (status: string) => {
-  switch (status) {
-    case 'Inspected': return 'success';
-    case 'PENDING': return 'warning';
-    case 'PROCESSING': return 'primary';
-    case 'SETTLED': return 'success';
-    default: return 'info';
-  }
-};
-
-const getList = async () => {
-  listLoading.value = true;
+const fetchOrderHistory = async () => {
+  orderHistoryLoading.value = true;
   try {
-    const [res] = await Promise.all([
-      getAllOrders(listQuery),
-      codeStore.fetchCodes()
-    ]);
-    list.value = res.data.items;
-    total.value = res.data.totalCount;
+    const res: any = await getReceivableOrderHistory(orderHistoryQuery);
+    orderHistoryList.value = res.data.items;
+    orderHistoryTotal.value = res.data.totalCount;
   } catch (error) {
-    console.error('Failed to get orders:', error);
+    console.error('Failed to fetch receivable order history:', error);
   } finally {
-    listLoading.value = false;
+    orderHistoryLoading.value = false;
   }
 };
 
-const handleFilter = () => {
-  listQuery.page = 1;
-  getList();
-};
-
-const resetQuery = () => {
-  listQuery.orderNo = '';
-  listQuery.userName = '';
-  listQuery.companyId = undefined;
-  listQuery.logisticsCompanyId = undefined;
-  listQuery.factoryCompanyId = undefined;
-  listQuery.status = 'PENDING';
-  listQuery.categoryLarge = '';
-  listQuery.categoryMedium = '';
-  listQuery.categorySmall = '';
-  listQuery.setCategoryLarge = '';
-  listQuery.setCategoryMedium = '';
-  listQuery.setCategorySmall = '';
-  listQuery.startDate = undefined;
-  listQuery.endDate = undefined;
-  handleFilter();
-};
-
-const openSettlementDialog = (row: any) => {
-  currentOrders.value = [row];
-  settlementDialogVisible.value = true;
-};
-
-const topLevelItems = (row: any) => {
-  return (row.orderItems || []).filter((item: any) => !item.parentId);
-};
-
-const handleSelectionChange = (rows: any[]) => {
-  selectedRows.value = rows;
-};
-
-// A batch settlement is scoped to a single retailer, so once one row is picked,
-// only rows from that same retailer remain selectable - mirrors the same guard
-// used for the payable-side batch settle to avoid mixing accounts into one ledger.
-const isRowSelectable = (row: any) => {
-  if (row.status !== 'PENDING' && row.status !== 'PROCESSING') return false;
-  if (selectedRows.value.length === 0) return true;
-  return row.userId === selectedRows.value[0].userId;
-};
-
-const selectedTotalAmount = computed(() => selectedRows.value.reduce((sum, row) => sum + getOrderTotalAmount(row), 0));
-const selectedTotalWeight = computed(() => selectedRows.value.reduce((sum, row) => {
-  return sum + topLevelItems(row).reduce((s: number, item: any) => s + (item.confirmedWeight || item.actualWeight || item.weight || 0) * (item.quantity || 1), 0);
-}, 0));
-
-const openBatchSettlementDialog = () => {
-  if (selectedRows.value.length === 0) return;
-  currentOrders.value = [...selectedRows.value];
-  settlementDialogVisible.value = true;
-};
-
-const onSettlementSaved = () => {
-  selectedRows.value = [];
-  tableRef.value?.clearSelection?.();
-  getList();
-};
-
-// A manually-registered order still has to pass through logistics approval/inspection
-// before it becomes a settleable charge, so it won't show up in this worklist yet -
-// nothing here needs to refresh.
-const manualOrderDialogVisible = ref(false);
-const onManualOrderSaved = () => {};
-
-const getOrderTotalAmount = (order: any) => {
-  const isPostPending = isPostPendingStatus(order.status);
-
-  // MFG is only ever owed what THEY themselves declared (factory input cost) - the
-  // logistics-confirmed retailer price (and the order's settlementAmount, which is
-  // computed from that same retailer-facing figure) may include logistics' own
-  // markup and must never be shown to the manufacturer.
-  if (isPostPending && userStore.companyType === 'MFG' && order.orderItems && order.orderItems.length > 0) {
-    const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
-    return topLevelItems.reduce((acc: number, item: any) => {
-      const material = item.factoryInputMaterialCost || 0;
-      const labor = item.factoryInputLaborCost || 0;
-      return acc + (material + labor) * item.quantity;
-    }, 0);
-  }
-
-  // Orders that skip straight from 제품출고 to 정산 (PENDING) never get a logistics
-  // (retailerConfirm*) figure - only the factory's own input, or the amount the
-  // backend already settled on at PENDING (order.settlementAmount). Prefer whichever
-  // is actually populated instead of assuming retailerConfirm* is always set.
-  if (isPostPending && order.settlementAmount) {
-    return order.settlementAmount;
-  }
-
-  if (isPostPending && order.orderItems && order.orderItems.length > 0) {
-    const topLevelItems = order.orderItems.filter((item: any) => !item.parentId);
-    return topLevelItems.reduce((acc: number, item: any) => {
-      const material = item.retailerConfirmMaterialCost || item.factoryInputMaterialCost || 0;
-      const labor = item.retailerConfirmLaborCost || item.factoryInputLaborCost || 0;
-      return acc + (material + labor) * item.quantity;
-    }, 0);
-  }
-  return order.totalAmount;
-};
-
-const userFormatter = (row: any) => {
-  return `${row.userDisplayName} (${row.userName})`;
-};
-
-const amountFormatter = (row: any) => {
-  return `₩${formatPrice(getOrderTotalAmount(row))}`;
-};
-
-const innerProductInfoFormatter = (row: any) => {
-  const setTag = row.productSetId ? '[SET] ' : '';
-  let text = `${setTag}${row.productName || row.productSetTitle || ''}`;
-  if (row.productNo) text += ` (${row.productNo})`;
-  return text;
-};
-
-const purityColorFormatter = (row: any) => {
-  const p = codeMap.value[row.purity] || row.purity || '';
-  const c = codeMap.value[row.color] || row.color || '';
-  const as = row.isAsOrder ? '\n(AS 의뢰)' : '';
-  return `${p}${c ? ' / ' + c : ''}${as}`;
-};
-
-const memoFormatter = (row: any) => {
-  return `공장: ${row.inspectionMemo || '-'}\n물류: ${row.logisticsMemo || '-'}`;
+const handleOrderHistoryFilter = () => {
+  orderHistoryQuery.page = 1;
+  fetchOrderHistory();
 };
 
 onMounted(() => {
-  getList();
+  codeStore.fetchCodes();
   if (isDcc.value) {
-    fetchDccRetailerList();
-    fetchDccOrderHistorySummary();
+    fetchOrderHistory();
   }
 });
 </script>
@@ -495,4 +210,3 @@ onMounted(() => {
 <style lang="scss" scoped>
 @import "./SettlementManagementStyles.scss";
 </style>
-

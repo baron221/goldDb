@@ -137,7 +137,7 @@ const getDetail = async () => {
     }
   } catch (error) {
     console.error(error);
-    ElMessage.error(t('stockDetail.messages.fetchError') || 'Error fetching stock details.');
+    ElMessage.error(t('stock.stockDetail.messages.fetchError') || 'Error fetching stock details.');
   } finally {
     loading.value = false;
     checkImageRatios();

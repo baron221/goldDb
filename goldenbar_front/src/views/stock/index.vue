@@ -156,7 +156,7 @@ const router = useRouter();
 const route = useRoute();
 const codeStore = useCodeStore();
 const isAdmin = computed(() => userStore.roles.includes('admin'));
-const canManualAdd = computed(() => isAdmin.value || userStore.companyType === 'MFG' || userStore.companyType === 'DCC');
+const canManualAdd = computed(() => isAdmin.value || userStore.companyType === 'MFG' || userStore.companyType === 'DCC' || userStore.companyType === 'RTL');
 const manualAddDialogVisible = ref(false);
 const stockTableRef = ref<any>(null);
 
@@ -175,7 +175,8 @@ const summary = reactive({
   total18KWeight: 0,
   totalPureGoldWeight: 0,
   totalPtWeight: 0,
-  totalCalculatedPureGoldWeight: 0
+  totalCalculatedPureGoldWeight: 0,
+  totalSilverWeight: 0
 });
 
 const selectedGroups = ref<any[]>([]);
@@ -273,7 +274,8 @@ const listQuery = ref({
   exhaustionDateStart: '',
   exhaustionDateEnd: '',
   createdAtStart: '',
-  createdAtEnd: ''
+  createdAtEnd: '',
+  isExhausted: false
 });
 
 const largeId = ref<number | null>(null);

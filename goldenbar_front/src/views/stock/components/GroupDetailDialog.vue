@@ -114,10 +114,10 @@
           width="120"
           align="right"
           header-align="center"
-          :excel-formatter="(row) => `${codeMap[row.purity] || row.purity}${row.size && row.size !== 'EMPTY' ? ' / ' + row.size : ''}\n${row.actualWeight.toFixed(2)}g`"
+          :excel-formatter="(row) => `${codeMap[row.purity] || row.purity} / 사이즈: ${row.size && row.size !== 'EMPTY' ? row.size : '-'}\n${row.actualWeight.toFixed(2)}g`"
         >
           <template #default="{row}">
-            <span style="font-size: 0.8875rem; color: #909399;">{{ codeMap[row.purity] || row.purity }}<template v-if="row.size && row.size !== 'EMPTY'"> / {{ row.size }}</template></span>
+            <span style="font-size: 0.8875rem; color: #909399;">{{ codeMap[row.purity] || row.purity }} / 사이즈: {{ (row.size && row.size !== 'EMPTY') ? row.size : '-' }}</span>
             <br />
             <span>{{ row.actualWeight.toFixed(2) }}g<template v-if="row.quantity > 1"> x{{ row.quantity }}</template></span>
           </template>

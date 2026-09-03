@@ -16,7 +16,10 @@
       :expand-row-keys="expandable ? expandedRowKeys : []"
       @expand-change="(row, expandedRows) => $emit('expand-change', row, expandedRows)"
       @change="() => $emit('refresh')"
+      @selection-change="(rows) => $emit('selection-change', rows)"
     >
+      <el-table-column v-if="selectable" type="selection" width="45" :selectable="selectableRow || undefined" />
+
       <el-table-column v-if="expandable" type="expand">
         <template #header>
           <el-popover ref="popoverRef" placement="bottom-start" trigger="click" width="120">
@@ -224,7 +227,13 @@ const props = defineProps({
   codeMap: { type: Object, default: () => ({}) },
   expandTitle: { type: String, default: '승인 상세 내역' },
   orderStatusCodes: { type: Array, default: () => [] },
-  userCategory: { type: String, default: '' }
+  userCategory: { type: String, default: '' },
+  // Opt-in checkbox column - off by default so the other pages sharing this table
+  // (logistics-approval, inspection-management, order-tracking) are unaffected.
+  selectable: { type: Boolean, default: false },
+  // Optional per-row guard (mirrors el-table-column's own :selectable) so only rows the
+  // caller's batch action can actually act on show a checkbox at all.
+  selectableRow: { type: Function, default: null }
 });
 
 const emit = defineEmits([
@@ -247,7 +256,8 @@ const emit = defineEmits([
   'show-statement',
   'show-live-statement',
   'show-history',
-  'as-toggle'
+  'as-toggle',
+  'selection-change'
 ]);
 
 const formatDate = (dateStr: string) => {
@@ -284,7 +294,12 @@ const isActionable = (row: any) => {
   }
 };
 
+const multipleTable = ref();
 const popoverRef = ref();
+
+defineExpose({
+  clearSelection: () => multipleTable.value?.clearSelection()
+});
 
 const expandAll = () => {
   const allIds = (props.data as any[]).map((row: any) => row.id);

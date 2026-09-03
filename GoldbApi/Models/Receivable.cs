@@ -47,6 +47,9 @@ public class Receivable : BaseModel
     [Description("할인 금액")]
     public decimal Discount { get; set; } = 0;
 
+    [Description("할인 순금 중량(g)")]
+    public decimal DiscountWeight { get; set; } = 0;
+
     [Description("취소 여부")]
     public bool IsCancelled { get; set; } = false;
 

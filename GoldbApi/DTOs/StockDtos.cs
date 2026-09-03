@@ -214,6 +214,10 @@ public class StockSummaryDto
     public decimal TotalPtWeight { get; set; }
 
     public decimal TotalCalculatedPureGoldWeight { get; set; }
+
+    // Silver has a completely different market value from gold, so it's tracked as its
+    // own independent total rather than folded into TotalCalculatedPureGoldWeight.
+    public decimal TotalSilverWeight { get; set; }
 }
 
 public class StockQueryDto

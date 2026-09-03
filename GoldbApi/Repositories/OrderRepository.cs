@@ -422,6 +422,15 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             dbQuery = dbQuery.Where(o => !postInspectedStatuses.Contains(o.Status));
         }
 
+        // Only narrows the default/broad worklist view (no status tab picked) - an admin who
+        // explicitly picks the 물류도착 tab (or any later tab) is deliberately asking to see
+        // those orders, and this must not fight that choice.
+        if (query.ExcludeArrived == true && string.IsNullOrWhiteSpace(query.Status))
+        {
+            var arrivedStatuses = new[] { "Inspected", "PENDING", "PROCESSING", "SETTLED", "SETTLED_CANCELLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
+            dbQuery = dbQuery.Where(o => !arrivedStatuses.Contains(o.Status));
+        }
+
         if (string.IsNullOrWhiteSpace(query.Status))
         {
             if (query.ExcludeCompleted == true)
@@ -638,7 +647,7 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             {
                 Id = oi.Id,
                 ProductId = oi.ProductId,
-                ProductName = oi.Product != null ? oi.Product.Name : null,
+                ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                 ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                 Size = oi.Size ?? (oi.Product != null ? oi.Product.ProductSize : null),
                 Memo = oi.Memo,
@@ -688,7 +697,7 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
                 {
                     Id = c.Id,
                     ProductId = c.ProductId,
-                    ProductName = c.Product != null ? c.Product.Name : null,
+                    ProductName = c.Product != null ? c.Product.Name : (c.ProductSet != null ? c.ProductSet.Title : c.CustomProductName),
                     ProductNo = c.Product != null ? c.Product.ProductNo : null,
                     Size = c.Size ?? (c.Product != null ? c.Product.ProductSize : null),
                     Memo = c.Memo,

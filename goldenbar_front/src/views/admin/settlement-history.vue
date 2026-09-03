@@ -13,6 +13,37 @@
         @print-combined="printCombinedReceivableStatement"
       />
 
+      <table class="order-history-summary-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>순금(g)</th>
+            <th>공임 및 현금</th>
+            <th>금액합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="summary-label">총 판매</td>
+            <td>{{ (receivableSummary.totalChargeWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableSummary.totalChargeAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 결제</td>
+            <td>{{ (receivableSummary.totalPaidWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableSummary.totalPaidAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">미수금</td>
+            <td>{{ receivableOutstandingWeight.toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(receivableOutstandingAmount) }}</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+
       <el-card shadow="never" style="margin-top: 1.25rem;">
         <base-table
           v-loading="receivableListLoading"
@@ -122,14 +153,14 @@
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="적용 금액" width="140" align="right">
+            <el-table-column label="청구액" width="140" align="right">
               <template #default="{row: item}">
-                <span style="color: #67c23a; font-weight: bold;">₩ {{ formatPrice(item.appliedAmount) }}</span>
+                <span style="font-weight: bold;">₩ {{ formatPrice(item.chargeAmount) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="적용 중량" width="120" align="right">
+            <el-table-column label="청구중량" width="120" align="right">
               <template #default="{row: item}">
-                {{ getEffectiveAppliedWeight(item).toFixed(2) }}g
+                {{ (item.chargeWeight || 0).toFixed(2) }}g
               </template>
             </el-table-column>
             <el-table-column label="작업" width="120" align="center">
@@ -175,11 +206,6 @@
                 <td class="ledger-readonly">{{ (receivableLedgerDetailBase.newChargeWeight || 0).toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailBase.newChargeAmount || 0) }}</td>
               </tr>
-              <tr v-if="(receivableLedgerDetailBase.alreadyPaidAmount || 0) > 0 || (receivableLedgerDetailBase.alreadyPaidWeight || 0) > 0">
-                <td class="ledger-label">기 결제</td>
-                <td class="ledger-readonly">{{ (receivableLedgerDetailBase.alreadyPaidWeight || 0).toFixed(2) }}</td>
-                <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailBase.alreadyPaidAmount || 0) }}</td>
-              </tr>
               <tr v-if="receivableLedgerDetailRow.isMostRecentPayment">
                 <td class="ledger-label">결제(C)</td>
                 <td>
@@ -196,18 +222,20 @@
               </tr>
               <tr v-if="receivableLedgerDetailRow.isMostRecentPayment">
                 <td class="ledger-label">할인(D)</td>
-                <td class="ledger-readonly">-</td>
+                <td>
+                  <el-input-number v-model="getReceivableLedgerEditForm(receivableLedgerDetailRow).discountWeight" :min="0" :precision="2" :step="0.1" size="small" style="width: 100%;" />
+                </td>
                 <td>
                   <el-input-number v-model="getReceivableLedgerEditForm(receivableLedgerDetailRow).discount" :min="0" :step="1000" size="small" style="width: 100%;" />
                 </td>
               </tr>
               <tr v-else>
                 <td class="ledger-label">할인(D)</td>
-                <td class="ledger-readonly">-</td>
+                <td class="ledger-readonly">{{ (receivableLedgerDetailRow.discountWeight || 0).toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(receivableLedgerDetailRow.discount) }}</td>
               </tr>
               <tr class="ledger-total-row">
-                <td class="ledger-label">거래 후 미수<template v-if="(receivableLedgerDetailBase.alreadyPaidAmount || 0) > 0 || (receivableLedgerDetailBase.alreadyPaidWeight || 0) > 0">(A+B-기결제-C-D)</template><template v-else>(A+B-C-D)</template></td>
+                <td class="ledger-label">거래 후 미수(A+B-C-D)</td>
                 <td class="ledger-readonly">{{ getReceivableLedgerAfter(receivableLedgerDetailRow).afterWeight.toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(getReceivableLedgerAfter(receivableLedgerDetailRow).afterAmount) }}</td>
               </tr>
@@ -230,6 +258,37 @@
         @reset="resetPayableQuery"
         @print-combined="printCombinedPayableStatement"
       />
+
+      <table class="order-history-summary-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>순금(g)</th>
+            <th>공임 및 현금</th>
+            <th>금액합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="summary-label">총 판매</td>
+            <td>{{ (payableSummary.totalChargeWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableSummary.totalChargeAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 결제</td>
+            <td>{{ (payableSummary.totalPaidWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableSummary.totalPaidAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">미수금</td>
+            <td>{{ payableOutstandingWeight.toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableOutstandingAmount) }}</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
 
       <el-card shadow="never">
         <base-table
@@ -286,20 +345,12 @@
             <template #default="{row}">
               <div style="display: flex; gap: 0.375rem; justify-content: center;">
                 <el-button size="small" @click="handleIssueStatement(row)">거래명세서</el-button>
-                <el-button v-if="!row.isCancelled && row.isMostRecentPayment" size="small" type="warning" @click="openEditDialog(row)">수정</el-button>
                 <el-button v-if="row.isCancelled || isHollowPayment(row)" size="small" type="danger" @click="handleDeletePayable(row)">삭제</el-button>
               </div>
             </template>
           </el-table-column>
         </base-table>
       </el-card>
-
-      <payable-edit-dialog
-        v-model="editDialogVisible"
-        :record="editingRecord"
-        :company="editingCompany"
-        @saved="onEditSaved"
-      />
 
       <payment-application-edit-dialog
         v-model="applicationEditDialogVisible"
@@ -358,14 +409,14 @@
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="적용 금액" width="140" align="right">
+            <el-table-column label="청구액" width="140" align="right">
               <template #default="{row: item}">
-                <span style="color: #67c23a; font-weight: bold;">₩ {{ formatPrice(item.appliedAmount) }}</span>
+                <span style="font-weight: bold;">₩ {{ formatPrice(item.chargeAmount) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="적용 중량" width="120" align="right">
+            <el-table-column label="청구중량" width="120" align="right">
               <template #default="{row: item}">
-                {{ getEffectiveAppliedWeight(item).toFixed(2) }}g
+                {{ (item.chargeWeight || 0).toFixed(2) }}g
               </template>
             </el-table-column>
             <el-table-column label="작업" width="180" align="center">
@@ -414,11 +465,6 @@
                 <td class="ledger-readonly">{{ (ledgerDetailBase.newChargeWeight || 0).toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailBase.newChargeAmount || 0) }}</td>
               </tr>
-              <tr v-if="(ledgerDetailBase.alreadyPaidAmount || 0) > 0 || (ledgerDetailBase.alreadyPaidWeight || 0) > 0">
-                <td class="ledger-label">기 결제</td>
-                <td class="ledger-readonly">{{ (ledgerDetailBase.alreadyPaidWeight || 0).toFixed(2) }}</td>
-                <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailBase.alreadyPaidAmount || 0) }}</td>
-              </tr>
               <tr v-if="ledgerDetailRow.isMostRecentPayment">
                 <td class="ledger-label">결제(C)</td>
                 <td>
@@ -448,7 +494,7 @@
                 <td class="ledger-readonly">₩ {{ formatPrice(ledgerDetailRow.discount) }}</td>
               </tr>
               <tr class="ledger-total-row">
-                <td class="ledger-label">거래 후 미지급<template v-if="(ledgerDetailBase.alreadyPaidAmount || 0) > 0 || (ledgerDetailBase.alreadyPaidWeight || 0) > 0">(A+B-기결제-C-D)</template><template v-else>(A+B-C-D)</template></td>
+                <td class="ledger-label">거래 후 미지급(A+B-C-D)</td>
                 <td class="ledger-readonly">{{ getLedgerAfter(ledgerDetailRow).afterWeight.toFixed(2) }}</td>
                 <td class="ledger-readonly">₩ {{ formatPrice(getLedgerAfter(ledgerDetailRow).afterAmount) }}</td>
               </tr>
@@ -469,8 +515,8 @@
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, onMounted, computed } from 'vue';
-import { getPayables, getPaymentApplications, getCompanySummaries, updatePayable, deletePayable, getLedgerBefore } from '@/api/payable';
-import { getReceivables, getUserSummaries, updateReceivable, getLedgerBefore as getReceivableLedgerBefore } from '@/api/receivable';
+import { getPayables, getPaymentApplications, getCompanySummaries, updatePayable, deletePayable, getLedgerBefore, getPayableOrderHistorySummary } from '@/api/payable';
+import { getReceivables, getUserSummaries, updateReceivable, getLedgerBefore as getReceivableLedgerBefore, getReceivableOrderHistorySummary } from '@/api/receivable';
 import { parseTime } from '@/utils';
 import { formatPrice } from '@/utils/format';
 import useCodeStore from '@/store/modules/code';
@@ -478,7 +524,6 @@ import useUserStore from '@/store/modules/user';
 import BaseTable from '@/components/BaseTable/index.vue';
 import BasePopup from '@/components/BasePopup/index.vue';
 import SettlementHistoryFilter from './components/SettlementHistoryFilter.vue';
-import PayableEditDialog from './components/PayableEditDialog.vue';
 import PaymentApplicationEditDialog from './components/PaymentApplicationEditDialog.vue';
 
 const { isMobile } = useMobile();
@@ -573,9 +618,33 @@ const fetchPayableList = async () => {
   }
 };
 
+// Lifetime running totals for the currently filtered company (or every company when
+// no filter is applied) - deliberately not date-scoped, matching the same "총 is a
+// running balance" convention the settlement worklists already use.
+const payableSummary = reactive({
+  totalChargeAmount: 0,
+  totalChargeWeight: 0,
+  totalPaidAmount: 0,
+  totalPaidWeight: 0
+});
+const payableOutstandingAmount = computed(() => Math.max(0, (payableSummary.totalChargeAmount || 0) - (payableSummary.totalPaidAmount || 0)));
+const payableOutstandingWeight = computed(() => Math.max(0, (payableSummary.totalChargeWeight || 0) - (payableSummary.totalPaidWeight || 0)));
+
+const fetchPayableSummary = async () => {
+  try {
+    // page/pageSize must still be sent (backend binds them as non-nullable ints - the
+    // request interceptor strips falsy params entirely, and omitting them 400s the request).
+    const res: any = await getPayableOrderHistorySummary({ page: 1, pageSize: 1, companyId: payableQuery.companyId });
+    Object.assign(payableSummary, res.data);
+  } catch (error) {
+    console.error('Failed to fetch payable order history summary:', error);
+  }
+};
+
 const handlePayableFilter = () => {
   payableQuery.page = 1;
   fetchPayableList();
+  fetchPayableSummary();
 };
 
 const resetPayableQuery = () => {
@@ -630,8 +699,8 @@ const openLedgerDetail = async (row: any) => {
 
 // company.totalOutstanding already reflects this payment's effect (it's the CURRENT
 // balance), so adding this record's own amount/discount back gives the balance as it
-// was before this payment was ever applied - shared by the print statement, the inline
-// expand recap, and PayableEditDialog's ledger.
+// was before this payment was ever applied - shared by the print statement and the
+// inline expand recap.
 // p14/p18 are raw weight per purity (informational); pure is the true fine-gold total
 // across ALL purities (14K/18K converted via their fine-gold ratio, 24K/PT as-is) -
 // matches the "순금 합계(g)" column label, not just the raw 24K-only weight.
@@ -712,27 +781,20 @@ const getAccurateLedger = async (anchorId: number | undefined, record: any) => {
 const buildSaleAdjustedLedger = (ledger: any, applications: any[], record?: any) => {
   const saleAmount = applications.reduce((sum, a) => sum + (a.chargeAmount || 0), 0);
   const saleWeight = applications.reduce((sum, a) => sum + (a.chargeWeight || 0), 0);
-  // Any portion of a touched charge that was already settled by a DIFFERENT payment before
-  // this one (legacy data from before payments always merged into one growing record per
-  // charge) - surfaced as its own 기 결제 line rather than silently vanishing into A.
-  const alreadyPaidAmount = applications.reduce((sum, a) => sum + Math.max(0, (a.chargeAmount || 0) - (a.appliedAmount || 0) - (a.chargeRemainingAmount || 0)), 0);
-  const alreadyPaidWeight = applications.reduce((sum, a) => sum + Math.max(0, (a.chargeWeight || 0) - (a.appliedWeight || 0) - (a.chargeRemainingWeight || 0)), 0);
   const totalBefore = (ledger.beforeAmount || 0) + (ledger.newChargeAmount || 0);
   const totalBeforeWeight = (ledger.beforeWeight || 0) + (ledger.newChargeWeight || 0);
-  const beforeAmount = totalBefore - saleAmount + alreadyPaidAmount;
-  const beforeWeight = totalBeforeWeight - saleWeight + alreadyPaidWeight;
+  const beforeAmount = totalBefore - saleAmount;
+  const beforeWeight = totalBeforeWeight - saleWeight;
   const adjusted = {
     ...ledger,
     beforeAmount,
     beforeWeight,
     newChargeAmount: saleAmount,
-    newChargeWeight: saleWeight,
-    alreadyPaidAmount,
-    alreadyPaidWeight
+    newChargeWeight: saleWeight
   };
   if (record) {
-    adjusted.afterAmount = beforeAmount + saleAmount - alreadyPaidAmount - (record.amount || 0) - (record.discount || 0);
-    adjusted.afterWeight = beforeWeight + saleWeight - alreadyPaidWeight - (record.weight || 0) - (record.discountWeight || 0);
+    adjusted.afterAmount = beforeAmount + saleAmount - (record.amount || 0) - (record.discount || 0);
+    adjusted.afterWeight = beforeWeight + saleWeight - (record.weight || 0) - (record.discountWeight || 0);
   }
   return adjusted;
 };
@@ -759,8 +821,8 @@ const getLedgerAfter = (row: any) => {
   const base = ledgerDetailBase.value;
   const form = getLedgerEditForm(row);
   return {
-    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (base.alreadyPaidAmount || 0) - (form.amount || 0) - (form.discount || 0),
-    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (base.alreadyPaidWeight || 0) - (form.weight || 0) - (form.discountWeight || 0)
+    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (form.amount || 0) - (form.discount || 0),
+    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (form.weight || 0) - (form.discountWeight || 0)
   };
 };
 
@@ -843,20 +905,14 @@ const buildStatementPurityRows = (items: any[]) => {
 };
 
 const buildStatementBalanceRows = (ledger: any, record: any) => {
-  const { company, beforeAmount, beforeWeight, afterAmount, afterWeight, newChargeAmount, newChargeWeight, alreadyPaidAmount, alreadyPaidWeight } = ledger;
-  const hasAlreadyPaid = (alreadyPaidAmount || 0) > 0 || (alreadyPaidWeight || 0) > 0;
-  const alreadyPaidRow = hasAlreadyPaid
-    ? `<tr><td class="row-label">기 결제</td><td align="right">${(alreadyPaidWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(alreadyPaidAmount || 0)}</td><td></td></tr>`
-    : '';
-  const afterLabel = hasAlreadyPaid ? '거래 후 미수<br/>(A+B-기결제-C-D)' : '거래 후 미수<br/>(A+B-C-D)';
+  const { company, beforeAmount, beforeWeight, afterAmount, afterWeight, newChargeAmount, newChargeWeight } = ledger;
   return `
     <tr><td class="row-label">최근 결제</td><td></td><td></td><td align="center" style="font-size: 9px;">${company.lastPaymentDate ? formatDate(company.lastPaymentDate) : '-'}</td></tr>
     <tr><td class="row-label">거래 전 미수(A)</td><td align="right">${beforeWeight.toFixed(2)}</td><td align="right">${formatPrice(beforeAmount)}</td><td></td></tr>
     <tr><td class="row-label">판매(B)</td><td align="right">${(newChargeWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(newChargeAmount || 0)}</td><td></td></tr>
-    ${alreadyPaidRow}
     <tr><td class="row-label">결제(C)</td><td align="right">${(record.weight || 0).toFixed(2)}</td><td align="right">${formatPrice(record.amount || 0)}</td><td></td></tr>
     <tr><td class="row-label">할인(D)</td><td align="right">${(record.discountWeight || 0).toFixed(2)}</td><td align="right">${formatPrice(record.discount || 0)}</td><td></td></tr>
-    <tr class="after-balance-row"><td class="row-label"><strong>${afterLabel}</strong></td><td align="right"><strong>${afterWeight.toFixed(2)}</strong></td><td align="right"><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
+    <tr class="after-balance-row"><td class="row-label"><strong>거래 후 미수<br/>(A+B-C-D)</strong></td><td align="right"><strong>${afterWeight.toFixed(2)}</strong></td><td align="right"><strong>${formatPrice(afterAmount)}</strong></td><td></td></tr>
   `;
 };
 
@@ -1122,21 +1178,6 @@ const handleIssueItemStatement = async (item: any, record: any) => {
   openStatementPrintWindow(`정산 영수증 - ${item.orderNo}`, bodyHtml);
 };
 
-const editDialogVisible = ref(false);
-const editingRecord = ref<any>(null);
-const editingCompany = ref<any>(null);
-
-const openEditDialog = (record: any) => {
-  editingRecord.value = record;
-  editingCompany.value = getCompanyForRow(record);
-  editDialogVisible.value = true;
-};
-
-const onEditSaved = () => {
-  fetchPayableList();
-  fetchCompanySummaries();
-};
-
 // A payment that never touched any charge and carries no amount at all (a leftover-overpay
 // shell from before ProcessPaymentAsync always carried its own Amount/Discount) has nothing
 // to reverse, so it's safe to delete directly without going through cancel first.
@@ -1183,7 +1224,7 @@ const onApplicationEditSaved = () => {
 };
 
 // ---- RTL/DCC (Receivable) side: same charge-centric 거래별 보기 pattern as the Payable
-// side above (one row per deposit, 상세 popup with the same A/B/기결제/C/D ledger) - each
+// side above (one row per deposit, 상세 popup with the same simple A/B/C/D ledger) - each
 // deposit already carries its own appliedCharges (with full per-order item lists), so unlike
 // the Payable side there's no separate "fetch applications for this row" round-trip needed.
 
@@ -1213,9 +1254,31 @@ const fetchReceivableList = async () => {
   }
 };
 
+// Lifetime running totals for the currently filtered company (or every company when
+// no filter is applied) - deliberately not date-scoped, matching the same "총 is a
+// running balance" convention the settlement worklists already use.
+const receivableSummary = reactive({
+  totalChargeAmount: 0,
+  totalChargeWeight: 0,
+  totalPaidAmount: 0,
+  totalPaidWeight: 0
+});
+const receivableOutstandingAmount = computed(() => Math.max(0, (receivableSummary.totalChargeAmount || 0) - (receivableSummary.totalPaidAmount || 0)));
+const receivableOutstandingWeight = computed(() => Math.max(0, (receivableSummary.totalChargeWeight || 0) - (receivableSummary.totalPaidWeight || 0)));
+
+const fetchReceivableSummary = async () => {
+  try {
+    const res: any = await getReceivableOrderHistorySummary({ page: 1, pageSize: 1, companyId: receivableQuery.companyId });
+    Object.assign(receivableSummary, res.data);
+  } catch (error) {
+    console.error('Failed to fetch receivable order history summary:', error);
+  }
+};
+
 const handleReceivableFilter = () => {
   receivableQuery.page = 1;
   fetchReceivableList();
+  fetchReceivableSummary();
 };
 
 const resetReceivableQuery = () => {
@@ -1263,7 +1326,7 @@ const getLedgerForReceivableRow = (record: any) => {
   const afterAmount = company.totalOutstanding || 0;
   const afterWeight = company.totalOutstandingWeight || 0;
   const beforeAmount = afterAmount + (record.amount || 0) + (record.discount || 0);
-  const beforeWeight = afterWeight + (record.weight || 0);
+  const beforeWeight = afterWeight + (record.weight || 0) + (record.discountWeight || 0);
   return { company, afterAmount, afterWeight, beforeAmount, beforeWeight };
 };
 
@@ -1285,7 +1348,7 @@ const getAccurateReceivableLedger = async (anchorId: number | undefined, record:
       newChargeAmount,
       newChargeWeight,
       afterAmount: beforeAmount + newChargeAmount - (record.amount || 0) - (record.discount || 0),
-      afterWeight: beforeWeight + newChargeWeight - (record.weight || 0)
+      afterWeight: beforeWeight + newChargeWeight - (record.weight || 0) - (record.discountWeight || 0)
     };
   } catch (error) {
     console.error('Failed to fetch accurate receivable ledger balance, falling back to approximation:', error);
@@ -1354,7 +1417,8 @@ const getReceivableLedgerEditForm = (row: any) => {
     receivableLedgerEditForm[row.id] = {
       weight: row.weight || 0,
       amount: row.amount || 0,
-      discount: row.discount || 0
+      discount: row.discount || 0,
+      discountWeight: row.discountWeight || 0
     };
   }
   return receivableLedgerEditForm[row.id];
@@ -1364,8 +1428,8 @@ const getReceivableLedgerAfter = (row: any) => {
   const base = receivableLedgerDetailBase.value;
   const form = getReceivableLedgerEditForm(row);
   return {
-    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (base.alreadyPaidAmount || 0) - (form.amount || 0) - (form.discount || 0),
-    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (base.alreadyPaidWeight || 0) - (form.weight || 0)
+    afterAmount: base.beforeAmount + (base.newChargeAmount || 0) - (form.amount || 0) - (form.discount || 0),
+    afterWeight: base.beforeWeight + (base.newChargeWeight || 0) - (form.weight || 0) - (form.discountWeight || 0)
   };
 };
 
@@ -1377,6 +1441,7 @@ const saveReceivableLedgerEdit = async (row: any) => {
       amount: form.amount,
       weight: form.weight,
       discount: form.discount,
+      discountWeight: form.discountWeight,
       memo: row.memo,
       settlementMethod: row.settlementMethod
     });
@@ -1471,6 +1536,7 @@ const printCombinedReceivableStatement = async () => {
   let totalAmount = 0;
   let totalWeight = 0;
   let totalDiscount = 0;
+  let totalDiscountWeight = 0;
   const allItems: any[] = [];
   const applicationsByCharge = new Map<number, any>();
 
@@ -1478,6 +1544,7 @@ const printCombinedReceivableStatement = async () => {
     totalAmount += p.amount || 0;
     totalWeight += p.weight || 0;
     totalDiscount += p.discount || 0;
+    totalDiscountWeight += p.discountWeight || 0;
     (p.appliedCharges || []).forEach((app: any) => {
       allItems.push(...(app.items || []));
       const existing = applicationsByCharge.get(app.chargeId);
@@ -1491,7 +1558,7 @@ const printCombinedReceivableStatement = async () => {
   });
   const mergedApplications = Array.from(applicationsByCharge.values());
 
-  const pseudoRecord = { weight: totalWeight, amount: totalAmount, discount: totalDiscount };
+  const pseudoRecord = { weight: totalWeight, amount: totalAmount, discount: totalDiscount, discountWeight: totalDiscountWeight };
 
   const earliestRecord = [...combinedList].sort((a: any, b: any) => {
     const dateDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -1499,7 +1566,7 @@ const printCombinedReceivableStatement = async () => {
   })[0];
 
   let beforeAmount = (company.totalOutstanding || 0) + totalAmount + totalDiscount;
-  let beforeWeight = (company.totalOutstandingWeight || 0) + totalWeight;
+  let beforeWeight = (company.totalOutstandingWeight || 0) + totalWeight + totalDiscountWeight;
   let newChargeAmount = 0;
   let newChargeWeight = 0;
   if (earliestRecord?.id) {
@@ -1545,9 +1612,11 @@ onMounted(() => {
   if (isPayableSide.value) {
     fetchCompanySummaries();
     fetchPayableList();
+    fetchPayableSummary();
   } else {
     fetchUserSummaries();
     fetchReceivableList();
+    fetchReceivableSummary();
   }
 });
 </script>

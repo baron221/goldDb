@@ -48,7 +48,7 @@
                     <span style="font-weight: bold;">{{ item.row.actualWeight ? item.row.actualWeight + 'g' : '-' }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column :label="$t('stockDetail.purity')" width="100" align="center" prop="purity" />
+                <el-table-column :label="$t('stock.stockDetail.purity')" width="100" align="center" prop="purity" />
                 <el-table-column prop="isAsOrder" :label="$t('admin.orderApproval.headers.asOrder')" width="80" align="center" :excel-formatter="(row) => row.isAsOrder ? 'AS' : '-'">
                   <template #default="item">
                     <el-tag v-if="item.row.isAsOrder" type="danger" size="small">AS</el-tag>

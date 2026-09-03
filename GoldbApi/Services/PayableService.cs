@@ -350,7 +350,7 @@ public class PayableService : IPayableService
                 PayableId = c.Id,
                 OrderId = c.OrderId,
                 OrderNo = c.Order?.OrderNo,
-                ProductName = item?.Product?.Name ?? item?.ProductSet?.Title,
+                ProductName = item?.Product?.Name ?? item?.ProductSet?.Title ?? item?.CustomProductName,
                 ProductNo = item?.Product?.ProductNo,
                 ProductPhotoUrl = item?.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
                     ?? item?.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
@@ -367,7 +367,7 @@ public class PayableService : IPayableService
                 LogisticsCompanyName = companyNames.GetValueOrDefault(logisticsCompanyId),
                 Items = orderItems.Select(oi => new PayableOrderItemSummaryDto
                 {
-                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title,
+                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title ?? oi.CustomProductName,
                     ProductNo = oi.Product?.ProductNo,
                     PhotoUrl = oi.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
                         ?? oi.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
@@ -485,11 +485,16 @@ public class PayableService : IPayableService
             return ApiResponse<List<PayableOverdueRowDto>>.Success(new List<PayableOverdueRowDto>());
         }
 
+        // 미수금 관리 is exclusively for charges that have actually been processed through
+        // 정산처리 at least once (even a 0-value acknowledgement, see ProcessPaymentAsync) -
+        // a charge nobody has touched yet belongs only in 정산 내역's worklist. Mirrors that
+        // worklist's own "has an application" check so a charge is in exactly one of the
+        // two lists at any moment.
         var chargesQuery = _payableRepository.GetQueryable()
             .Include(p => p.LogisticsCompany)
             .Where(p => p.Type == "CHARGE" && !p.IsCancelled
-                && (p.RemainingAmount < p.Amount || p.RemainingWeight < p.Weight)
-                && (p.RemainingAmount > 0 || p.RemainingWeight > 0));
+                && (p.RemainingAmount > 0 || p.RemainingWeight > 0)
+                && _dbContext.PayableApplications.Any(a => a.ChargeId == p.Id));
 
         if (!_currentUserService.IsAdmin && current != null)
         {
@@ -515,6 +520,20 @@ public class PayableService : IPayableService
         var charges = await chargesQuery.ToListAsync();
         var today = DateTime.UtcNow.Date;
 
+        // 마지막거래일자 needs the most recent activity across this DCC's WHOLE ledger with
+        // this manufacturer (any Type, not just the still-outstanding charges above).
+        var involvedLogisticsCompanyIds = charges.Select(p => p.LogisticsCompanyId).Distinct().ToList();
+        var lastTransactionQuery = _payableRepository.GetQueryable()
+            .Where(p => !p.IsCancelled && involvedLogisticsCompanyIds.Contains(p.LogisticsCompanyId));
+        if (!_currentUserService.IsAdmin && current != null)
+        {
+            lastTransactionQuery = lastTransactionQuery.Where(p => p.ManufacturerCompanyId == current.Value.CompanyId);
+        }
+        var lastTransactionByCompany = await lastTransactionQuery
+            .GroupBy(p => p.LogisticsCompanyId)
+            .Select(g => new { LogisticsCompanyId = g.Key, LastDate = g.Max(p => p.CreatedAt) })
+            .ToDictionaryAsync(x => x.LogisticsCompanyId, x => x.LastDate);
+
         var rows = charges
             .GroupBy(p => p.LogisticsCompanyId)
             .Select(g =>
@@ -525,6 +544,7 @@ public class PayableService : IPayableService
                     LogisticsCompanyId = g.Key,
                     CompanyName = g.First().LogisticsCompany?.Name,
                     SaleDate = oldest,
+                    LastTransactionDate = lastTransactionByCompany.TryGetValue(g.Key, out var lastDate) ? lastDate : oldest,
                     SaleAmount = g.Sum(p => p.Amount),
                     SaleWeight = g.Sum(p => p.Weight),
                     CollectedAmount = g.Sum(p => p.Amount - p.RemainingAmount),
@@ -546,13 +566,14 @@ public class PayableService : IPayableService
         var dbQuery = await BuildOrderHistoryQueryAsync(query);
 
         // This table is a "new charge, first action needed" worklist, not a running ledger -
-        // once a charge has received ANY payment at all (even a partial one), it drops out
-        // here regardless of how much still remains, so it doesn't stay re-selectable
-        // alongside brand-new untouched charges. A remaining balance from a partial payment
-        // surfaces instead in GetPayableOverdueSummaryAsync's dedicated 미수금 관리 tracker
-        // (the totals in GetPayableOrderHistorySummaryAsync still cover everything, settled,
-        // partially paid, or not touched at all).
-        dbQuery = dbQuery.Where(p => p.RemainingAmount == p.Amount && p.RemainingWeight == p.Weight && (p.Amount > 0 || p.Weight > 0));
+        // once a charge has received ANY action at all (even a 0-value acknowledgement, see
+        // ProcessPaymentAsync), it drops out here for good, so it doesn't stay re-selectable
+        // alongside brand-new untouched charges. A remaining balance surfaces instead in
+        // GetPayableOverdueSummaryAsync's dedicated 미수금 관리 tracker (the totals in
+        // GetPayableOrderHistorySummaryAsync still cover everything, settled, partially
+        // paid, or not touched at all).
+        dbQuery = dbQuery.Where(p => p.RemainingAmount == p.Amount && p.RemainingWeight == p.Weight && (p.Amount > 0 || p.Weight > 0)
+            && !_dbContext.PayableApplications.Any(a => a.ChargeId == p.Id));
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
@@ -566,7 +587,7 @@ public class PayableService : IPayableService
                 OrderNo = p.Order != null ? p.Order.OrderNo : null,
                 ProductName = p.Order != null
                     ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = p.Order != null
@@ -580,7 +601,7 @@ public class PayableService : IPayableService
                     ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
                         .Select(oi => new PayableOrderItemSummaryDto
                         {
-                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                             ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                             PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
                                 : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
@@ -594,6 +615,11 @@ public class PayableService : IPayableService
                             LaborCost = oi.FactoryInputLaborCost ?? 0
                         }).ToList()
                     : new List<PayableOrderItemSummaryDto>(),
+                Remarks = p.Order != null
+                    ? p.Order.OrderItems.Where(oi => oi.ParentId == null && oi.Memo != null && oi.Memo != "")
+                        .Select(oi => oi.Memo)
+                        .FirstOrDefault()
+                    : null,
                 LogisticsCompanyId = p.LogisticsCompanyId,
                 LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
                 ManufacturerCompanyId = p.ManufacturerCompanyId,
@@ -651,7 +677,7 @@ public class PayableService : IPayableService
                 OrderNo = p.Order != null ? p.Order.OrderNo : null,
                 ProductName = p.Order != null
                     ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = p.Order != null
@@ -665,7 +691,7 @@ public class PayableService : IPayableService
                     ? p.Order.OrderItems.Where(oi => oi.ParentId == null)
                         .Select(oi => new PayableOrderItemSummaryDto
                         {
-                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                             ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                             PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
                                 : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
@@ -679,6 +705,11 @@ public class PayableService : IPayableService
                             LaborCost = oi.FactoryInputLaborCost ?? 0
                         }).ToList()
                     : new List<PayableOrderItemSummaryDto>(),
+                Remarks = p.Order != null
+                    ? p.Order.OrderItems.Where(oi => oi.ParentId == null && oi.Memo != null && oi.Memo != "")
+                        .Select(oi => oi.Memo)
+                        .FirstOrDefault()
+                    : null,
                 LogisticsCompanyId = p.LogisticsCompanyId,
                 LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
                 ManufacturerCompanyId = p.ManufacturerCompanyId,
@@ -778,7 +809,7 @@ public class PayableService : IPayableService
 
         foreach (var r in priorRecords)
         {
-            if (r.Type == "CHARGE")
+            if (r.Type == "CHARGE" && !r.IsCancelled)
             {
                 runningAmount += r.Amount;
                 runningWeight += r.Weight;
@@ -873,7 +904,14 @@ public class PayableService : IPayableService
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
-            .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+            // A PAYMENT sitting in 미수금 관리 that gets more money merged into it (see
+            // ProcessPaymentAsync) never gets a new row - its own Amount just grows in place,
+            // dated by whenever it was FIRST created. Sorted purely by CreatedAt, a payment
+            // touched again today stays buried under its original (possibly old) date instead
+            // of surfacing at the top where "I just paid this" is expected. UpdatedAt (already
+            // maintained on every save, see AppDbContext's SaveChanges override) reflects the
+            // most recent touch, so sort and the displayed 거래일자 below both use it.
+            .OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt).ThenByDescending(p => p.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(p => new PayableDto
@@ -895,16 +933,42 @@ public class PayableService : IPayableService
                 Discount = p.Discount,
                 DiscountWeight = p.DiscountWeight,
                 IsCancelled = p.IsCancelled,
-                OrderCount = _dbContext.PayableApplications.Where(a => a.PaymentId == p.Id).Select(a => a.Charge!.OrderId).Distinct().Count(),
-                OutstandingChargeAmount = _dbContext.PayableApplications.Where(a => a.PaymentId == p.Id).Select(a => a.Charge!.RemainingAmount).Sum(),
-                OutstandingChargeWeight = _dbContext.PayableApplications.Where(a => a.PaymentId == p.Id).Select(a => a.Charge!.RemainingWeight).Sum(),
+                // OrderCount/OutstandingChargeAmount/OutstandingChargeWeight are filled in below,
+                // after this page is materialized - a correlated subquery here (even a Distinct
+                // one) was observed to mis-translate to SQL and silently drop a charge from the
+                // aggregate, so this is computed safely in memory instead. See below.
                 IsMostRecentPayment = p.Type == "PAYMENT" && !_dbContext.Payables.Any(other =>
                     other.Type == "PAYMENT" && !other.IsCancelled &&
                     other.LogisticsCompanyId == p.LogisticsCompanyId && other.ManufacturerCompanyId == p.ManufacturerCompanyId &&
                     (other.CreatedAt > p.CreatedAt || (other.CreatedAt == p.CreatedAt && other.Id > p.Id))),
-                CreatedAt = p.CreatedAt
+                // 거래일자 shows the effective/last-touched date, not necessarily when this
+                // row was first inserted - see the sort comment above for why.
+                CreatedAt = p.UpdatedAt ?? p.CreatedAt
             })
             .ToListAsync();
+
+        var paymentIds = items.Where(i => i.Type == "PAYMENT").Select(i => i.Id).ToList();
+        if (paymentIds.Count > 0)
+        {
+            var applicationRows = await _dbContext.PayableApplications
+                .Where(a => paymentIds.Contains(a.PaymentId))
+                .Select(a => new { a.PaymentId, a.ChargeId, a.Charge!.OrderId, a.Charge!.RemainingAmount, a.Charge!.RemainingWeight })
+                .ToListAsync();
+
+            var byPayment = applicationRows.GroupBy(a => a.PaymentId);
+            foreach (var group in byPayment)
+            {
+                // A payment's applications can include more than one row against the SAME
+                // charge (e.g. an earlier 0-value acknowledgement plus a later real top-up that
+                // merged into this same payment) - group by ChargeId first so each charge's
+                // OrderId/RemainingAmount/RemainingWeight is only counted once.
+                var distinctCharges = group.GroupBy(a => a.ChargeId).Select(g => g.First()).ToList();
+                var dto = items.First(i => i.Id == group.Key);
+                dto.OrderCount = distinctCharges.Select(c => c.OrderId).Distinct().Count();
+                dto.OutstandingChargeAmount = distinctCharges.Sum(c => c.RemainingAmount);
+                dto.OutstandingChargeWeight = distinctCharges.Sum(c => c.RemainingWeight);
+            }
+        }
 
         return ApiResponse<PagedResult<PayableDto>>.Success(new PagedResult<PayableDto>
         {
@@ -932,8 +996,18 @@ public class PayableService : IPayableService
             }
         }
 
+        // IgnoreQueryFilters: when a charge this payment originally zero-acknowledged is
+        // later actually paid off by a DIFFERENT, later payment, that later payment's own
+        // application replaces this one - and per the soft-delete + replace pattern, THIS
+        // payment's own application row for that charge gets soft-deleted (not this
+        // payment itself, and not the charge). Without lifting the filter here, that
+        // deleted row silently drops out of this payment's own historical application
+        // list, under-counting 판매(B) and inflating 거래 전 미수(A) for this specific
+        // 거래번호 - this is a read of "what did this payment touch when it was made", so
+        // the historical row belongs here regardless of what later superseded it.
         var items = await _dbContext.PayableApplications
-            .Where(a => a.PaymentId == paymentId)
+            .IgnoreQueryFilters()
+            .Where(a => a.PaymentId == paymentId && !a.Charge!.IsDeleted)
             .Select(a => new PaymentApplicationDetailDto
             {
                 Id = a.Id,
@@ -942,7 +1016,7 @@ public class PayableService : IPayableService
                 OrderNo = a.Charge!.Order != null ? a.Charge!.Order.OrderNo : null,
                 ProductName = a.Charge!.Order != null
                     ? a.Charge!.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = a.Charge!.Order != null
@@ -956,7 +1030,7 @@ public class PayableService : IPayableService
                     ? a.Charge!.Order.OrderItems.Where(oi => oi.ParentId == null)
                         .Select(oi => new PayableOrderItemSummaryDto
                         {
-                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                             ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                             PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
                                 : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
@@ -1045,7 +1119,11 @@ public class PayableService : IPayableService
     // later chronological ledger walk (거래명세서's A/B totals, which trust Payment.Amount+
     // Discount to know how much debt a payment actually cleared) with debt that no longer
     // exists anywhere in the live charge data.
-    private static List<PayableApplication> ApplyToChargeList(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
+    // forgivenAmountByCharge/forgivenWeightByCharge accumulate PER CHARGE (not a single pooled
+    // total) - see the long comment at ProcessPaymentAsync's cashPortion/discountPortion
+    // computation for why a pooled total silently lost money when this method is called
+    // against several charges and only one of them triggers the either-side-clears-it rule.
+    private static List<PayableApplication> ApplyToChargeList(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight, Dictionary<int, decimal> forgivenAmountByCharge, Dictionary<int, decimal> forgivenWeightByCharge)
     {
         var applications = new List<PayableApplication>();
 
@@ -1092,8 +1170,14 @@ public class PayableService : IPayableService
 
             if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
             {
-                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
-                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
+                if (charge.RemainingAmount > 0)
+                {
+                    forgivenAmountByCharge[charge.Id] = forgivenAmountByCharge.GetValueOrDefault(charge.Id) + charge.RemainingAmount;
+                }
+                if (charge.RemainingWeight > 0)
+                {
+                    forgivenWeightByCharge[charge.Id] = forgivenWeightByCharge.GetValueOrDefault(charge.Id) + charge.RemainingWeight;
+                }
                 charge.RemainingAmount = 0;
                 charge.RemainingWeight = 0;
             }
@@ -1104,73 +1188,6 @@ public class PayableService : IPayableService
             }
         }
 
-        return applications;
-    }
-
-    // A deliberately-grouped batch settlement (specific orders checked together and settled
-    // as one action) should never leave some of those orders completely untouched just
-    // because the payment wasn't enough to cover the oldest one in full first - every charge
-    // in the group gets touched, proportional to its own share of the group's total, so all
-    // of them leave the 정산처리 worklist together (moving into 미수금 관리 for whatever
-    // remains) instead of the payment being fully consumed by the first charge alone.
-    private static List<PayableApplication> ApplyProportionally(List<Payable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
-    {
-        var applications = new List<PayableApplication>();
-        if (charges.Count == 0) return applications;
-
-        var totalChargeAmount = charges.Sum(c => c.RemainingAmount);
-        var totalChargeWeight = charges.Sum(c => c.RemainingWeight);
-        var poolAmount = Math.Min(remainingAmount, totalChargeAmount);
-        var poolWeight = Math.Min(remainingWeight, totalChargeWeight);
-
-        decimal allocatedAmount = 0;
-        decimal allocatedWeight = 0;
-
-        for (var i = 0; i < charges.Count; i++)
-        {
-            var charge = charges[i];
-            var isLast = i == charges.Count - 1;
-
-            // Cash and gold weight are two views of the same underlying charge, not
-            // independent debts (same rule ApplyToChargeList already applies) - "touched"
-            // tracks whether THIS side actually had anything in the pool to begin with, so
-            // fully paying off one side (e.g. all cash, zero weight) still closes out the
-            // whole charge instead of leaving the untouched side looking perpetually unpaid.
-            var touchedAmount = poolAmount > 0 && charge.RemainingAmount > 0;
-            var touchedWeight = poolWeight > 0 && charge.RemainingWeight > 0;
-
-            // The last charge absorbs whatever proportional rounding left over, so the sum
-            // of applied amounts always exactly equals the pool - never a few won/grams short.
-            // Non-last shares are capped at the charge's own remaining so rounding can never
-            // overshoot it.
-            var shareAmount = isLast
-                ? poolAmount - allocatedAmount
-                : (totalChargeAmount > 0 ? Math.Min(charge.RemainingAmount, Math.Round(poolAmount * (charge.RemainingAmount / totalChargeAmount), 0, MidpointRounding.AwayFromZero)) : 0);
-            var shareWeight = isLast
-                ? poolWeight - allocatedWeight
-                : (totalChargeWeight > 0 ? Math.Min(charge.RemainingWeight, Math.Round(poolWeight * (charge.RemainingWeight / totalChargeWeight), 2, MidpointRounding.AwayFromZero)) : 0);
-
-            allocatedAmount += shareAmount;
-            allocatedWeight += shareWeight;
-            charge.RemainingAmount -= shareAmount;
-            charge.RemainingWeight -= shareWeight;
-
-            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
-            {
-                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
-                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
-                charge.RemainingAmount = 0;
-                charge.RemainingWeight = 0;
-            }
-
-            if (shareAmount != 0 || shareWeight != 0)
-            {
-                applications.Add(new PayableApplication { ChargeId = charge.Id, AppliedAmount = shareAmount, AppliedWeight = shareWeight });
-            }
-        }
-
-        remainingAmount -= poolAmount;
-        remainingWeight -= poolWeight;
         return applications;
     }
 
@@ -1230,35 +1247,96 @@ public class PayableService : IPayableService
         decimal remainingWeightToApply = (request.Weight ?? 0m) + discountWeight;
         var applications = new List<PayableApplication>();
 
-        // A 0/0/0/0 submission against specifically selected orders means the factory is
-        // deliberately writing off those charges without receiving payment (e.g. a free
-        // item, or forgiving a small remainder) - record the write-off as a discount so
-        // the ledger still honestly reflects what was cleared, and so the charge actually
-        // reaches 정산완료 instead of silently doing nothing (ApplyToChargeList can't
-        // reduce anything when there's 0 to apply, so a literal 0 would otherwise just
-        // create an inert payment record that never closes the charge out).
         var hasTargetOrders = (request.OrderIds != null && request.OrderIds.Count > 0) || request.OrderId.HasValue;
-        var isZeroWriteOff = remainingAmountToApply <= 0 && remainingWeightToApply <= 0 && hasTargetOrders;
-        decimal forgivenAmount = 0m;
-        decimal forgivenWeight = 0m;
+        var isAllZero = remainingAmountToApply <= 0 && remainingWeightToApply <= 0;
+
+        // A 0/0/0/0 submission against specifically selected orders means nothing was
+        // actually collected and nothing is being forgiven - RemainingAmount/RemainingWeight
+        // must stay exactly as they were (still fully owed, so 미수금 관리 keeps showing the
+        // real balance). But the action still needs a durable trace, or 정산 내역's "never
+        // touched" worklist would show this charge forever even after it was reviewed.
+        // Record a real (zero-value) payment + application so GetPayableOrderHistoryAsync's
+        // worklist filter (which excludes any charge with an application on file) drops it.
+        // Mirrors ReceivableService.ProcessDepositAsync's identical convention.
+        if (isAllZero && hasTargetOrders)
+        {
+            List<Payable> targetCharges;
+            if (request.OrderIds != null && request.OrderIds.Count > 0)
+            {
+                targetCharges = await _payableRepository.GetQueryable()
+                    .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
+                        && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    .ToListAsync();
+            }
+            else
+            {
+                targetCharges = await _payableRepository.GetQueryable()
+                    .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
+                        && p.OrderId == request.OrderId!.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    .ToListAsync();
+            }
+
+            if (targetCharges.Count > 0)
+            {
+                var zeroPayment = new Payable
+                {
+                    LogisticsCompanyId = logisticsCompanyId,
+                    ManufacturerCompanyId = manufacturerCompanyId,
+                    OrderId = request.OrderId,
+                    Type = "PAYMENT",
+                    Memo = request.Memo,
+                    SettlementMethod = request.SettlementMethod
+                };
+                await _payableRepository.AddAsync(zeroPayment);
+                await _payableRepository.SaveChangesAsync();
+
+                foreach (var charge in targetCharges)
+                {
+                    _dbContext.PayableApplications.Add(new PayableApplication
+                    {
+                        PaymentId = zeroPayment.Id,
+                        ChargeId = charge.Id,
+                        AppliedAmount = 0,
+                        AppliedWeight = 0
+                    });
+                }
+                await _payableRepository.SaveChangesAsync();
+            }
+
+            return ApiResponse<bool>.Success(true);
+        }
+
+        var forgivenAmountByCharge = new Dictionary<int, decimal>();
+        var forgivenWeightByCharge = new Dictionary<int, decimal>();
 
         if (request.OrderIds != null && request.OrderIds.Count > 0)
         {
+            // Pays each selected charge off in full, oldest first, instead of prorating a
+            // partial payment thinly across every selected order - a partial batch payment
+            // now fully closes as many of the selected orders as it can afford, leaving the
+            // rest untouched for next time, rather than leaving every selected order sitting
+            // at a small remaining balance.
             var targetCharges = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
                     && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
-            if (isZeroWriteOff)
+            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
+
+            // A charge the payment pool ran out before reaching (ApplyToChargeList pays oldest
+            // first) still has to be acknowledged - the user explicitly picked it for THIS batch,
+            // so leaving it with no application at all strands it in the untouched 정산처리
+            // worklist looking like the action never happened to it. A 0-value application (same
+            // mechanism as an all-zero 정산처리) moves it into 미수금 관리 instead, still owing
+            // its full remaining amount.
+            var touchedChargeIds = applications.Select(a => a.ChargeId).ToHashSet();
+            foreach (var charge in targetCharges)
             {
-                var writeOffAmount = targetCharges.Sum(c => c.RemainingAmount);
-                var writeOffWeight = targetCharges.Sum(c => c.RemainingWeight);
-                discount += writeOffAmount;
-                discountWeight += writeOffWeight;
-                remainingAmountToApply += writeOffAmount;
-                remainingWeightToApply += writeOffWeight;
+                if (!touchedChargeIds.Contains(charge.Id))
+                {
+                    applications.Add(new PayableApplication { ChargeId = charge.Id, AppliedAmount = 0, AppliedWeight = 0 });
+                }
             }
-            applications.AddRange(ApplyProportionally(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
         }
         else if (request.OrderId.HasValue)
         {
@@ -1266,16 +1344,7 @@ public class PayableService : IPayableService
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
                     && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
                 .ToListAsync();
-            if (isZeroWriteOff)
-            {
-                var writeOffAmount = targetCharges.Sum(c => c.RemainingAmount);
-                var writeOffWeight = targetCharges.Sum(c => c.RemainingWeight);
-                discount += writeOffAmount;
-                discountWeight += writeOffWeight;
-                remainingAmountToApply += writeOffAmount;
-                remainingWeightToApply += writeOffWeight;
-            }
-            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
+            applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
         }
 
         if (remainingAmountToApply > 0 || remainingWeightToApply > 0)
@@ -1285,12 +1354,34 @@ public class PayableService : IPayableService
                     && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
-            applications.AddRange(ApplyToChargeList(outstandingCharges, ref remainingAmountToApply, ref remainingWeightToApply, ref forgivenAmount, ref forgivenWeight));
+            applications.AddRange(ApplyToChargeList(outstandingCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
         }
 
-        // Fold anything the either-side-clears-the-whole-charge rule just forgave into the
+        // The targeted-charges phase and the outstanding-fallback phase above can legitimately
+        // touch the SAME charge twice in one request - e.g. the targeted phase fully closes a
+        // charge's cash side but leaves its weight side positive, so that same charge still
+        // qualifies as "outstanding" for the fallback phase too. Left unmerged, this produces
+        // two separate PayableApplication rows for one charge from a single payment, so the
+        // payment's own Amount silently disagrees with the sum of what its applications say it
+        // paid. Consolidate by ChargeId before anything below treats this list as "one entry
+        // per charge touched."
+        applications = applications
+            .GroupBy(a => a.ChargeId)
+            .Select(g => new PayableApplication
+            {
+                ChargeId = g.Key,
+                AppliedAmount = g.Sum(a => a.AppliedAmount),
+                AppliedWeight = g.Sum(a => a.AppliedWeight)
+            })
+            .ToList();
+
+        // Fold everything the either-side-clears-the-whole-charge rule forgave into the
         // payment's own discount, so it's honestly recorded rather than only ever showing up
         // as a live RemainingAmount/RemainingWeight change with no paper trail.
+        var forgivenAmount = forgivenAmountByCharge.Values.Sum();
+        var forgivenWeight = forgivenWeightByCharge.Values.Sum();
+        var manualDiscount = discount;
+        var manualDiscountWeight = discountWeight;
         discount += forgivenAmount;
         discountWeight += forgivenWeight;
 
@@ -1299,10 +1390,7 @@ public class PayableService : IPayableService
         // route any further money toward it into THAT SAME payment/거래번호 instead of opening
         // a new one, so 거래별 보기 keeps exactly one row per order as it accumulates payments
         // over time. Only a charge that has never been touched before gets a brand new
-        // payment record. Cash and discount are attributed to each application using the
-        // request's own overall cash:discount ratio, since the two pools were never tracked
-        // separately per charge to begin with (ApplyToChargeList consumes them as one
-        // combined amount).
+        // payment record.
         var chargeIds = applications.Select(a => a.ChargeId).Distinct().ToList();
         var priorApplications = chargeIds.Count > 0
             ? await _dbContext.PayableApplications
@@ -1319,15 +1407,30 @@ public class PayableService : IPayableService
         var cashRatio = totalPool > 0 ? request.Amount / totalPool : 0m;
         var cashRatioWeight = totalPoolWeight > 0 ? (request.Weight ?? 0m) / totalPoolWeight : 0m;
 
+        // application.AppliedAmount/AppliedWeight is ALREADY pure real cash - the exact amount
+        // ApplyToChargeList matched from the payer's own pool, never inflated by forgiveness.
+        // Multiplying it by a pool-wide cashRatio (as this used to do) double-counts: it shrinks
+        // the recorded cash by the SAME forgiven fraction on every charge, including ones that
+        // were never forgiven at all, so Payment.Amount+Discount ends up smaller than what
+        // actually closed the charges - money silently vanished from the running ledger
+        // (GetLedgerBeforeAsync) even though every charge's own RemainingAmount was correctly 0.
+        // Attribute cash 1:1, spread only the user's OWN manual discount proportionally by cash
+        // share, and add each charge's own forgiven amount directly - never redistributed to a
+        // charge that wasn't the one actually forgiven.
+        var totalAppliedAmount = applications.Sum(a => a.AppliedAmount);
+        var totalAppliedWeight = applications.Sum(a => a.AppliedWeight);
+        var manualDiscountRatio = totalAppliedAmount > 0 ? manualDiscount / totalAppliedAmount : 0m;
+        var manualDiscountRatioWeight = totalAppliedWeight > 0 ? manualDiscountWeight / totalAppliedWeight : 0m;
+
         Payable? newPayment = null;
         var newApplications = new List<PayableApplication>();
 
         foreach (var application in applications)
         {
-            var cashPortion = application.AppliedAmount * cashRatio;
-            var discountPortion = application.AppliedAmount - cashPortion;
-            var cashPortionWeight = application.AppliedWeight * cashRatioWeight;
-            var discountPortionWeight = application.AppliedWeight - cashPortionWeight;
+            var cashPortion = application.AppliedAmount;
+            var discountPortion = application.AppliedAmount * manualDiscountRatio + forgivenAmountByCharge.GetValueOrDefault(application.ChargeId);
+            var cashPortionWeight = application.AppliedWeight;
+            var discountPortionWeight = application.AppliedWeight * manualDiscountRatioWeight + forgivenWeightByCharge.GetValueOrDefault(application.ChargeId);
 
             if (existingApplicationByCharge.TryGetValue(application.ChargeId, out var existingApplication))
             {
@@ -1427,14 +1530,15 @@ public class PayableService : IPayableService
         decimal newAmountToApply = request.Amount + newDiscount;
         decimal newWeightToApply = (request.Weight ?? 0m) + newDiscountWeight;
         var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
-        decimal editForgivenAmount = 0m;
-        decimal editForgivenWeight = 0m;
-        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, ref editForgivenAmount, ref editForgivenWeight);
-        if (editForgivenAmount > 0 || editForgivenWeight > 0)
-        {
-            payment.Discount += editForgivenAmount;
-            payment.DiscountWeight += editForgivenWeight;
-        }
+        var editForgivenAmountByCharge = new Dictionary<int, decimal>();
+        var editForgivenWeightByCharge = new Dictionary<int, decimal>();
+        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, editForgivenAmountByCharge, editForgivenWeightByCharge);
+        // A single payment being edited has nowhere else to attribute a forgiven amount to -
+        // unlike ProcessPaymentAsync's merge-across-multiple-destination-payments case, there's
+        // only this one payment record, so folding the aggregate straight into its own discount
+        // is exact, not an approximation.
+        payment.Discount += editForgivenAmountByCharge.Values.Sum();
+        payment.DiscountWeight += editForgivenWeightByCharge.Values.Sum();
         foreach (var application in newApplications)
         {
             application.Payment = payment;

@@ -43,7 +43,7 @@ public class OrderMappingRegister : IRegister
         config.NewConfig<OrderItem, FactoryRecentItemDto>()
             .Map(dest => dest.OrderItemId, src => src.Id)
             .Map(dest => dest.OrderNo, src => src.Order != null ? src.Order.OrderNo : null)
-            .Map(dest => dest.ProductName, src => src.Product != null ? src.Product.Name : null)
+            .Map(dest => dest.ProductName, src => src.Product != null ? src.Product.Name : (src.ProductSet != null ? src.ProductSet.Title : src.CustomProductName))
             .Map(dest => dest.Status, src => src.Order != null ? src.Order.Status : null)
             .Map(dest => dest.RequestedAt, src => src.CreatedAt);
     }

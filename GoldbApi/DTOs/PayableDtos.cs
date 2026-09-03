@@ -129,6 +129,10 @@ public class PayableOrderRowDto
 
     public List<PayableOrderItemSummaryDto> Items { get; set; } = new();
 
+    // First non-empty item memo on the order - shown as its own 비고 column in the
+    // worklist, matching what the 비고 search filter (oi.Memo) actually searches.
+    public string? Remarks { get; set; }
+
     public int LogisticsCompanyId { get; set; }
 
     public string? LogisticsCompanyName { get; set; }
@@ -281,6 +285,11 @@ public class PayableOverdueRowDto
 
     // Oldest still-outstanding charge's own date - what 연체 일수 counts forward from.
     public DateTime SaleDate { get; set; }
+
+    // Most recent activity (charge OR payment, whichever is later) across this counterparty's
+    // whole ledger, not just the still-outstanding charges - lets 미수금 관리 show "마지막거래일자"
+    // (last transaction date) distinct from SaleDate's "oldest overdue charge" meaning.
+    public DateTime? LastTransactionDate { get; set; }
 
     public decimal SaleAmount { get; set; }
 

@@ -25,6 +25,29 @@
   margin-bottom: 1.25rem;
 }
 
+.order-history-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin-top: 1.25rem;
+}
+.order-history-summary-table th,
+.order-history-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+  text-align: center;
+}
+.order-history-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.summary-label {
+  text-align: left;
+  font-weight: 600;
+  background: #fafafa;
+  white-space: nowrap;
+}
+
 .order-detail-expand {
   padding: 1.25rem;
   h4 { margin-top: 0; margin-bottom: 0.9375rem; }

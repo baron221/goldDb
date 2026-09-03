@@ -1,7 +1,6 @@
 using GoldbApi.Data;
 using GoldbApi.DTOs;
 using GoldbApi.Models;
-using GoldbApi.Models.Views;
 using GoldbApi.Repositories;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
@@ -130,61 +129,69 @@ public class DashboardService : IDashboardService
         var stats = new AdminDashboardStatsDto();
         var baseOrders = GetBaseOrdersQuery(false);
 
-        var summary = await _dbContext.MvAdminDashboardSummaries.FirstOrDefaultAsync() ?? new MvAdminDashboardSummary();
-        stats.TotalUsers = summary.TotalUsers;
-        stats.TotalCompanies = summary.TotalCompanies;
-        stats.TotalProducts = summary.TotalProducts;
-        stats.TotalOrders = summary.TotalOrders;
-        stats.TotalRevenue = summary.TotalRevenue;
-        stats.PendingApprovalCount = summary.PendingApprovalCount;
-        stats.UnassignedCompanyUserCount = summary.UnassignedCompanyUserCount;
-        stats.UnassignedLogisticsRetailerCount = summary.UnassignedLogisticsRetailerCount;
+        // Computed live from the base tables, not from the mv_* tables - those were never
+        // real PostgreSQL materialized views (just plain, permanently-empty tables the refresh
+        // job silently failed to populate since day one), so reading from them always returned
+        // zeroed-out stats. Mirrors the live-computation approach GetPartnerLogisticsStatsAsync/
+        // GetRetailStatsAsync/GetFactoryStatsAsync already use elsewhere in this file.
+        stats.TotalUsers = await _userRepository.GetQueryable().CountAsync();
+        stats.TotalCompanies = await _companyRepository.GetQueryable().CountAsync();
+        stats.TotalProducts = await _productRepository.GetQueryable().CountAsync();
+        stats.TotalOrders = await baseOrders.CountAsync();
+        stats.TotalRevenue = await baseOrders.SumAsync(o => o.TotalAmount);
+        stats.PendingApprovalCount = await _userRepository.GetQueryable().CountAsync(u => !u.IsApproved);
+        stats.UnassignedCompanyUserCount = await _userRepository.GetQueryable().CountAsync(u => !u.UserCompanies.Any());
+        stats.UnassignedLogisticsRetailerCount = await _companyRepository.GetQueryable().CountAsync(c => c.Category == "RTL" && c.LogisticsCompanyId == null);
 
         var endDate = DateTime.UtcNow.Date;
         var startDate = endDate.AddDays(-14);
-        var dailyData = await _dbContext.MvDailyOrderTrends
-            .Where(t => t.OrderDate >= startDate)
+        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-5);
+        var trendRangeStart = startDate < startOfMonth ? startDate : startOfMonth;
+
+        var trendOrders = await baseOrders
+            .Where(o => o.CreatedAt >= trendRangeStart)
+            .Select(o => new { o.CreatedAt, o.TotalAmount })
             .ToListAsync();
 
         for (int i = 0; i < 15; i++)
         {
             var date = startDate.AddDays(i);
-            var match = dailyData.FirstOrDefault(d => d.OrderDate == date);
+            var matches = trendOrders.Where(o => o.CreatedAt.Date == date).ToList();
             stats.DailyTrends.Add(new TrendItemDto
             {
                 Label = date.ToString("MM/dd"),
-                OrderCount = match?.OrderCount ?? 0,
-                TotalAmount = match?.TotalAmount ?? 0
+                OrderCount = matches.Count,
+                TotalAmount = matches.Sum(o => o.TotalAmount)
             });
         }
-
-        var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-5);
-        var monthlyData = await _dbContext.MvMonthlyOrderTrends
-            .Where(t => t.OrderMonth >= startOfMonth)
-            .ToListAsync();
 
         for (int i = 0; i < 6; i++)
         {
             var month = startOfMonth.AddMonths(i);
-            var match = monthlyData.FirstOrDefault(d => d.OrderMonth == month);
+            var nextMonth = month.AddMonths(1);
+            var matches = trendOrders.Where(o => o.CreatedAt >= month && o.CreatedAt < nextMonth).ToList();
             stats.MonthlyTrends.Add(new TrendItemDto
             {
                 Label = month.ToString("yyyy-MM"),
-                OrderCount = match?.OrderCount ?? 0,
-                TotalAmount = match?.TotalAmount ?? 0
+                OrderCount = matches.Count,
+                TotalAmount = matches.Sum(o => o.TotalAmount)
             });
         }
 
-        stats.TopSellingProducts = await _dbContext.MvProductPerformances
+        stats.TopSellingProducts = await _orderItemRepository.GetQueryable()
+            .Include(oi => oi.Order)
+            .Include(oi => oi.Product)
+            .Where(oi => oi.Product != null && oi.Order != null && oi.Order.Status != "Cancelled" && oi.Order.Status != "SETTLED_CANCELLED")
+            .GroupBy(oi => new { oi.ProductId, oi.Product!.Name, oi.Product.ProductNo })
+            .Select(g => new ProductPerformanceDto
+            {
+                ProductName = g.Key.Name,
+                ProductNo = g.Key.ProductNo ?? string.Empty,
+                Quantity = g.Sum(oi => oi.Quantity),
+                TotalAmount = g.Sum(oi => oi.Price * oi.Quantity)
+            })
             .OrderByDescending(p => p.Quantity)
             .Take(10)
-            .Select(p => new ProductPerformanceDto
-            {
-                ProductName = p.ProductName,
-                ProductNo = p.ProductNo,
-                Quantity = p.Quantity,
-                TotalAmount = p.TotalAmount
-            })
             .ToListAsync();
 
         stats.CategoryPerformance = await _orderItemRepository.GetQueryable()
@@ -286,37 +293,68 @@ public class DashboardService : IDashboardService
 
         var logisticsCompanyId = await GetUserCompanyIdAsync();
 
-        IQueryable<MvPartnerRetailerStats> query = _dbContext.MvPartnerRetailerStats;
-
-        if (!isAdmin)
+        if (!isAdmin && !logisticsCompanyId.HasValue)
         {
-            if (!logisticsCompanyId.HasValue)
-            {
-                return ApiResponse<List<PartnerRetailerStatsDto>>.Failure("User has no associated company.");
-            }
-            query = query.Where(t => t.LogisticsCompanyId == logisticsCompanyId.Value);
+            return ApiResponse<List<PartnerRetailerStatsDto>>.Failure("User has no associated company.");
         }
 
-        var stats = await query
-            .Select(t => new PartnerRetailerStatsDto
-            {
-                CompanyId = t.CompanyId,
-                CompanyName = t.CompanyName,
-                IsDirectManagement = t.IsDirectManagement,
-                CEO = t.CEO,
-                Region = t.Region,
-                LogisticsCompanyId = t.LogisticsCompanyId,
-                TotalStockCount = t.TotalStockCount,
-                TotalStockWeight = t.TotalStockWeight,
-                TotalOrderCount = t.TotalOrderCount,
-                TotalOrderAmount = t.TotalOrderAmount,
-                MonthlyOrderCount = t.MonthlyOrderCount,
-                MonthlyOrderAmount = t.MonthlyOrderAmount,
-                PendingOrderCount = t.PendingOrderCount
-            })
+        // Computed live from base tables, not from mv_partner_retailer_stats - that table was
+        // never a real materialized view (see GetAdminDashboardStatsAsync's comment) and was
+        // always empty, so this endpoint always returned an empty list. Mirrors
+        // GetPartnerLogisticsStatsAsync's live-computation approach (its manufacturer-facing
+        // counterpart) just below.
+        var retailersQuery = _companyRepository.GetQueryable().Where(c => c.Category == "RTL");
+        if (!isAdmin)
+        {
+            retailersQuery = retailersQuery.Where(c => c.LogisticsCompanyId == logisticsCompanyId!.Value);
+        }
+        var retailers = await retailersQuery.ToListAsync();
+        var retailerIds = retailers.Select(r => r.Id).ToList();
+
+        var retailerUserLinks = await _userCompanyRepository.GetQueryable()
+            .Where(uc => retailerIds.Contains(uc.CompanyId))
+            .Select(uc => new { uc.CompanyId, uc.UserId })
+            .ToListAsync();
+        var retailerUserIds = retailerUserLinks.Select(x => x.UserId).ToList();
+
+        var ordersByUser = await _orderRepository.GetQueryable()
+            .Where(o => retailerUserIds.Contains(o.UserId) && o.Status != "Cancelled" && o.Status != "SETTLED_CANCELLED")
+            .Select(o => new { o.UserId, o.CreatedAt, o.TotalAmount, o.Status })
             .ToListAsync();
 
-        return ApiResponse<List<PartnerRetailerStatsDto>>.Success(stats);
+        var stocksByCompany = await _stockRepository.GetQueryable()
+            .Where(s => s.CompanyId.HasValue && retailerIds.Contains(s.CompanyId.Value) && !s.IsExhausted)
+            .Select(s => new { s.CompanyId, s.ActualWeight, s.Quantity })
+            .ToListAsync();
+
+        var startOfMonthUtc = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var stats = new List<PartnerRetailerStatsDto>();
+        foreach (var retailer in retailers)
+        {
+            var userIdsForRetailer = retailerUserLinks.Where(x => x.CompanyId == retailer.Id).Select(x => x.UserId).ToList();
+            var companyOrders = ordersByUser.Where(o => userIdsForRetailer.Contains(o.UserId)).ToList();
+            var companyStocks = stocksByCompany.Where(s => s.CompanyId == retailer.Id).ToList();
+
+            stats.Add(new PartnerRetailerStatsDto
+            {
+                CompanyId = retailer.Id,
+                CompanyName = retailer.Name,
+                IsDirectManagement = retailer.IsDirectManagement,
+                CEO = retailer.CEO,
+                Region = retailer.Region,
+                LogisticsCompanyId = retailer.LogisticsCompanyId,
+                TotalStockCount = companyStocks.Count,
+                TotalStockWeight = companyStocks.Sum(s => s.ActualWeight * s.Quantity),
+                TotalOrderCount = companyOrders.Count,
+                TotalOrderAmount = companyOrders.Sum(o => o.TotalAmount),
+                MonthlyOrderCount = companyOrders.Count(o => o.CreatedAt >= startOfMonthUtc),
+                MonthlyOrderAmount = companyOrders.Where(o => o.CreatedAt >= startOfMonthUtc).Sum(o => o.TotalAmount),
+                PendingOrderCount = companyOrders.Count(o => o.Status != "Completed")
+            });
+        }
+
+        return ApiResponse<List<PartnerRetailerStatsDto>>.Success(stats.OrderByDescending(s => s.TotalOrderCount).ToList());
     }
 
     // Manufacturer-facing mirror of GetPartnerRetailerStatsAsync: which logistics

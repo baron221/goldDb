@@ -3,6 +3,7 @@ using System;
 using GoldbApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GoldbApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828164317_AddDiscountWeightToReceivable")]
+    partial class AddDiscountWeightToReceivable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1926,17 +1929,6 @@ namespace GoldbApi.Migrations
                         .HasColumnName("created_by")
                         .HasComment("생성자 ID");
 
-                    b.Property<int?>("CustomManufacturerCompanyId")
-                        .HasColumnType("integer")
-                        .HasColumnName("custom_manufacturer_company_id")
-                        .HasComment("수기 등록 제조사 회사 ID");
-
-                    b.Property<string>("CustomProductName")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("custom_product_name")
-                        .HasComment("수기 입력 제품명");
-
                     b.Property<decimal?>("FactoryInputLaborCost")
                         .HasColumnType("numeric")
                         .HasColumnName("factory_input_labor_cost")
@@ -2195,7 +2187,8 @@ namespace GoldbApi.Migrations
                         .HasComment("주문 ID");
 
                     b.Property<string>("Remarks")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("remarks")
                         .HasComment("메모");
 

@@ -39,11 +39,7 @@
         @selection-change="handleOrderHistorySelectionChange"
       >
         <el-table-column v-if="!isLogistics" type="selection" width="45" :selectable="isOrderRowSelectable" />
-        <el-table-column label="주문번호" width="200" align="center">
-          <template #default="{row}">
-            <span class="order-link" @click="goToOrder(row.orderNo)">{{ row.orderNo }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column label="주문번호" width="200" align="center" prop="orderNo" />
         <el-table-column label="제품정보" min-width="280">
           <template #default="{row}">
             <div v-if="row.items && row.items.length > 0" class="product-info-list">
@@ -67,6 +63,12 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
+        <el-table-column label="비고" min-width="160">
+          <template #default="{row}">
+            <span v-if="row.remarks" style="color: #606266;">{{ row.remarks }}</span>
+            <span v-else style="color: #c0c4cc;">-</span>
+          </template>
+        </el-table-column>
         <el-table-column :label="isLogistics ? '공장' : '물류'" width="160" align="center">
           <template #default="{row}">
             {{ isLogistics ? row.manufacturerCompanyName : row.logisticsCompanyName }}
@@ -81,11 +83,6 @@
           <template #default="{row}">
             <span style="color: #f56c6c; font-weight: bold;">₩ {{ formatPrice(row.chargeAmount) }}</span>
             <span v-if="row.chargeWeight > 0" style="color: #909399; font-size: 0.8125rem;"> ({{ row.chargeWeight.toFixed(2) }}g)</span>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="!isLogistics" label="정산처리" width="110" align="center">
-          <template #default="{row}">
-            <el-button v-if="row.remainingAmount > 0 || row.remainingWeight > 0" type="primary" size="small" @click="openSingleSettleDialog(row)">정산처리</el-button>
           </template>
         </el-table-column>
       </base-table>
@@ -159,11 +156,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="주문번호" width="200" align="center">
-            <template #default="{row}">
-              <span class="order-link" @click="goToOrder(row.orderNo)">{{ row.orderNo }}</span>
-            </template>
-          </el-table-column>
+          <el-table-column label="주문번호" width="200" align="center" prop="orderNo" />
           <el-table-column label="제품정보" min-width="280">
             <template #default="{row}">
               <div v-if="row.items && row.items.length > 0" class="product-info-list">
@@ -383,8 +376,7 @@
 
     <batch-settle-dialog
       v-model="batchSettleDialogVisible"
-      :order-ids="dialogOrderIds"
-      :single-mode="!!singleSettleRow"
+      :order-ids="selectedOrderRows.map((r) => r.orderId)"
       @saved="onBatchSettleSaved"
     />
 
@@ -397,7 +389,7 @@
 
 <script setup lang="ts">
 import { useMobile } from '@/hooks/useMobile';
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getCompanySummaries, getPayableOrderHistory, getPayables, getPaymentApplications, getCompletedPayableOrders, getChargeApplications, getLedgerBefore } from '@/api/payable';
 import { ElMessage } from 'element-plus';
@@ -465,35 +457,15 @@ const isOrderRowSelectable = (row: any) => {
 };
 
 const batchSettleDialogVisible = ref(false);
-const singleSettleRow = ref<any>(null);
 const manualOrderDialogVisible = ref(false);
-
-// Two entry points share one dialog: the checkbox+bar flow (multiple orders) and the
-// per-row 정산처리 button (single order). singleSettleRow, when set, takes priority so
-// the two flows never bleed into each other.
-const dialogOrderIds = computed(() => {
-  if (singleSettleRow.value) return [singleSettleRow.value.orderId];
-  return selectedOrderRows.value.map((r) => r.orderId);
-});
-
-watch(batchSettleDialogVisible, (val) => {
-  if (!val) singleSettleRow.value = null;
-});
 
 const openBatchSettleDialog = () => {
   if (selectedOrderRows.value.length === 0) return;
-  singleSettleRow.value = null;
-  batchSettleDialogVisible.value = true;
-};
-
-const openSingleSettleDialog = (row: any) => {
-  singleSettleRow.value = row;
   batchSettleDialogVisible.value = true;
 };
 
 const onBatchSettleSaved = () => {
   selectedOrderRows.value = [];
-  singleSettleRow.value = null;
   orderHistoryTableRef.value?.clearSelection?.();
   getList();
   fetchOrderHistory();

@@ -46,7 +46,17 @@ public interface IReceivableService
     // Shared by the normal production-flow PENDING transition (OrderService) and the
     // "fulfil from existing stock" shortcut (StockService), which otherwise bypasses
     // OrderService entirely and would never bill/pay anyone for the order.
-    Task CreateOrderSettlementChargesAsync(int orderId);
+    Task CreateOrderSettlementChargesAsync(int orderId, string triggerStatus);
+
+    // The 물류도착 gate: returns a Korean error message if THIS SAME order's own Payable
+    // charge(s) (created when MFG marked 제품출고, one per manufacturer involved) have never
+    // been processed through 정산처리 at all (no PayableApplication row against them, not even
+    // a 0-value acknowledgement), or null if they've all been at least reviewed/acted on and
+    // the transition to PENDING can proceed. Lives here (not in OrderService) so both the
+    // normal PENDING transition (OrderService.UpdateOrderStatusAsync) and StockService's two
+    // "auto/manual jump straight to PENDING" shortcuts can call the exact same check without a
+    // circular OrderService<->StockService dependency.
+    Task<string?> GetManufacturerSettlementBacklogBlockAsync(int orderId, int? logisticsCompanyId);
 }
 
 public class ReceivableService : IReceivableService
@@ -85,7 +95,7 @@ public class ReceivableService : IReceivableService
         return orderWeight ?? 0m;
     }
 
-    public async Task CreateOrderSettlementChargesAsync(int orderId)
+    public async Task CreateOrderSettlementChargesAsync(int orderId, string triggerStatus)
     {
         var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
         if (order == null) return;
@@ -109,31 +119,48 @@ public class ReceivableService : IReceivableService
         var calculatedPureGoldWeight = topLevelItems.Sum(oi =>
             GetEffectiveWeight(oi.ConfirmedWeight, oi.ActualWeight, oi.OrderWeight) * GetPureGoldRatio(oi.Purity) * oi.Quantity);
 
-        var existingReceivable = await _dbContext.Receivables.FirstOrDefaultAsync(r => r.OrderId == orderId && r.Type == "CHARGE");
-        if (existingReceivable != null)
-        {
-            var diffAmount = (order.SettlementAmount ?? 0m) - existingReceivable.Amount;
-            var diffWeight = calculatedPureGoldWeight - existingReceivable.Weight;
+        // A "물류사 자체 재고용 주문 (본인 구매)" order (주문 수기 등록 with no 소매점 selected) is
+        // placed under the logistics company's own user account instead of an actual
+        // retailer's - a company can't owe itself money, so this must never generate a
+        // Receivable charge against itself.
+        var isSelfPurchase = await _dbContext.UserCompanies
+            .AnyAsync(uc => uc.UserId == order.UserId && uc.Company != null &&
+                (uc.Company.Category == "DCC" || uc.Company.Category == "LOG"));
 
-            existingReceivable.Amount = order.SettlementAmount ?? 0m;
-            existingReceivable.RemainingAmount = Math.Max(0m, existingReceivable.RemainingAmount + diffAmount);
-            existingReceivable.Weight = calculatedPureGoldWeight;
-            existingReceivable.RemainingWeight = Math.Max(0m, existingReceivable.RemainingWeight + diffWeight);
-        }
-        else
+        // The retailer-facing Receivable charge must not appear in 정산 대상 내역 the moment
+        // MFG marks 제품출고 (InspectedRequested) - the goods haven't even arrived at the
+        // logistics center yet. It should only ever first appear once DCC actually marks
+        // 물류도착 (PENDING), then get corrected again at SETTLED. The Payable charge (what
+        // DCC owes the manufacturer) is unaffected by this and still starts at InspectedRequested,
+        // since 물류도착's own settlement-backlog gate depends on that charge already existing.
+        if (!isSelfPurchase && triggerStatus != "InspectedRequested")
         {
-            var charge = new Receivable
+            var existingReceivable = await _dbContext.Receivables.FirstOrDefaultAsync(r => r.OrderId == orderId && r.Type == "CHARGE");
+            if (existingReceivable != null)
             {
-                UserId = order.UserId,
-                OrderId = order.Id,
-                Type = "CHARGE",
-                Amount = order.SettlementAmount ?? 0m,
-                RemainingAmount = order.SettlementAmount ?? 0m,
-                Weight = calculatedPureGoldWeight,
-                RemainingWeight = calculatedPureGoldWeight,
-                Memo = $"주문 정산 청구 (정산시작): {order.OrderNo}"
-            };
-            await _receivableRepository.AddAsync(charge);
+                var diffAmount = (order.SettlementAmount ?? 0m) - existingReceivable.Amount;
+                var diffWeight = calculatedPureGoldWeight - existingReceivable.Weight;
+
+                existingReceivable.Amount = order.SettlementAmount ?? 0m;
+                existingReceivable.RemainingAmount = Math.Max(0m, existingReceivable.RemainingAmount + diffAmount);
+                existingReceivable.Weight = calculatedPureGoldWeight;
+                existingReceivable.RemainingWeight = Math.Max(0m, existingReceivable.RemainingWeight + diffWeight);
+            }
+            else
+            {
+                var charge = new Receivable
+                {
+                    UserId = order.UserId,
+                    OrderId = order.Id,
+                    Type = "CHARGE",
+                    Amount = order.SettlementAmount ?? 0m,
+                    RemainingAmount = order.SettlementAmount ?? 0m,
+                    Weight = calculatedPureGoldWeight,
+                    RemainingWeight = calculatedPureGoldWeight,
+                    Memo = $"주문 정산 청구 (정산시작): {order.OrderNo}"
+                };
+                await _receivableRepository.AddAsync(charge);
+            }
         }
 
         if (order.LogisticsCompanyId.HasValue)
@@ -142,7 +169,9 @@ public class ReceivableService : IReceivableService
                 .Select(oi => new
                 {
                     Item = oi,
-                    ManufacturerId = oi.Product?.CompanyId ?? oi.ProductSet?.CompanyId
+                    // CustomManufacturerCompanyId covers 주문 수기 등록's free-text (no
+                    // catalog product) items, which have neither Product nor ProductSet.
+                    ManufacturerId = oi.Product?.CompanyId ?? oi.ProductSet?.CompanyId ?? oi.CustomManufacturerCompanyId
                 })
                 .Where(x => x.ManufacturerId.HasValue)
                 .GroupBy(x => x.ManufacturerId!.Value);
@@ -186,6 +215,25 @@ public class ReceivableService : IReceivableService
         }
 
         await _receivableRepository.SaveChangesAsync();
+    }
+
+    public async Task<string?> GetManufacturerSettlementBacklogBlockAsync(int orderId, int? logisticsCompanyId)
+    {
+        if (!logisticsCompanyId.HasValue) return null;
+
+        var untouchedCharge = await _dbContext.Payables
+            .Include(p => p.ManufacturerCompany)
+            .Where(p => p.Type == "CHARGE" && !p.IsCancelled
+                && p.LogisticsCompanyId == logisticsCompanyId.Value
+                && p.OrderId == orderId
+                && !_dbContext.PayableApplications.Any(a => a.ChargeId == p.Id))
+            .OrderBy(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (untouchedCharge == null) return null;
+
+        var manufacturerName = untouchedCharge.ManufacturerCompany?.Name ?? "제조사";
+        return $"[{manufacturerName}]에 대한 이 주문의 정산처리가 아직 완료되지 않아 물류도착 처리를 할 수 없습니다. 먼저 지급 관리에서 정산처리(0원 처리도 가능)를 완료해 주세요.";
     }
 
     private int GetCurrentUserId()
@@ -347,7 +395,7 @@ public class ReceivableService : IReceivableService
             var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
 
             var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
-            var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight - r.RemainingWeight);
+            var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight + r.DiscountWeight - r.RemainingWeight);
             var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
 
             var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
@@ -392,7 +440,7 @@ public class ReceivableService : IReceivableService
         var totalReceivable = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
 
         var totalChargeWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.Weight);
-        var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight - r.RemainingWeight);
+        var totalDepositWeight = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled).Sum(r => r.Weight + r.DiscountWeight - r.RemainingWeight);
         var totalReceivableWeight = userReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
 
         var lastPaymentDate = userReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
@@ -428,7 +476,7 @@ public class ReceivableService : IReceivableService
         var charges = await _dbContext.Receivables
             .Include(r => r.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
             .Include(r => r.Order)
-            .Where(r => r.Type == "CHARGE" && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value))
+            .Where(r => r.Type == "CHARGE" && !r.IsCancelled && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value))
             .ToListAsync();
 
         if (charges.Count == 0) return ApiResponse<UserReceivableSummaryDto?>.Success(null);
@@ -489,7 +537,7 @@ public class ReceivableService : IReceivableService
                 ReceivableId = c.Id,
                 OrderId = c.OrderId,
                 OrderNo = c.Order?.OrderNo,
-                ProductName = item?.Product?.Name ?? item?.ProductSet?.Title,
+                ProductName = item?.Product?.Name ?? item?.ProductSet?.Title ?? item?.CustomProductName,
                 ProductNo = item?.Product?.ProductNo,
                 ProductPhotoUrl = item?.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
                     ?? item?.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
@@ -504,7 +552,7 @@ public class ReceivableService : IReceivableService
                 OrderDate = c.CreatedAt,
                 Items = orderItems.Select(oi => new ReceivableOrderItemSummaryDto
                 {
-                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title,
+                    ProductName = oi.Product?.Name ?? oi.ProductSet?.Title ?? oi.CustomProductName,
                     ProductNo = oi.Product?.ProductNo,
                     PhotoUrl = oi.Product?.ProductPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl
                         ?? oi.ProductSet?.ProductSetPhotos.OrderBy(p => p.SortOrder).FirstOrDefault()?.PhotoUrl,
@@ -651,7 +699,7 @@ public class ReceivableService : IReceivableService
         foreach (var r in allRecords.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id))
         {
             if (r.Id == anchor.Id) break;
-            if (r.Type == "CHARGE")
+            if (r.Type == "CHARGE" && !r.IsCancelled)
             {
                 runningAmount += r.Amount;
                 runningWeight += r.Weight;
@@ -661,7 +709,7 @@ public class ReceivableService : IReceivableService
             else if (r.Type == "DEPOSIT" && !r.IsCancelled)
             {
                 runningAmount -= r.Amount + r.Discount;
-                runningWeight -= r.Weight;
+                runningWeight -= r.Weight + r.DiscountWeight;
                 lastPaymentAmount = runningAmount;
                 lastPaymentWeight = runningWeight;
                 newChargeAmount = 0;
@@ -678,20 +726,6 @@ public class ReceivableService : IReceivableService
         });
     }
 
-    // Order.Status values reached only AFTER the order already went through the PENDING/
-    // PROCESSING "confirm the settlement amount" step in settlement-management.vue
-    // (whose SettlementDialog both fixes the final amount and can optionally collect a
-    // payment in the same action). Deliberately excludes "Inspected"/"InspectedRequested"
-    // (still pre-confirm, no real charge to collect on yet) AND "PENDING"/"PROCESSING"
-    // themselves (still belong exclusively to that confirm-first flow) - this worklist is
-    // only for orders that already passed through confirmation but still owe a balance
-    // (e.g. a partial payment was made), never for bypassing the confirm step.
-    private static readonly string[] PostArrivalOrderStatuses =
-    {
-        "SETTLED",
-        "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed"
-    };
-
     // DCC's own view of "정산 대상 내역" - which of ITS retailers' orders still have an
     // outstanding Receivable charge. Scoped the same way GetLogisticsSummaryAsync already
     // is (Company.LogisticsCompanyId), not by re-deriving the relationship through Order.
@@ -700,7 +734,7 @@ public class ReceivableService : IReceivableService
         var dbQuery = _dbContext.Receivables
             .Include(r => r.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
             .Include(r => r.Order).ThenInclude(o => o!.OrderItems)
-            .Where(r => r.Type == "CHARGE");
+            .Where(r => r.Type == "CHARGE" && !r.IsCancelled);
 
         if (!_currentUserService.IsAdmin)
         {
@@ -720,6 +754,31 @@ public class ReceivableService : IReceivableService
             dbQuery = dbQuery.Where(r => r.UserId == query.UserId.Value);
         }
 
+        if (query.CompanyId.HasValue)
+        {
+            var companyUserIds = await _dbContext.Users
+                .Where(u => u.UserCompanies.Any(uc => uc.CompanyId == query.CompanyId.Value))
+                .Select(u => u.Id)
+                .ToListAsync();
+            dbQuery = dbQuery.Where(r => companyUserIds.Contains(r.UserId));
+        }
+
+        if (!string.IsNullOrEmpty(query.OrderNo))
+        {
+            dbQuery = dbQuery.Where(r => r.Order != null && r.Order.OrderNo.Contains(query.OrderNo));
+        }
+
+        if (query.StartDate.HasValue)
+        {
+            dbQuery = dbQuery.Where(r => r.CreatedAt >= query.StartDate.Value);
+        }
+
+        if (query.EndDate.HasValue)
+        {
+            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            dbQuery = dbQuery.Where(r => r.CreatedAt < endExclusive);
+        }
+
         if (!string.IsNullOrEmpty(query.ProductName))
         {
             dbQuery = dbQuery.Where(r => r.Order != null && r.Order.OrderItems.Any(oi => oi.ParentId == null &&
@@ -733,8 +792,6 @@ public class ReceivableService : IReceivableService
                 oi.Memo != null && oi.Memo.Contains(query.Remarks)));
         }
 
-        dbQuery = dbQuery.Where(r => r.Order != null && PostArrivalOrderStatuses.Contains(r.Order.Status));
-
         return dbQuery;
     }
 
@@ -742,9 +799,16 @@ public class ReceivableService : IReceivableService
     {
         var dbQuery = await BuildReceivableOrderHistoryQueryAsync(query);
 
-        // Worklist, not a ledger - once a charge is fully paid it drops out (the summary
-        // endpoint still covers everything, settled or not, same convention as Payable's).
-        dbQuery = dbQuery.Where(r => r.RemainingAmount > 0 || r.RemainingWeight > 0);
+        // Worklist, not a ledger - deliberately independent of Order.Status. A charge can be
+        // created before an order ever reaches the normal PENDING confirm step (or the order
+        // can drift past PENDING through some other flow without ever being touched), and an
+        // order-status filter here would make such a charge permanently invisible. Mirrors
+        // MFG's GetPayableOrderHistoryAsync exactly: completely untouched charges only - the
+        // instant ANY action (even a 0-value acknowledgement, see ProcessDepositAsync) lands
+        // on one it drops out of here for good (still fully visible in 미수금 관리 the whole
+        // time, since that reads live RemainingAmount, not application history).
+        dbQuery = dbQuery.Where(r => r.RemainingAmount == r.Amount && r.RemainingWeight == r.Weight && (r.Amount > 0 || r.Weight > 0)
+            && !_dbContext.ReceivableApplications.Any(a => a.ChargeId == r.Id));
 
         var totalCount = await dbQuery.CountAsync();
         var items = await dbQuery
@@ -758,7 +822,7 @@ public class ReceivableService : IReceivableService
                 OrderNo = r.Order != null ? r.Order.OrderNo : null,
                 ProductName = r.Order != null
                     ? r.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = r.Order != null
@@ -772,7 +836,7 @@ public class ReceivableService : IReceivableService
                     ? r.Order.OrderItems.Where(oi => oi.ParentId == null)
                         .Select(oi => new ReceivableOrderItemSummaryDto
                         {
-                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                             ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                             PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
                                 : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
@@ -784,6 +848,11 @@ public class ReceivableService : IReceivableService
                             ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight
                         }).ToList()
                     : new List<ReceivableOrderItemSummaryDto>(),
+                Remarks = r.Order != null
+                    ? r.Order.OrderItems.Where(oi => oi.ParentId == null && oi.Memo != null && oi.Memo != "")
+                        .Select(oi => oi.Memo)
+                        .FirstOrDefault()
+                    : null,
                 UserId = r.UserId,
                 UserName = r.User != null ? r.User.Username : null,
                 UserDisplayName = r.User != null ? r.User.Name : null,
@@ -845,7 +914,7 @@ public class ReceivableService : IReceivableService
                 OrderNo = r.Order != null ? r.Order.OrderNo : null,
                 ProductName = r.Order != null
                     ? r.Order.OrderItems.Where(oi => oi.ParentId == null)
-                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null))
+                        .Select(oi => oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName))
                         .FirstOrDefault()
                     : null,
                 ProductPhotoUrl = r.Order != null
@@ -859,7 +928,7 @@ public class ReceivableService : IReceivableService
                     ? r.Order.OrderItems.Where(oi => oi.ParentId == null)
                         .Select(oi => new ReceivableOrderItemSummaryDto
                         {
-                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : null),
+                            ProductName = oi.Product != null ? oi.Product.Name : (oi.ProductSet != null ? oi.ProductSet.Title : oi.CustomProductName),
                             ProductNo = oi.Product != null ? oi.Product.ProductNo : null,
                             PhotoUrl = oi.Product != null && oi.Product.ProductPhotos.Any() ? oi.Product.ProductPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl
                                 : (oi.ProductSet != null && oi.ProductSet.ProductSetPhotos.Any() ? oi.ProductSet.ProductSetPhotos.OrderBy(x => x.SortOrder).First().PhotoUrl : null),
@@ -871,6 +940,11 @@ public class ReceivableService : IReceivableService
                             ActualWeight = oi.ActualWeight ?? oi.RequestedWeight ?? oi.ApprovedWeight
                         }).ToList()
                     : new List<ReceivableOrderItemSummaryDto>(),
+                Remarks = r.Order != null
+                    ? r.Order.OrderItems.Where(oi => oi.ParentId == null && oi.Memo != null && oi.Memo != "")
+                        .Select(oi => oi.Memo)
+                        .FirstOrDefault()
+                    : null,
                 UserId = r.UserId,
                 UserName = r.User != null ? r.User.Username : null,
                 UserDisplayName = r.User != null ? r.User.Name : null,
@@ -980,11 +1054,16 @@ public class ReceivableService : IReceivableService
             }
         }
 
+        // 미수금 관리 is exclusively for charges that have actually been processed through
+        // 정산처리 at least once (even a 0-value acknowledgement, see ProcessDepositAsync) -
+        // a charge nobody has touched yet belongs only in 정산 대상 내역's worklist. Mirrors
+        // that worklist's own "has an application" check so a charge is in exactly one of
+        // the two lists at any moment.
         var chargesQuery = _dbContext.Receivables
             .Include(r => r.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
             .Where(r => r.Type == "CHARGE" && !r.IsCancelled
-                && (r.RemainingAmount < r.Amount || r.RemainingWeight < r.Weight)
-                && (r.RemainingAmount > 0 || r.RemainingWeight > 0));
+                && (r.RemainingAmount > 0 || r.RemainingWeight > 0)
+                && _dbContext.ReceivableApplications.Any(a => a.ChargeId == r.Id));
 
         if (allowedUserIds != null)
         {
@@ -1010,6 +1089,15 @@ public class ReceivableService : IReceivableService
         var charges = await chargesQuery.ToListAsync();
         var today = DateTime.UtcNow.Date;
 
+        // 마지막거래일자 needs the most recent activity across this retailer's WHOLE ledger
+        // (any Type, not just the still-outstanding charges above), so fetch it separately.
+        var involvedUserIds = charges.Select(r => r.UserId).Distinct().ToList();
+        var lastTransactionByUser = await _dbContext.Receivables
+            .Where(r => !r.IsCancelled && involvedUserIds.Contains(r.UserId))
+            .GroupBy(r => r.UserId)
+            .Select(g => new { UserId = g.Key, LastDate = g.Max(r => r.CreatedAt) })
+            .ToDictionaryAsync(x => x.UserId, x => x.LastDate);
+
         var rows = charges
             .GroupBy(r => r.UserId)
             .Select(g =>
@@ -1023,6 +1111,7 @@ public class ReceivableService : IReceivableService
                         ?? first.User?.UserCompanies.FirstOrDefault()?.Company?.Name,
                     UserDisplayName = first.User?.Name,
                     SaleDate = oldest,
+                    LastTransactionDate = lastTransactionByUser.TryGetValue(g.Key, out var lastDate) ? lastDate : oldest,
                     SaleAmount = g.Sum(r => r.Amount),
                     SaleWeight = g.Sum(r => r.Weight),
                     CollectedAmount = g.Sum(r => r.Amount - r.RemainingAmount),
@@ -1050,7 +1139,11 @@ public class ReceivableService : IReceivableService
     // deposit's own recorded Amount/Discount stays unchanged, permanently corrupting any
     // later chronological ledger walk with debt that no longer exists anywhere in the live
     // charge data.
-    private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
+    // forgivenAmountByCharge/forgivenWeightByCharge accumulate PER CHARGE (not a single pooled
+    // total) - see the long comment at ProcessDepositAsync's cashPortion/discountPortion
+    // computation for why a pooled total silently lost money when this method is called
+    // against several charges and only one of them triggers the either-side-clears-it rule.
+    private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, Dictionary<int, decimal> forgivenAmountByCharge, Dictionary<int, decimal> forgivenWeightByCharge)
     {
         var applications = new List<ReceivableApplication>();
 
@@ -1097,8 +1190,14 @@ public class ReceivableService : IReceivableService
 
             if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
             {
-                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
-                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
+                if (charge.RemainingAmount > 0)
+                {
+                    forgivenAmountByCharge[charge.Id] = forgivenAmountByCharge.GetValueOrDefault(charge.Id) + charge.RemainingAmount;
+                }
+                if (charge.RemainingWeight > 0)
+                {
+                    forgivenWeightByCharge[charge.Id] = forgivenWeightByCharge.GetValueOrDefault(charge.Id) + charge.RemainingWeight;
+                }
                 charge.RemainingAmount = 0;
                 charge.RemainingWeight = 0;
             }
@@ -1109,73 +1208,6 @@ public class ReceivableService : IReceivableService
             }
         }
 
-        return applications;
-    }
-
-    // A deliberately-grouped batch settlement (specific orders checked together and settled
-    // as one action, via 미수금 관리's batch-settle dialog) should never leave some of those
-    // orders completely untouched just because the deposit wasn't enough to cover the oldest
-    // one in full first - every charge in the group gets touched, proportional to its own
-    // share of the group's total, so all of them leave the outstanding-charge state together
-    // instead of the deposit being fully consumed by the first charge alone.
-    private static List<ReceivableApplication> ApplyProportionally(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, ref decimal forgivenAmount, ref decimal forgivenWeight)
-    {
-        var applications = new List<ReceivableApplication>();
-        if (charges.Count == 0) return applications;
-
-        var totalChargeAmount = charges.Sum(c => c.RemainingAmount);
-        var totalChargeWeight = charges.Sum(c => c.RemainingWeight);
-        var poolAmount = Math.Min(remainingAmount, totalChargeAmount);
-        var poolWeight = Math.Min(remainingWeight, totalChargeWeight);
-
-        decimal allocatedAmount = 0;
-        decimal allocatedWeight = 0;
-
-        for (var i = 0; i < charges.Count; i++)
-        {
-            var charge = charges[i];
-            var isLast = i == charges.Count - 1;
-
-            // Cash and gold weight are two views of the same underlying charge, not
-            // independent debts (same rule ApplyToChargeList already applies) - "touched"
-            // tracks whether THIS side actually had anything in the pool to begin with, so
-            // fully paying off one side (e.g. all cash, zero weight) still closes out the
-            // whole charge instead of leaving the untouched side looking perpetually unpaid.
-            var touchedAmount = poolAmount > 0 && charge.RemainingAmount > 0;
-            var touchedWeight = poolWeight > 0 && charge.RemainingWeight > 0;
-
-            // The last charge absorbs whatever proportional rounding left over, so the sum
-            // of applied amounts always exactly equals the pool - never a few won/grams short.
-            // Non-last shares are capped at the charge's own remaining so rounding can never
-            // overshoot it.
-            var shareAmount = isLast
-                ? poolAmount - allocatedAmount
-                : (totalChargeAmount > 0 ? Math.Min(charge.RemainingAmount, Math.Round(poolAmount * (charge.RemainingAmount / totalChargeAmount), 0, MidpointRounding.AwayFromZero)) : 0);
-            var shareWeight = isLast
-                ? poolWeight - allocatedWeight
-                : (totalChargeWeight > 0 ? Math.Min(charge.RemainingWeight, Math.Round(poolWeight * (charge.RemainingWeight / totalChargeWeight), 2, MidpointRounding.AwayFromZero)) : 0);
-
-            allocatedAmount += shareAmount;
-            allocatedWeight += shareWeight;
-            charge.RemainingAmount -= shareAmount;
-            charge.RemainingWeight -= shareWeight;
-
-            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
-            {
-                if (charge.RemainingAmount > 0) forgivenAmount += charge.RemainingAmount;
-                if (charge.RemainingWeight > 0) forgivenWeight += charge.RemainingWeight;
-                charge.RemainingAmount = 0;
-                charge.RemainingWeight = 0;
-            }
-
-            if (shareAmount != 0 || shareWeight != 0)
-            {
-                applications.Add(new ReceivableApplication { ChargeId = charge.Id, AppliedAmount = shareAmount, AppliedWeight = shareWeight });
-            }
-        }
-
-        remainingAmount -= poolAmount;
-        remainingWeight -= poolWeight;
         return applications;
     }
 
@@ -1200,62 +1232,151 @@ public class ReceivableService : IReceivableService
     // A DCC batch-settling several retail orders at once (정산 대상 내역's checkbox flow) needs
     // to target all of them in one deposit, mirroring PayableService.ApplyToChargeList's
     // OrderIds branch - orderIds takes priority over the single orderId when both are present.
-    private async Task<(List<ReceivableApplication> Applications, decimal RemainingAmount, decimal RemainingWeight, decimal ForgivenAmount, decimal ForgivenWeight)> ApplyDepositToChargesAsync(int userId, int? orderId, List<int>? orderIds, decimal amountToApply, decimal weightToApply)
+    private async Task<(List<ReceivableApplication> Applications, decimal RemainingAmount, decimal RemainingWeight, Dictionary<int, decimal> ForgivenAmountByCharge, Dictionary<int, decimal> ForgivenWeightByCharge)> ApplyDepositToChargesAsync(int userId, int? orderId, List<int>? orderIds, decimal amountToApply, decimal weightToApply)
     {
         var applications = new List<ReceivableApplication>();
-        decimal forgivenAmount = 0m;
-        decimal forgivenWeight = 0m;
+        var forgivenAmountByCharge = new Dictionary<int, decimal>();
+        var forgivenWeightByCharge = new Dictionary<int, decimal>();
 
         if (orderIds != null && orderIds.Count > 0)
         {
+            // Pays each selected charge off in full, oldest first (GetTargetChargesForOrdersAsync
+            // already orders by CreatedAt), instead of prorating a partial payment thinly across
+            // every selected order - a partial batch payment now fully closes as many of the
+            // selected orders as it can afford, leaving the rest untouched for next time, rather
+            // than leaving every selected order sitting at a small remaining balance.
             var targetCharges = await _receivableRepository.GetTargetChargesForOrdersAsync(userId, orderIds);
-            applications.AddRange(ApplyProportionally(targetCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
+            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
+
+            // A charge the payment pool ran out before reaching (ApplyToChargeList pays oldest
+            // first) still has to be acknowledged - the user explicitly picked it for THIS batch,
+            // so leaving it with no application at all strands it in the untouched 정산 대상
+            // 내역 worklist looking like the action never happened to it. A 0-value application
+            // (same mechanism as an all-zero 입금처리) moves it into 미수금 관리 instead, still
+            // owing its full remaining amount.
+            var touchedChargeIds = applications.Select(a => a.ChargeId).ToHashSet();
+            foreach (var charge in targetCharges)
+            {
+                if (!touchedChargeIds.Contains(charge.Id))
+                {
+                    applications.Add(new ReceivableApplication { ChargeId = charge.Id, AppliedAmount = 0, AppliedWeight = 0 });
+                }
+            }
         }
         else if (orderId.HasValue)
         {
             var targetCharges = await _receivableRepository.GetTargetChargesAsync(userId, orderId.Value);
-            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
+            applications.AddRange(ApplyToChargeList(targetCharges, ref amountToApply, ref weightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
         }
 
         if (amountToApply > 0 || weightToApply > 0)
         {
             var outstandingCharges = await _receivableRepository.GetOutstandingChargesAsync(userId);
-            applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply, ref forgivenAmount, ref forgivenWeight));
+            applications.AddRange(ApplyToChargeList(outstandingCharges, ref amountToApply, ref weightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
         }
 
-        return (applications, amountToApply, weightToApply, forgivenAmount, forgivenWeight);
+        return (applications, amountToApply, weightToApply, forgivenAmountByCharge, forgivenWeightByCharge);
     }
 
     public async Task<ApiResponse<bool>> ProcessDepositAsync(CreateDepositDto request)
     {
         var discount = request.Discount ?? 0m;
+        var discountWeight = request.DiscountWeight ?? 0m;
+        var isAllZero = request.Amount <= 0 && discount <= 0 && (!request.Weight.HasValue || request.Weight.Value <= 0) && discountWeight <= 0;
+        var hasTargetOrders = (request.OrderIds != null && request.OrderIds.Count > 0) || request.OrderId.HasValue;
 
-        if (request.Amount <= 0 && discount <= 0 && (!request.Weight.HasValue || request.Weight.Value <= 0))
+        if (isAllZero && !hasTargetOrders)
         {
             return ApiResponse<bool>.Failure("입금액, 할인액 또는 순금 중량 중 하나는 0보다 커야 합니다.", 400);
+        }
+
+        // A 0/0/0/0 submission against specifically selected orders means nothing was
+        // actually collected and nothing is being forgiven - RemainingAmount/RemainingWeight
+        // must stay exactly as they were (still fully owed, so 미수금 관리 keeps showing the
+        // real balance). But the action still needs a durable trace, or 정산 대상 내역's
+        // "never touched" worklist would show this charge forever even after it was reviewed.
+        // Record a real (zero-value) deposit + application so GetReceivableOrderHistoryAsync's
+        // worklist filter (which excludes any charge with an application on file) drops it.
+        if (isAllZero)
+        {
+            List<Receivable> targetCharges;
+            if (request.OrderIds != null && request.OrderIds.Count > 0)
+            {
+                targetCharges = await _receivableRepository.GetTargetChargesForOrdersAsync(request.UserId, request.OrderIds);
+            }
+            else
+            {
+                targetCharges = await _receivableRepository.GetTargetChargesAsync(request.UserId, request.OrderId!.Value);
+            }
+
+            if (targetCharges.Count > 0)
+            {
+                var zeroDeposit = new Receivable
+                {
+                    UserId = request.UserId,
+                    OrderId = request.OrderId,
+                    Type = "DEPOSIT",
+                    Memo = request.Memo,
+                    SettlementMethod = request.SettlementMethod
+                };
+                await _receivableRepository.AddAsync(zeroDeposit);
+                await _receivableRepository.SaveChangesAsync();
+
+                foreach (var charge in targetCharges)
+                {
+                    _dbContext.ReceivableApplications.Add(new ReceivableApplication
+                    {
+                        DepositId = zeroDeposit.Id,
+                        ChargeId = charge.Id,
+                        AppliedAmount = 0,
+                        AppliedWeight = 0
+                    });
+                }
+                await _receivableRepository.SaveChangesAsync();
+            }
+
+            return ApiResponse<bool>.Success(true);
         }
 
         // Discount reduces outstanding charges the same way cash does, it's just
         // tracked separately on the deposit record so the ledger can show how much
         // of the settlement was actual payment vs. a discount write-off.
-        var (applications, remainingAmount, remainingWeight, forgivenAmount, forgivenWeight) = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.OrderIds, request.Amount + discount, request.Weight ?? 0m);
+        var (applications, remainingAmount, remainingWeight, forgivenAmountByCharge, forgivenWeightByCharge) = await ApplyDepositToChargesAsync(request.UserId, request.OrderId, request.OrderIds, request.Amount + discount, (request.Weight ?? 0m) + discountWeight);
 
-        // Fold anything the either-side-clears-the-whole-charge rule just forgave into the
-        // discount pool below, so it's honestly recorded rather than only ever showing up as
-        // a live RemainingAmount change with no paper trail. Receivable has no weight-side
-        // discount field (unlike Payable), so a forgiven weight amount still can't be
-        // recorded here - a smaller, pre-existing gap this fix doesn't extend to.
+        // ApplyDepositToChargesAsync's two-phase design (targeted charges, then an outstanding-
+        // charges fallback if anything remains) can legitimately touch the SAME charge twice in
+        // one request - e.g. the targeted phase fully closes a charge's cash side but leaves its
+        // weight side positive, so that same charge still qualifies as "outstanding" for the
+        // fallback phase too. Left unmerged, this produces two separate ReceivableApplication
+        // rows for one charge from a single deposit, so the deposit's own Amount silently
+        // disagrees with the sum of what its applications say it paid. Consolidate by ChargeId
+        // before anything below treats this list as "one entry per charge touched."
+        applications = applications
+            .GroupBy(a => a.ChargeId)
+            .Select(g => new ReceivableApplication
+            {
+                ChargeId = g.Key,
+                AppliedAmount = g.Sum(a => a.AppliedAmount),
+                AppliedWeight = g.Sum(a => a.AppliedWeight)
+            })
+            .ToList();
+
+        // Fold everything the either-side-clears-the-whole-charge rule forgave into the
+        // discount pools below, so it's honestly recorded rather than only ever showing up as
+        // a live RemainingAmount/RemainingWeight change with no paper trail.
+        var forgivenAmount = forgivenAmountByCharge.Values.Sum();
+        var forgivenWeight = forgivenWeightByCharge.Values.Sum();
+        var manualDiscount = discount;
+        var manualDiscountWeight = discountWeight;
         discount += forgivenAmount;
-        _ = forgivenWeight;
+        discountWeight += forgivenWeight;
 
         // A charge that was already partially settled before (i.e. it's sitting in 미수금
         // 관리, not the fresh worklist) already has its own running deposit record - route
         // any further money toward it into THAT SAME deposit/거래번호 instead of opening a
         // new one, so 정산 완료 내역 keeps exactly one row per order as it accumulates
         // payments over time. Only a charge that has never been touched before gets a brand
-        // new deposit record. Cash and discount are attributed to each application using the
-        // request's own overall cash:discount ratio, since the two pools were never tracked
-        // separately per charge to begin with.
+        // new deposit record.
         var chargeIds = applications.Select(a => a.ChargeId).Distinct().ToList();
         var priorApplications = chargeIds.Count > 0
             ? await _dbContext.ReceivableApplications
@@ -1268,22 +1389,42 @@ public class ReceivableService : IReceivableService
             .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.Deposit!.CreatedAt).First());
 
         var totalPool = request.Amount + discount;
+        var totalPoolWeight = (request.Weight ?? 0m) + discountWeight;
         var cashRatio = totalPool > 0 ? request.Amount / totalPool : 0m;
+        var cashRatioWeight = totalPoolWeight > 0 ? (request.Weight ?? 0m) / totalPoolWeight : 0m;
+
+        // application.AppliedAmount/AppliedWeight is ALREADY pure real cash - the exact amount
+        // ApplyToChargeList matched from the payer's own pool, never inflated by forgiveness.
+        // Multiplying it by a pool-wide cashRatio (as this used to do) double-counts: it shrinks
+        // the recorded cash by the SAME forgiven fraction on every charge, including ones that
+        // were never forgiven at all, so Deposit.Amount+Discount ends up smaller than what
+        // actually closed the charges - money silently vanished from the running ledger
+        // (GetLedgerBeforeAsync) even though every charge's own RemainingAmount was correctly 0.
+        // Attribute cash 1:1, spread only the user's OWN manual discount proportionally by cash
+        // share, and add each charge's own forgiven amount directly - never redistributed to a
+        // charge that wasn't the one actually forgiven.
+        var totalAppliedAmount = applications.Sum(a => a.AppliedAmount);
+        var totalAppliedWeight = applications.Sum(a => a.AppliedWeight);
+        var manualDiscountRatio = totalAppliedAmount > 0 ? manualDiscount / totalAppliedAmount : 0m;
+        var manualDiscountRatioWeight = totalAppliedWeight > 0 ? manualDiscountWeight / totalAppliedWeight : 0m;
 
         Receivable? newDeposit = null;
         var newApplications = new List<ReceivableApplication>();
 
         foreach (var application in applications)
         {
-            var cashPortion = application.AppliedAmount * cashRatio;
-            var discountPortion = application.AppliedAmount - cashPortion;
+            var cashPortion = application.AppliedAmount;
+            var discountPortion = application.AppliedAmount * manualDiscountRatio + forgivenAmountByCharge.GetValueOrDefault(application.ChargeId);
+            var cashPortionWeight = application.AppliedWeight;
+            var discountPortionWeight = application.AppliedWeight * manualDiscountRatioWeight + forgivenWeightByCharge.GetValueOrDefault(application.ChargeId);
 
             if (existingApplicationByCharge.TryGetValue(application.ChargeId, out var existingApplication))
             {
                 var existingDeposit = existingApplication.Deposit!;
                 existingDeposit.Amount += cashPortion;
                 existingDeposit.Discount += discountPortion;
-                existingDeposit.Weight += application.AppliedWeight;
+                existingDeposit.Weight += cashPortionWeight;
+                existingDeposit.DiscountWeight += discountPortionWeight;
                 existingApplication.AppliedAmount += application.AppliedAmount;
                 existingApplication.AppliedWeight += application.AppliedWeight;
             }
@@ -1299,7 +1440,8 @@ public class ReceivableService : IReceivableService
                 };
                 newDeposit.Amount += cashPortion;
                 newDeposit.Discount += discountPortion;
-                newDeposit.Weight += application.AppliedWeight;
+                newDeposit.Weight += cashPortionWeight;
+                newDeposit.DiscountWeight += discountPortionWeight;
                 newApplications.Add(application);
             }
         }
@@ -1318,9 +1460,11 @@ public class ReceivableService : IReceivableService
                 SettlementMethod = request.SettlementMethod
             };
             var leftoverCash = remainingAmount * cashRatio;
+            var leftoverCashWeight = remainingWeight * cashRatioWeight;
             newDeposit.Amount += leftoverCash;
             newDeposit.Discount += remainingAmount - leftoverCash;
-            newDeposit.Weight += remainingWeight;
+            newDeposit.Weight += leftoverCashWeight;
+            newDeposit.DiscountWeight += remainingWeight - leftoverCashWeight;
         }
 
         if (newDeposit != null)
@@ -1344,6 +1488,21 @@ public class ReceivableService : IReceivableService
     {
         var deposit = await _receivableRepository.GetByIdAsync(id);
         if (deposit == null || deposit.Type != "DEPOSIT") return ApiResponse<bool>.Failure("입금 내역을 찾을 수 없습니다.", 404);
+
+        // Only the DCC that collected this deposit (or an admin) may correct it - the
+        // retailer it was collected from can view and print it, but never edit its own
+        // settlement record.
+        if (!_currentUserService.IsAdmin)
+        {
+            var editorUserId = GetCurrentUserId();
+            var editorUser = await _receivableRepository.GetUserWithCompaniesAsync(editorUserId);
+            var editorIsLogisticsCompany = editorUser != null && editorUser.UserCompanies.Any(uc => uc.Company != null && uc.Company.Category == "DCC");
+            if (!editorIsLogisticsCompany)
+            {
+                return ApiResponse<bool>.Failure("접근 권한이 없습니다.", 403);
+            }
+        }
+
         if (deposit.IsCancelled) return ApiResponse<bool>.Failure("취소된 거래는 수정할 수 없습니다.", 400);
         if (deposit.SourcePaymentId.HasValue) return ApiResponse<bool>.Failure("이 입금은 정산처리에서 자동 반영되었습니다. 원본 정산처리 내역에서 수정해주세요.", 400);
 
@@ -1359,22 +1518,26 @@ public class ReceivableService : IReceivableService
         _dbContext.ReceivableApplications.RemoveRange(oldApplications);
 
         var newDiscount = request.Discount ?? 0m;
+        var newDiscountWeight = request.DiscountWeight ?? 0m;
         deposit.Amount = request.Amount;
         deposit.Weight = request.Weight ?? 0m;
         deposit.Discount = newDiscount;
+        deposit.DiscountWeight = newDiscountWeight;
         deposit.Memo = request.Memo;
         deposit.SettlementMethod = request.SettlementMethod;
 
         decimal newAmountToApply = request.Amount + newDiscount;
-        decimal newWeightToApply = request.Weight ?? 0m;
+        decimal newWeightToApply = (request.Weight ?? 0m) + newDiscountWeight;
         var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
-        decimal editForgivenAmount = 0m;
-        decimal editForgivenWeight = 0m;
-        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, ref editForgivenAmount, ref editForgivenWeight);
-        if (editForgivenAmount > 0)
-        {
-            deposit.Discount += editForgivenAmount;
-        }
+        var editForgivenAmountByCharge = new Dictionary<int, decimal>();
+        var editForgivenWeightByCharge = new Dictionary<int, decimal>();
+        var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, editForgivenAmountByCharge, editForgivenWeightByCharge);
+        // A single deposit being edited has nowhere else to attribute a forgiven amount to -
+        // unlike ProcessDepositAsync's merge-across-multiple-destination-deposits case, there's
+        // only this one deposit record, so folding the aggregate straight into its own discount
+        // is exact, not an approximation.
+        deposit.Discount += editForgivenAmountByCharge.Values.Sum();
+        deposit.DiscountWeight += editForgivenWeightByCharge.Values.Sum();
         foreach (var application in newApplications)
         {
             application.Deposit = deposit;
