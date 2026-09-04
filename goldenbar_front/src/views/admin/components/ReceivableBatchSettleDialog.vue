@@ -30,7 +30,11 @@
                       {{ p.productName || '-' }}
                       <span v-if="p.productNo" class="product-no-code">{{ p.productNo }}</span>
                     </div>
-                    <div class="product-spec">함량: {{ p.purity || '-' }} / 수량: {{ p.quantity }}개</div>
+                    <div class="product-spec">
+                      함량: {{ p.purity || '-' }} / 중량: {{ p.actualWeight ? p.actualWeight + 'g' : '-' }} / 수량: {{ p.quantity }}개
+                      <template v-if="p.size && p.size !== 'EMPTY'"> / 사이즈: {{ p.size }}</template>
+                    </div>
+                    <div v-if="p.memo" class="product-memo">메모: {{ p.memo }}</div>
                   </div>
                 </div>
                 <div v-if="orderItem.items.length > 3" class="product-more">+{{ orderItem.items.length - 3 }}건 더</div>
@@ -320,6 +324,11 @@ const handleSubmit = () => {
 .product-spec {
   font-size: 0.75rem;
   color: #909399;
+  margin-top: 0.125rem;
+}
+.product-memo {
+  font-size: 0.75rem;
+  color: #e6a23c;
   margin-top: 0.125rem;
 }
 .product-more {

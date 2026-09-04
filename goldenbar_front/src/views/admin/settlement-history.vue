@@ -164,7 +164,7 @@
             </el-table-column>
             <el-table-column label="청구중량" width="120" align="right">
               <template #default="{row: item}">
-                {{ (item.chargeWeight || 0).toFixed(2) }}g
+                {{ getRawItemWeight(item).toFixed(2) }}g
               </template>
             </el-table-column>
             <el-table-column label="작업" width="120" align="center">
@@ -428,7 +428,7 @@
             </el-table-column>
             <el-table-column label="청구중량" width="120" align="right">
               <template #default="{row: item}">
-                {{ (item.chargeWeight || 0).toFixed(2) }}g
+                {{ getRawItemWeight(item).toFixed(2) }}g
               </template>
             </el-table-column>
             <el-table-column label="작업" width="180" align="center">
@@ -574,6 +574,16 @@ const getEffectiveAppliedWeight = (item: any) => {
     return item.chargeWeight || 0;
   }
   return item.appliedWeight || 0;
+};
+
+// chargeWeight is the charge's own 순금(pure-gold) weight, converted from the product's
+// real weight via its purity ratio - correct for settlement math (거래 전 미수/판매 etc.
+// all run in pure-gold grams), but showing it as "청구중량" reads as if the item itself
+// weighs that much, when its actual/physical weight is different (e.g. a 14K item weighing
+// 7g shows as 4.50g of pure gold). 청구중량 here means "how much does the product weigh",
+// so sum each item's own real actualWeight instead.
+const getRawItemWeight = (item: any) => {
+  return (item.items || []).reduce((sum: number, p: any) => sum + (p.actualWeight || 0) * (p.quantity || 1), 0);
 };
 
 // ---- MFG/DCC (Payable) side: relocated from payable-management.vue's old
