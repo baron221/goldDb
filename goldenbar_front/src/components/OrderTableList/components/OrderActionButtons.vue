@@ -38,6 +38,13 @@
       >
         {{ row.status === 'FactoryRejected' ? '재의뢰' : $t('order.status.FactoryRequested') }}
       </el-button>
+      <el-tooltip
+        v-else-if="row.status === 'InspectedRequested' && row.isSettlementProcessed === false"
+        content="제조사 정산처리가 완료되면 물류도착 처리를 할 수 있습니다"
+        placement="top"
+      >
+        <el-tag type="warning" size="small" effect="plain">정산처리 대기중</el-tag>
+      </el-tooltip>
       <el-button
         v-else-if="row.status === 'InspectedRequested' || row.status === 'Inspected'"
         type="success"

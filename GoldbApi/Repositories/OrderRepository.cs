@@ -641,6 +641,9 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             HasStatement = Context.OrderStatements.Any(os => os.OrderId == o.Id),
             IsPayableSettled = Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE")
                 && !Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0)),
+            IsSettlementProcessed = Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && !p.IsCancelled)
+                && !Context.Payables.Any(p => p.OrderId == o.Id && p.Type == "CHARGE" && !p.IsCancelled
+                    && !Context.PayableApplications.Any(a => a.ChargeId == p.Id)),
             CreatedAt = o.CreatedAt,
             UpdatedAt = o.UpdatedAt,
             OrderItems = o.OrderItems.Where(oi => oi.ParentId == null).Select(oi => new OrderItemDto

@@ -40,7 +40,7 @@
         <el-dropdown-item
           v-if="props.userCategory !== 'MFG' && (props.order.status === 'InspectedRequested' || props.order.status === 'Inspected')"
           @click="$emit('inspection', props.order)"
-          :disabled="!isActionEnabled(props.order)"
+          :disabled="!isActionEnabled(props.order) || (props.order.status === 'InspectedRequested' && props.order.isSettlementProcessed === false)"
         >
           {{ getStatusLabel('Inspected', props.userCategory) }}
         </el-dropdown-item>

@@ -85,6 +85,14 @@ public class OrderDto
 
     public bool IsPayableSettled { get; set; }
 
+    // True once every one of this order's Payable charges (one per manufacturer involved)
+    // has at least one PayableApplication on file - the exact condition
+    // ReceivableService.GetManufacturerSettlementBacklogBlockAsync gates 물류도착 on. Unlike
+    // IsPayableSettled (which requires the charge to be fully PAID), a 0-value 정산처리
+    // acknowledgement already satisfies this. Lets 물류승인내역 hide/disable the 물류도착
+    // button up front instead of letting the user hit the same backend rejection.
+    public bool IsSettlementProcessed { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
