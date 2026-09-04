@@ -437,6 +437,12 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             {
                 dbQuery = dbQuery.Where(o => o.Status.ToUpper() != "COMPLETED");
             }
+
+            if (query.ExcludeSettled == true)
+            {
+                var settledOnwardStatuses = new[] { "SETTLED", "DELIVERY_READY", "DELIVERY_IN_TRANSIT", "DELIVERED", "Completed" };
+                dbQuery = dbQuery.Where(o => !settledOnwardStatuses.Contains(o.Status));
+            }
         }
         else
         {

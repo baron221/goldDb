@@ -22,6 +22,7 @@ export function useOrder() {
     endDate: defaultEndDate as string | undefined,
     excludeCancelled: true,
     excludeCompleted: true,
+    excludeSettled: true,
     orderNo: '',
     categoryLarge: '',
     categoryMedium: '',

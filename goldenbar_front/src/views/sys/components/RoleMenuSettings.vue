@@ -139,13 +139,22 @@ const editingMenuId = ref(null);
 
 let saveTimer = null;
 
+// Switching roles quickly can let an OLDER role's fetch resolve AFTER a NEWER role's -
+// without this guard, the stale response overwrites menuData with the wrong role's
+// permissions, which then silently gets attributed to whichever role is now selected the
+// next time anything saves. Only the most recently started load is allowed to apply.
+let loadToken = 0;
+
 const loadRoleMenus = async () => {
+  const myToken = ++loadToken;
   try {
     const res = await getRoleMenus(props.roleKey);
+    if (myToken !== loadToken) return;
     menuData.value = buildMenuTree(res.data);
 
     expandedRowKeys.value = res.data.map(m => String(m.id));
   } catch (error) {
+    if (myToken !== loadToken) return;
     ElMessage.error('메뉴 데이터를 불러오는 데 실패했습니다.');
   }
 };
@@ -293,6 +302,15 @@ const flattenMenuPermissions = (list) => {
 
 const handleManualSave = async () => {
   if (!props.roleKey) return;
+  // A checkbox toggled just before clicking 전체 저장 may still have its 500ms auto-save
+  // pending - without cancelling it, that timer fires AFTER this manual save completes and
+  // re-sends whatever menuData looks like at that later moment (by then possibly belonging
+  // to a different role if the user has since switched), silently clobbering what 전체 저장
+  // just persisted.
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   try {
     await assignMenus({ roleKey: props.roleKey, permissions: flattenMenuPermissions(menuData.value) });
     ElMessage.success('메뉴 권한이 성공적으로 저장되었습니다');
@@ -329,9 +347,19 @@ const handleMenuPermissionChange = (row) => {
     clearTimeout(saveTimer);
   }
 
+  // Capture the role this edit actually belongs to - props.roleKey is read live inside the
+  // timeout below, so if the user switches to a different role before the 500ms debounce
+  // fires, that read would silently pick up the NEW role's key while menuData has ALREADY
+  // been overwritten by that new role's own loadRoleMenus() - saving the new role's
+  // permissions under a mismatched key, or worse, corrupting whichever role happens to be
+  // selected once the timer finally runs. Drop the save entirely in that case instead: the
+  // edit's own role is no longer displayed, so there's nothing correct left to send.
+  const keyAtChangeTime = props.roleKey;
+
   saveTimer = setTimeout(async () => {
+    if (keyAtChangeTime !== props.roleKey) return;
     try {
-      await assignMenus({ roleKey: props.roleKey, permissions: flattenMenuPermissions(menuData.value) });
+      await assignMenus({ roleKey: keyAtChangeTime, permissions: flattenMenuPermissions(menuData.value) });
       ElMessage.success('권한 설정이 반영되었습니다');
     } catch (error) {
       ElMessage.error('권한 설정 반영에 실패했습니다');

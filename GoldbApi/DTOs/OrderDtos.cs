@@ -297,6 +297,14 @@ public class OrderQueryDto
     // that very action. Same "default/broad view only" guard as ExcludePostInspected.
     public bool? ExcludeArrived { get; set; }
 
+    // Narrower still: keeps PENDING/PROCESSING (정산대기/정산중, still actively being
+    // settled) visible, but hides SETTLED and everything after (delivery, completion) - once
+    // an order's settlement itself is done, the retailer's own 주문내역조회 (an active-orders
+    // worklist) has nothing left for them to act on there; the settled transaction belongs on
+    // their settlement history page instead. Same "default/broad view only" guard as the
+    // other Exclude* flags above.
+    public bool? ExcludeSettled { get; set; }
+
     public bool? IsAsOnly { get; set; }
 
     public bool? IsPayableSettled { get; set; }

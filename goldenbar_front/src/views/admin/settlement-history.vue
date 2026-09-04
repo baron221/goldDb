@@ -104,7 +104,7 @@
         </base-table>
       </el-card>
 
-      <base-popup v-model="receivableLedgerDetailVisible" title="정산 상세" width="900px">
+      <base-popup v-model="receivableLedgerDetailVisible" title="정산 상세" width="900px" @close="handleReceivableLedgerDetailClose">
         <div v-if="receivableLedgerDetailRow" class="order-detail-expand" v-loading="receivableLedgerLoading">
           <table class="ledger-table" style="margin-bottom: 1.25rem;">
             <thead>
@@ -365,7 +365,7 @@
         @saved="onApplicationEditSaved"
       />
 
-      <base-popup v-model="ledgerDetailVisible" title="정산 상세" width="900px">
+      <base-popup v-model="ledgerDetailVisible" title="정산 상세" width="900px" @close="handleLedgerDetailClose">
         <div v-if="ledgerDetailRow" class="order-detail-expand" v-loading="paymentApplicationsLoading[ledgerDetailRow.id]">
           <table class="ledger-table" style="margin-bottom: 1.25rem;">
             <thead>
@@ -857,6 +857,16 @@ const getLedgerEditForm = (row: any) => {
     };
   }
   return ledgerEditForm[row.id];
+};
+
+// Closing the popup (the X button, or clicking outside) without clicking 저장 must discard
+// whatever was typed - ledgerEditForm is a plain reactive cache keyed by row id, so it
+// otherwise survives the popup closing, and re-opening the SAME row later shows the leftover
+// edit as if it had been saved even though nothing was ever sent to the server.
+const handleLedgerDetailClose = () => {
+  if (ledgerDetailRow.value) {
+    delete ledgerEditForm[ledgerDetailRow.value.id];
+  }
 };
 
 const getLedgerAfter = (row: any) => {
@@ -1492,6 +1502,13 @@ const getReceivableLedgerEditForm = (row: any) => {
     };
   }
   return receivableLedgerEditForm[row.id];
+};
+
+// See Payable's identical handleLedgerDetailClose for the full rationale.
+const handleReceivableLedgerDetailClose = () => {
+  if (receivableLedgerDetailRow.value) {
+    delete receivableLedgerEditForm[receivableLedgerDetailRow.value.id];
+  }
 };
 
 const getReceivableLedgerAfter = (row: any) => {
