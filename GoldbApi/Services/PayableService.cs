@@ -298,8 +298,6 @@ public class PayableService : IPayableService
             .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId)
             .ToListAsync();
 
-        var totalOutstanding = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingAmount);
-        var totalOutstandingWeight = pairPayables.Where(p => p.Type == "CHARGE").Sum(p => p.RemainingWeight);
         var lastPaymentDate = pairPayables.Where(p => p.Type == "PAYMENT" && !p.IsCancelled)
             .OrderByDescending(p => p.CreatedAt)
             .Select(p => (DateTime?)p.CreatedAt)
@@ -313,13 +311,23 @@ public class PayableService : IPayableService
         // amount belongs folded into 거래 전 미수(A) instead of being double-labeled as a
         // fresh 판매(B) every time more of it gets paid off. Mirrors
         // ReceivableService.GetReceivableChargeSummaryAsync's identical fix.
-        var chargeIdListForTouchCheck = charges.Select(c => c.Id).ToList();
+        //
+        // Touched-status is checked across EVERY outstanding charge for the pair, not just
+        // the ones this request selected - 거래 전 미수(A) must only ever reflect genuinely
+        // old, already-billed debt. An order that's simply sitting untouched in the worklist
+        // (never selected, never billed) is neither a sale nor a debt for THIS transaction;
+        // it stays invisible here entirely, waiting for its own future 정산처리, instead of
+        // silently inflating A just because it happens to share this counterparty.
+        var allPairChargeIds = pairPayables.Where(p => p.Type == "CHARGE").Select(p => p.Id).ToList();
         var touchedChargeIds = (await _dbContext.PayableApplications
-            .Where(a => chargeIdListForTouchCheck.Contains(a.ChargeId))
+            .Where(a => allPairChargeIds.Contains(a.ChargeId))
             .Select(a => a.ChargeId)
             .Distinct()
             .ToListAsync())
             .ToHashSet();
+
+        var totalOutstanding = pairPayables.Where(p => p.Type == "CHARGE" && touchedChargeIds.Contains(p.Id)).Sum(p => p.RemainingAmount);
+        var totalOutstandingWeight = pairPayables.Where(p => p.Type == "CHARGE" && touchedChargeIds.Contains(p.Id)).Sum(p => p.RemainingWeight);
 
         var saleAmount = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(p => p.RemainingAmount);
         var saleWeight = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(p => p.RemainingWeight);
@@ -403,8 +411,8 @@ public class PayableService : IPayableService
         {
             CompanyId = counterpartyId,
             CompanyName = counterparty?.Name,
-            TotalOutstanding = totalOutstanding - saleAmount,
-            TotalOutstandingWeight = totalOutstandingWeight - saleWeight,
+            TotalOutstanding = totalOutstanding,
+            TotalOutstandingWeight = totalOutstandingWeight,
             LastPaymentDate = lastPaymentDate,
             SaleAmount = saleAmount,
             SaleWeight = saleWeight,

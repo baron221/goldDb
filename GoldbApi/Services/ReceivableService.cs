@@ -490,13 +490,7 @@ public class ReceivableService : IReceivableService
         var first = charges[0];
         var userId = first.UserId;
 
-        // "Before" (A) must reflect the retailer's WHOLE account minus what's being settled
-        // right now, same convention as Payable's GetOrderChargeSummaryAsync (TotalOutstanding
-        // = totalOutstanding - saleAmount) - otherwise the ledger would double-count this
-        // very transaction into its own "before" balance.
         var allUserReceivables = await _receivableRepository.GetReceivablesForUserAsync(userId);
-        var totalOutstandingAll = allUserReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingAmount);
-        var totalOutstandingWeightAll = allUserReceivables.Where(r => r.Type == "CHARGE").Sum(r => r.RemainingWeight);
         var lastPaymentDate = allUserReceivables.Where(r => r.Type == "DEPOSIT" && !r.IsCancelled)
             .OrderByDescending(r => r.CreatedAt)
             .Select(r => (DateTime?)r.CreatedAt)
@@ -509,13 +503,23 @@ public class ReceivableService : IReceivableService
         // that one there's no new sale happening here, just old debt being collected, so its
         // remaining amount belongs folded into 거래 전 미수(A) instead of being double-labeled
         // as a fresh 판매(B) every time more of it gets paid off.
-        var chargeIdList = charges.Select(c => c.Id).ToList();
+        //
+        // Touched-status is checked across EVERY outstanding charge on the retailer's whole
+        // account, not just the ones this request selected - 거래 전 미수(A) must only ever
+        // reflect genuinely old, already-billed debt. An order sitting untouched in the
+        // worklist (never selected, never billed) is neither a sale nor a debt for THIS
+        // transaction; it stays invisible here entirely, waiting for its own future 정산처리,
+        // instead of silently inflating A just because it belongs to the same retailer.
+        var allUserChargeIds = allUserReceivables.Where(r => r.Type == "CHARGE").Select(r => r.Id).ToList();
         var touchedChargeIds = (await _dbContext.ReceivableApplications
-            .Where(a => chargeIdList.Contains(a.ChargeId))
+            .Where(a => allUserChargeIds.Contains(a.ChargeId))
             .Select(a => a.ChargeId)
             .Distinct()
             .ToListAsync())
             .ToHashSet();
+
+        var totalOutstandingAll = allUserReceivables.Where(r => r.Type == "CHARGE" && touchedChargeIds.Contains(r.Id)).Sum(r => r.RemainingAmount);
+        var totalOutstandingWeightAll = allUserReceivables.Where(r => r.Type == "CHARGE" && touchedChargeIds.Contains(r.Id)).Sum(r => r.RemainingWeight);
 
         var saleAmount = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(c => c.RemainingAmount);
         var saleWeight = charges.Where(c => !touchedChargeIds.Contains(c.Id)).Sum(c => c.RemainingWeight);
@@ -592,10 +596,10 @@ public class ReceivableService : IReceivableService
                 ?? first.User?.UserCompanies.FirstOrDefault()?.Company?.Name,
             TotalCharge = charges.Sum(c => c.Amount),
             TotalDeposit = charges.Sum(c => c.Amount - c.RemainingAmount),
-            TotalReceivable = totalOutstandingAll - saleAmount,
+            TotalReceivable = totalOutstandingAll,
             TotalChargeWeight = charges.Sum(c => c.Weight),
             TotalDepositWeight = charges.Sum(c => c.Weight - c.RemainingWeight),
-            TotalReceivableWeight = totalOutstandingWeightAll - saleWeight,
+            TotalReceivableWeight = totalOutstandingWeightAll,
             LastPaymentDate = lastPaymentDate,
             SaleAmount = saleAmount,
             SaleWeight = saleWeight,
