@@ -140,7 +140,10 @@ const initializeForm = () => {
       purity: item.purity || (item.productSetId ? '' : '14K'),
       isSet: !!item.productSetId,
       requestedMemo: item.requestedMemo || '',
-      inspectionMemo: item.inspectionMemo || '', 
+      // Default to the retailer's own order memo instead of a blank field - see
+      // FactoryRequestDialog's identical fix for the full rationale. An inspectionMemo
+      // already saved from a prior visit to this dialog still wins.
+      inspectionMemo: item.inspectionMemo || item.memo || '',
       depth: 0
     });
 
@@ -163,7 +166,7 @@ const initializeForm = () => {
           purity: child.purity || '14K',
           isChild: true,
           requestedMemo: child.requestedMemo || '',
-          inspectionMemo: child.inspectionMemo || '',
+          inspectionMemo: child.inspectionMemo || child.memo || '',
           depth: 1
         });
       });

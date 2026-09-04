@@ -198,7 +198,11 @@ const initForm = () => {
       purity: item.purity || (item.productSetId ? '' : '14K'),
       color: item.color,
       isAsOrder: !!item.isAsOrder,
-      requestedMemo: item.requestedMemo || '',
+      // Default to the retailer's own order memo (the same text shown as "📝 memo" next to
+      // 제품정보 elsewhere) instead of a blank field - the logistics staff is relaying the
+      // retailer's actual request to the factory, not writing one from scratch. A
+      // requestedMemo already saved from a prior visit to this dialog still wins.
+      requestedMemo: item.requestedMemo || item.memo || '',
       isSet: !!item.productSetId,
       manufacturerName: item.manufacturerName,
       categoryLarge: item.categoryLarge,
@@ -230,7 +234,7 @@ const initForm = () => {
           purity: child.purity || '14K',
           color: child.color,
           isAsOrder: !!child.isAsOrder,
-          requestedMemo: child.requestedMemo || '',
+          requestedMemo: child.requestedMemo || child.memo || '',
           manufacturerName: child.manufacturerName,
           categoryLarge: child.categoryLarge,
           categoryMedium: child.categoryMedium,
