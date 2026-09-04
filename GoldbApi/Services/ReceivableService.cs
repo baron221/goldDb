@@ -1616,6 +1616,22 @@ public class ReceivableService : IReceivableService
     {
         var deposit = await _receivableRepository.GetByIdAsync(id);
         if (deposit == null || deposit.Type != "DEPOSIT") return ApiResponse<bool>.Failure("입금 내역을 찾을 수 없습니다.", 404);
+
+        // Only the DCC that collected this deposit (or an admin) may reverse it - mirrors
+        // UpdateDepositAsync's identical guard. Without this, any authenticated user
+        // (including the retailer it was collected from) could cancel it outright, since
+        // this endpoint previously had no ownership check at all.
+        if (!_currentUserService.IsAdmin)
+        {
+            var editorUserId = GetCurrentUserId();
+            var editorUser = await _receivableRepository.GetUserWithCompaniesAsync(editorUserId);
+            var editorIsLogisticsCompany = editorUser != null && editorUser.UserCompanies.Any(uc => uc.Company != null && uc.Company.Category == "DCC");
+            if (!editorIsLogisticsCompany)
+            {
+                return ApiResponse<bool>.Failure("접근 권한이 없습니다.", 403);
+            }
+        }
+
         if (deposit.IsCancelled) return ApiResponse<bool>.Failure("이미 취소된 거래입니다.", 400);
         if (deposit.SourcePaymentId.HasValue) return ApiResponse<bool>.Failure("이 입금은 정산처리에서 자동 반영되었습니다. 원본 정산처리 내역에서 취소해주세요.", 400);
 

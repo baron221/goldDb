@@ -1577,6 +1577,19 @@ public class PayableService : IPayableService
     {
         var payment = await _payableRepository.GetByIdAsync(id);
         if (payment == null || payment.Type != "PAYMENT") return ApiResponse<bool>.Failure("정산 내역을 찾을 수 없습니다.", 404);
+
+        // Only the DCC or MFG that this payment is actually between (or an admin) may edit
+        // it - this had no ownership check at all before, so any authenticated user could
+        // edit any other pair's payment by id. Mirrors GetLedgerBeforeAsync's guard.
+        if (!_currentUserService.IsAdmin)
+        {
+            var current = await GetCurrentCompanyAsync();
+            if (current == null || (current.Value.CompanyId != payment.LogisticsCompanyId && current.Value.CompanyId != payment.ManufacturerCompanyId))
+            {
+                return ApiResponse<bool>.Failure("접근 권한이 없습니다.", 403);
+            }
+        }
+
         if (payment.IsCancelled) return ApiResponse<bool>.Failure("취소된 거래는 수정할 수 없습니다.", 400);
 
         var allCharges = await _payableRepository.GetQueryable()
@@ -1627,6 +1640,18 @@ public class PayableService : IPayableService
     {
         var payment = await _payableRepository.GetByIdAsync(id);
         if (payment == null || payment.Type != "PAYMENT") return ApiResponse<bool>.Failure("정산 내역을 찾을 수 없습니다.", 404);
+
+        // Same ownership guard as UpdatePaymentAsync - only the DCC or MFG this payment is
+        // actually between (or an admin) may reverse it.
+        if (!_currentUserService.IsAdmin)
+        {
+            var current = await GetCurrentCompanyAsync();
+            if (current == null || (current.Value.CompanyId != payment.LogisticsCompanyId && current.Value.CompanyId != payment.ManufacturerCompanyId))
+            {
+                return ApiResponse<bool>.Failure("접근 권한이 없습니다.", 403);
+            }
+        }
+
         if (payment.IsCancelled) return ApiResponse<bool>.Failure("이미 취소된 거래입니다.", 400);
 
         var allCharges = await _payableRepository.GetQueryable()

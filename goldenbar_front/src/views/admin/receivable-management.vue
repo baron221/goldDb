@@ -215,7 +215,11 @@
                   <template #default="item">
                     <div v-if="item.row.type === 'DEPOSIT'" style="display: flex; gap: 0.375rem; justify-content: center;">
                       <el-button size="small" @click="handlePrintReceipt(item.row, row)">영수증 출력</el-button>
-                      <template v-if="!item.row.isCancelled && !item.row.sourcePaymentId">
+                      <!-- This deposit was recorded by the DCC that collected it - the retailer
+                           it was collected from (this whole card is also shown to them, see
+                           isDcc's own comment above) can view and print it, but never cancel or
+                           otherwise change it. Only an admin gets the override here. -->
+                      <template v-if="!item.row.isCancelled && !item.row.sourcePaymentId && isAdmin">
                         <el-button size="small" type="danger" @click="handleCancelReceivable(item.row, row.userId)">정산취소</el-button>
                       </template>
                       <span v-else-if="!item.row.isCancelled && item.row.sourcePaymentId" style="font-size: 0.75rem; color: #909399;">정산처리 연동</span>
