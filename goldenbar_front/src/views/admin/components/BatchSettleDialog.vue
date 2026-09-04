@@ -15,7 +15,8 @@
           <tr>
             <th style="width: 160px;">주문번호</th>
             <th>제품정보</th>
-            <th style="width: 130px;">청구액</th>
+            <th style="width: 120px;">청구액</th>
+            <th style="width: 100px;">청구중량</th>
           </tr>
         </thead>
         <tbody>
@@ -31,7 +32,8 @@
                       <span v-if="p.productNo" class="product-no-code">{{ p.productNo }}</span>
                     </div>
                     <div class="product-spec">
-                      함량: {{ p.purity || '-' }} / 중량: {{ p.actualWeight ? p.actualWeight + 'g' : '-' }} / 수량: {{ p.quantity }}개
+                      함량: {{ p.purity || '-' }} / 수량: {{ p.quantity }}개
+                      <template v-if="p.color && p.color !== 'EMPTY'"> / 색상: {{ codeMap[p.color] || p.color }}</template>
                       <template v-if="p.size && p.size !== 'EMPTY'"> / 사이즈: {{ p.size }}</template>
                     </div>
                     <div v-if="p.memo" class="product-memo">메모: {{ p.memo }}</div>
@@ -42,6 +44,7 @@
               <span v-else>-</span>
             </td>
             <td class="ledger-readonly">₩ {{ formatPrice(orderItem.remainingAmount) }}</td>
+            <td class="ledger-readonly">{{ getRawItemWeight(orderItem).toFixed(2) }}g</td>
           </tr>
         </tbody>
       </table>
@@ -128,6 +131,17 @@ import { getOrderChargeSummary, processPayment } from '@/api/payable';
 import BasePopup from '@/components/BasePopup/index.vue';
 import { formatPrice } from '@/utils/format';
 import { parseTime } from '@/utils';
+import useCodeStore from '@/store/modules/code';
+
+const codeStore = useCodeStore();
+const codeMap = computed(() => codeStore.codeMap);
+
+// 청구중량 means how much the product itself weighs, not its 순금(pure-gold) equivalent -
+// sum each item's own actualWeight × quantity. Mirrors settlement-history.vue's identical
+// getRawItemWeight, used for the same "적용 제품 내역" table this dialog's 주문내용 mirrors.
+const getRawItemWeight = (orderItem: any) => {
+  return (orderItem.items || []).reduce((sum: number, p: any) => sum + (p.actualWeight || 0) * (p.quantity || 1), 0);
+};
 
 const defaultImage = '/thumb_no_img.png';
 
