@@ -1174,6 +1174,14 @@ public class ReceivableService : IReceivableService
     {
         var applications = new List<ReceivableApplication>();
 
+        // See PayableService.ApplyToChargeList's identical guard for the full rationale -
+        // either-side-clears-the-whole-charge only makes sense for a single charge (a
+        // conversion rounding difference within the SAME order). Across a multi-charge batch,
+        // cash and weight are independent pools that can run dry at different charges, and
+        // blanket-forgiving whichever side happened to still have a balance would silently
+        // write off real, valuable 순금 with no user intent behind it.
+        var allowEitherSideForgiveness = charges.Count <= 1;
+
         foreach (var charge in charges)
         {
             if (remainingAmount <= 0 && remainingWeight <= 0) break;
@@ -1215,7 +1223,7 @@ public class ReceivableService : IReceivableService
                 }
             }
 
-            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
+            if (allowEitherSideForgiveness && ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0)))
             {
                 if (charge.RemainingAmount > 0)
                 {

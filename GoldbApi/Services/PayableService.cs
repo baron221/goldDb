@@ -1163,6 +1163,20 @@ public class PayableService : IPayableService
     {
         var applications = new List<PayableApplication>();
 
+        // The either-side-clears-the-whole-charge rule below only makes sense for a single
+        // charge, where Amount and Weight are two units of the SAME one debt (e.g. a
+        // conversion rounding difference of a fraction of a gram) - fully paying one side
+        // really does mean the other's tiny residual is a rounding artifact, safe to write
+        // off. Applied across a MULTI-charge batch instead, cash and weight are independent
+        // pools that can each run dry at a DIFFERENT charge - a charge whose cash happened to
+        // close simply because earlier charges left enough in the pool, while the weight pool
+        // had already been exhausted by an unrelated earlier charge, would otherwise have its
+        // entire remaining weight (real, valuable 순금) silently forgiven with no user intent
+        // behind it at all. Only forgive automatically when there's exactly one charge in
+        // play; a genuine multi-charge shortfall stays a real RemainingAmount/RemainingWeight
+        // balance unless the user explicitly enters a 할인(D) for it.
+        var allowEitherSideForgiveness = charges.Count <= 1;
+
         foreach (var charge in charges)
         {
             if (remainingAmount <= 0 && remainingWeight <= 0) break;
@@ -1204,7 +1218,7 @@ public class PayableService : IPayableService
                 }
             }
 
-            if ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0))
+            if (allowEitherSideForgiveness && ((touchedAmount && charge.RemainingAmount <= 0) || (touchedWeight && charge.RemainingWeight <= 0)))
             {
                 if (charge.RemainingAmount > 0)
                 {
