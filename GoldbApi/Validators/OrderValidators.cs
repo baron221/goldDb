@@ -7,9 +7,13 @@ public class CreateOrderDtoValidator : AbstractValidator<CreateOrderDto>
 {
     public CreateOrderDtoValidator()
     {
+        // A direct/manual order can target a real catalog product (DirectProductId/
+        // DirectProductSetId) OR a free-text one that isn't in the catalog at all
+        // (DirectProductName - see OrderManualRegisterDialog) - CartItemIds is only
+        // required when NONE of those three are present.
         RuleFor(x => x.CartItemIds)
             .NotEmpty()
-            .When(x => !x.DirectProductId.HasValue && !x.DirectProductSetId.HasValue)
+            .When(x => !x.DirectProductId.HasValue && !x.DirectProductSetId.HasValue && string.IsNullOrEmpty(x.DirectProductName))
             .WithMessage("주문할 상품을 선택해주세요.");
     }
 }

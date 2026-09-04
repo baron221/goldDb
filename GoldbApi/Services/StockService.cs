@@ -191,6 +191,7 @@ public class StockService : IStockService
         var stock = new Stock
         {
             ProductId = request.ProductId,
+            ProductName = request.ProductId.HasValue ? null : request.ProductName,
             ProductSetId = request.ProductSetId,
             CompanyId = request.CompanyId,
             StockNo = stockNo,

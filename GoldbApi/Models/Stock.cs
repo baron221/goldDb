@@ -17,6 +17,13 @@ public class Stock : BaseModel
 
     public Product? Product { get; set; }
 
+    // 재고 수기등록에서 카탈로그 제품을 찾지 않고 이름을 직접 입력했을 때만 쓰인다 -
+    // ProductId가 있으면 항상 Product.Name이 우선이고, 이 필드는 ProductId가 없는
+    // 재고에서만 제품명 표시에 쓰인다. Mirrors OrderItem.CustomProductName.
+    [Description("직접 입력한 제품명 (카탈로그에 없는 경우)")]
+    [MaxLength(200)]
+    public string? ProductName { get; set; }
+
     [Description("세트 제품 ID")]
     public int? ProductSetId { get; set; }
 

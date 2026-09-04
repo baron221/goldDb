@@ -8,48 +8,19 @@
   >
     <el-form :model="form" label-position="top">
       <el-form-item label="제품 선택" required>
-        <el-select
-          v-model="form.productId"
-          placeholder="제품명 또는 제품번호로 검색 - 목록에 없으면 그대로 입력 후 선택하세요"
-          filterable
-          remote
-          clearable
-          allow-create
-          default-first-option
-          :remote-method="searchProducts"
-          :loading="productsLoading"
-          style="width: 100%;"
-          @change="handleProductChange"
-        >
-          <el-option
-            v-for="p in productOptions"
-            :key="p.id"
-            :label="`[${p.productNo || '-'}] ${p.name}`"
-            :value="p.id"
-          />
-        </el-select>
-        <div v-if="isCustomProduct" style="color: #e6a23c; font-size: 0.8125rem; margin-top: 0.25rem;">
-          카탈로그에 없는 제품명입니다 - 제조사/함량/중량을 직접 입력해주세요.
-        </div>
+        <el-input v-model="form.productName" placeholder="제품명을 입력하세요" />
       </el-form-item>
 
-      <el-form-item v-if="isCustomProduct" label="제조사" required>
+      <el-form-item label="제조사" required>
         <company-select v-model="form.manufacturerCompanyId" category="MFG" placeholder="제조사를 선택하세요" style="width: 100%;" />
-      </el-form-item>
-      <el-form-item v-else label="생산공장">
-        <el-input :model-value="selectedProduct?.companyName || '-'" disabled />
       </el-form-item>
 
       <div style="display: flex; gap: 0.75rem;">
         <el-form-item label="함량" required style="flex: 1;">
-          <el-select v-model="form.purity" placeholder="함량 선택" style="width: 100%;">
-            <el-option v-for="opt in purityOptions" :key="opt.code" :label="opt.name" :value="opt.code" />
-          </el-select>
+          <el-input v-model="form.purity" placeholder="함량을 입력하세요 (예: 14K)" />
         </el-form-item>
         <el-form-item label="컬러" style="flex: 1;">
-          <el-select v-model="form.color" placeholder="컬러 선택" clearable style="width: 100%;">
-            <el-option v-for="opt in colorOptions" :key="opt.code" :label="opt.name" :value="opt.code" />
-          </el-select>
+          <el-input v-model="form.color" placeholder="컬러 (선택 사항)" />
         </el-form-item>
       </div>
 
@@ -69,7 +40,7 @@
         <el-form-item label="수공비" style="flex: 1;">
           <el-input-number v-model="form.laborCost" :min="0" :step="1000" style="width: 100%;" />
         </el-form-item>
-        <el-form-item v-if="isCustomProduct" label="중량(g)" required style="flex: 1;">
+        <el-form-item label="중량(g)" required style="flex: 1;">
           <el-input-number v-model="form.weight" :min="0" :precision="2" :step="0.1" style="width: 100%;" />
         </el-form-item>
       </div>
@@ -101,13 +72,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, computed } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { getProducts } from '@/api/product';
 import { getRetailersByCenter, getCompanyUsers } from '@/api/company';
 import { createOrder } from '@/api/order';
 import useUserStore from '@/store/modules/user';
-import useCodeStore from '@/store/modules/code';
 import BasePopup from '@/components/BasePopup/index.vue';
 import CompanySelect from '@/components/CompanySelect/index.vue';
 
@@ -118,18 +87,16 @@ const props = defineProps<{
 const emit = defineEmits(['update:modelValue', 'saved']);
 
 const userStore = useUserStore();
-const codeStore = useCodeStore();
 
 const submitting = ref(false);
-const productsLoading = ref(false);
-const productOptions = ref<any[]>([]);
 const retailersList = ref<any[]>([]);
 const employeeList = ref<any[]>([]);
 
+// 제품/함량/컬러 - a plain-text entry, not a catalog lookup. This whole dialog only ever
+// exists to record something that isn't (or doesn't need to be) a real catalog product, so
+// there's no product search here - what's typed is exactly what gets saved.
 const form = reactive({
-  // el-select's allow-create hands back the typed text itself (a string) when no
-  // catalog product matches - that's how a free-text/custom product entry is detected.
-  productId: undefined as number | string | undefined,
+  productName: '',
   manufacturerCompanyId: null as number | null,
   purity: '',
   color: '',
@@ -143,26 +110,8 @@ const form = reactive({
   memo: ''
 });
 
-const selectedProduct = computed(() => productOptions.value.find((p) => p.id === form.productId));
-const isCustomProduct = computed(() => typeof form.productId === 'string');
-
-// Normalized to {code, name} either way - from the selected product's own purity/colors
-// when a real product is picked, or from the MATERIAL_GRADE/PRODUCT_COLOR code groups
-// (same source ProductBasicInfo.vue uses when defining a product from scratch) when the
-// product name was typed in free-text and there's nothing to derive options from.
-const purityOptions = computed(() => {
-  if (isCustomProduct.value) return codeStore.getCodesByGroupStore('MATERIAL_GRADE');
-  const codes = selectedProduct.value?.purity ? selectedProduct.value.purity.split(',') : [];
-  return codes.map((code: string) => ({ code, name: codeStore.codeMap[code] || code }));
-});
-const colorOptions = computed(() => {
-  if (isCustomProduct.value) return codeStore.getCodesByGroupStore('PRODUCT_COLOR');
-  const codes = selectedProduct.value?.colors ? selectedProduct.value.colors.split(',') : [];
-  return codes.map((code: string) => ({ code, name: codeStore.codeMap[code] || code }));
-});
-
 const resetForm = () => {
-  form.productId = undefined;
+  form.productName = '';
   form.manufacturerCompanyId = null;
   form.purity = '';
   form.color = '';
@@ -174,7 +123,6 @@ const resetForm = () => {
   form.targetCompanyId = null;
   form.handledByUserId = null;
   form.memo = '';
-  productOptions.value = [];
 };
 
 const fetchRetailersAndEmployees = async () => {
@@ -200,61 +148,30 @@ watch(() => props.modelValue, (val) => {
   }
 });
 
-const searchProducts = async (query: string) => {
-  if (!query) {
-    productOptions.value = [];
-    return;
-  }
-  productsLoading.value = true;
-  try {
-    const res: any = await getProducts({ name: query, page: 1, pageSize: 20 });
-    productOptions.value = res.data.items || res.data || [];
-  } catch (error) {
-    console.error('Failed to search products:', error);
-  } finally {
-    productsLoading.value = false;
-  }
-};
-
-const handleProductChange = () => {
-  form.purity = purityOptions.value.length > 0 ? purityOptions.value[0].code : '';
-  form.color = colorOptions.value.length > 0 ? colorOptions.value[0].code : '';
-  // Prefill from the product's own catalog price - still freely editable per order below.
-  // A custom (free-text) entry has no catalog price to prefill from, so this naturally
-  // resets to 0, prompting the admin to enter 재료비/수공비/중량 by hand.
-  form.materialCost = selectedProduct.value?.factoryPrice || 0;
-  form.laborCost = selectedProduct.value?.laborCost || 0;
-  form.weight = 0;
-  if (!isCustomProduct.value) form.manufacturerCompanyId = null;
-};
-
 const handleSubmit = async () => {
-  if (!form.productId) {
-    ElMessage.warning('제품을 선택해주세요.');
+  if (!form.productName.trim()) {
+    ElMessage.warning('제품명을 입력해주세요.');
     return;
   }
-  if (!form.purity) {
-    ElMessage.warning('함량을 선택해주세요.');
+  if (!form.manufacturerCompanyId) {
+    ElMessage.warning('제조사를 선택해주세요.');
     return;
   }
-  if (isCustomProduct.value) {
-    if (!form.manufacturerCompanyId) {
-      ElMessage.warning('제조사를 선택해주세요.');
-      return;
-    }
-    if (!form.weight || form.weight <= 0) {
-      ElMessage.warning('중량을 입력해주세요.');
-      return;
-    }
+  if (!form.purity.trim()) {
+    ElMessage.warning('함량을 입력해주세요.');
+    return;
+  }
+  if (!form.weight || form.weight <= 0) {
+    ElMessage.warning('중량을 입력해주세요.');
+    return;
   }
 
   submitting.value = true;
   try {
     await createOrder({
-      directProductId: isCustomProduct.value ? undefined : form.productId,
-      directProductName: isCustomProduct.value ? form.productId : undefined,
-      directManufacturerCompanyId: isCustomProduct.value ? form.manufacturerCompanyId : undefined,
-      directWeight: isCustomProduct.value ? form.weight : undefined,
+      directProductName: form.productName,
+      directManufacturerCompanyId: form.manufacturerCompanyId,
+      directWeight: form.weight,
       directQuantity: form.quantity,
       directPurity: form.purity,
       directColor: form.color || undefined,

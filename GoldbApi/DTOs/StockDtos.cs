@@ -155,6 +155,10 @@ public class CreateStockDto
 
     public int? ProductId { get; set; }
 
+    // Only used when ProductId is left unset - a manually-typed product name that isn't
+    // being matched against the catalog. See Stock.ProductName.
+    public string? ProductName { get; set; }
+
     public int? ProductSetId { get; set; }
 
     public int? CompanyId { get; set; }

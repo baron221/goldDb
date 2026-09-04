@@ -76,7 +76,7 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
                 ProductSetId = s.ProductSetId,
                 ParentStockId = s.ParentStockId,
                 CompanyId = s.CompanyId,
-                ProductName = s.Product != null ? s.Product.Name : string.Empty,
+                ProductName = s.Product != null ? s.Product.Name : (s.ProductName ?? string.Empty),
                 ProductSetTitle = s.ProductSet != null ? s.ProductSet.Title : string.Empty,
                 ProductNo = s.Product != null ? (s.Product.ProductNo ?? string.Empty) : string.Empty,
                 ProductPhotoUrl = s.Product != null && s.Product.ProductPhotos.Any() 
