@@ -104,6 +104,37 @@
         @print-combined="printCombinedPayableStatement"
       />
 
+      <table class="order-history-summary-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>순금(g)</th>
+            <th>공임 및 현금</th>
+            <th>금액합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="summary-label">총 판매</td>
+            <td>{{ (payableSummary.totalChargeWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableSummary.totalChargeAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">총 결제</td>
+            <td>{{ (payableSummary.totalPaidWeight || 0).toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableSummary.totalPaidAmount) }}</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="summary-label">미수금</td>
+            <td>{{ payableOutstandingWeight.toFixed(2) }}</td>
+            <td>₩ {{ formatPrice(payableOutstandingAmount) }}</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+
       <div style="margin: 1.25rem 0;">
         <el-radio-group v-model="payableViewMode" @change="handleViewModeChange">
           <el-radio-button value="transaction">거래별 보기</el-radio-button>
@@ -391,7 +422,7 @@
 import { useMobile } from '@/hooks/useMobile';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getCompanySummaries, getPayableOrderHistory, getPayables, getPaymentApplications, getCompletedPayableOrders, getChargeApplications, getLedgerBefore } from '@/api/payable';
+import { getCompanySummaries, getPayableOrderHistory, getPayables, getPaymentApplications, getCompletedPayableOrders, getChargeApplications, getLedgerBefore, getPayableOrderHistorySummary } from '@/api/payable';
 import { ElMessage } from 'element-plus';
 import { Search, Refresh, Plus } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
@@ -568,6 +599,33 @@ const fetchPayableList = async () => {
   }
 };
 
+// Totals for the currently filtered 거래처/기간 - mirrors settlement-history.vue's identical
+// summary table (MFG's own 정산 완료 내역), so DCC sees the same 총 판매/총 결제/미수금
+// breakdown for their own 정산받은 내역.
+const payableSummary = reactive({
+  totalChargeAmount: 0,
+  totalChargeWeight: 0,
+  totalPaidAmount: 0,
+  totalPaidWeight: 0
+});
+const payableOutstandingAmount = computed(() => Math.max(0, (payableSummary.totalChargeAmount || 0) - (payableSummary.totalPaidAmount || 0)));
+const payableOutstandingWeight = computed(() => Math.max(0, (payableSummary.totalChargeWeight || 0) - (payableSummary.totalPaidWeight || 0)));
+
+const fetchPayableSummary = async () => {
+  try {
+    const res: any = await getPayableOrderHistorySummary({
+      page: 1,
+      pageSize: 1,
+      companyId: payableQuery.companyId,
+      startDate: payableQuery.startDate,
+      endDate: payableQuery.endDate
+    });
+    Object.assign(payableSummary, res.data);
+  } catch (error) {
+    console.error('Failed to fetch payable order history summary:', error);
+  }
+};
+
 const handlePayableFilter = () => {
   payableQuery.page = 1;
   if (payableViewMode.value === 'order') {
@@ -575,6 +633,7 @@ const handlePayableFilter = () => {
   } else {
     fetchPayableList();
   }
+  fetchPayableSummary();
 };
 
 const resetPayableQuery = () => {
@@ -1091,6 +1150,7 @@ onMounted(() => {
   if (isLogistics.value) {
     fetchCompanySummariesFull();
     fetchPayableList();
+    fetchPayableSummary();
   } else {
     getList();
     fetchOrderHistory();
@@ -1101,6 +1161,28 @@ onMounted(() => {
 <style lang="scss" scoped>
 .filter-card {
   margin-bottom: 1.25rem;
+}
+.order-history-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin-top: 1.25rem;
+}
+.order-history-summary-table th,
+.order-history-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+  text-align: center;
+}
+.order-history-summary-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.summary-label {
+  text-align: left;
+  font-weight: 600;
+  background: #fafafa;
+  white-space: nowrap;
 }
 .pagination-container {
   margin-top: 1.25rem;

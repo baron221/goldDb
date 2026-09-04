@@ -64,7 +64,8 @@
           </el-table-column>
           <el-table-column label="거래일자" width="160" align="center">
             <template #default="{row}">
-              <span class="order-link" @click="openReceivableLedgerDetail(row)">{{ formatDate(row.createdAt) }}</span>
+              <span v-if="isRetail">{{ formatDate(row.createdAt) }}</span>
+              <span v-else class="order-link" @click="openReceivableLedgerDetail(row)">{{ formatDate(row.createdAt) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="거래 주문 수량" width="130" align="center">
@@ -546,6 +547,10 @@ const isMfg = computed(() => userStore.companyType === 'MFG');
 // RTL/admin (each scoped to their own data by the backend) - only MFG needs the separate
 // Payable-based ledger, since it's a different pair of parties (MFG-DCC, not DCC-RTL).
 const isPayableSide = computed(() => userStore.companyType === 'MFG');
+// A retailer viewing their own 정산 완료 내역 has no use for 정산 상세's edit-capable
+// detail popup (그건 DCC가 자기 발행한 정산을 확인/수정하는 화면) - just show the plain
+// date, not a clickable link that opens it.
+const isRetail = computed(() => userStore.companyType !== 'MFG' && userStore.companyType !== 'DCC');
 
 const codeStore = useCodeStore();
 const codeMap = computed(() => codeStore.codeMap);
