@@ -95,6 +95,16 @@ public class ReceivableService : IReceivableService
         return orderWeight ?? 0m;
     }
 
+    private static readonly TimeZoneInfo KstZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Seoul");
+
+    // Mirrors PayableService.KstDateToUtc's identical rationale - 기간 필터의 날짜는 KST
+    // 달력 날짜지만 CreatedAt은 UTC로 저장되므로, 변환 없이 비교하면 하루 경계가 어긋난다.
+    private static DateTime KstDateToUtc(DateTime kstDate)
+    {
+        var kstMidnight = DateTime.SpecifyKind(kstDate.Date, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(kstMidnight, KstZone);
+    }
+
     public async Task CreateOrderSettlementChargesAsync(int orderId, string triggerStatus)
     {
         var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
@@ -800,12 +810,13 @@ public class ReceivableService : IReceivableService
 
         if (query.StartDate.HasValue)
         {
-            dbQuery = dbQuery.Where(r => r.CreatedAt >= query.StartDate.Value);
+            var startInclusive = KstDateToUtc(query.StartDate.Value);
+            dbQuery = dbQuery.Where(r => r.CreatedAt >= startInclusive);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            var endExclusive = KstDateToUtc(query.EndDate.Value.Date.AddDays(1));
             dbQuery = dbQuery.Where(r => r.CreatedAt < endExclusive);
         }
 
@@ -1115,12 +1126,13 @@ public class ReceivableService : IReceivableService
 
         if (query.StartDate.HasValue)
         {
-            chargesQuery = chargesQuery.Where(r => r.CreatedAt >= query.StartDate.Value);
+            var startInclusive = KstDateToUtc(query.StartDate.Value);
+            chargesQuery = chargesQuery.Where(r => r.CreatedAt >= startInclusive);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            var endExclusive = KstDateToUtc(query.EndDate.Value.Date.AddDays(1));
             chargesQuery = chargesQuery.Where(r => r.CreatedAt < endExclusive);
         }
 

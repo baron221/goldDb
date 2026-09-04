@@ -90,6 +90,19 @@ public class PayableService : IPayableService
         return orderWeight ?? 0m;
     }
 
+    private static readonly TimeZoneInfo KstZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Seoul");
+
+    // 기간 필터의 날짜 (예: "2026-09-03")는 사용자가 화면에서 보는 KST 달력 날짜지만,
+    // CreatedAt은 UTC로 저장된다 - 그 둘을 변환 없이 그대로 비교하면 KST로는 9월 4일
+    // 새벽(예: KST 03:00 = UTC 전날 18:00)에 생긴 거래가 "9월 3일" 필터에 끼어들어가거나,
+    // 반대로 "9월 3일" 밤에 생긴 거래가 UTC 기준으로는 이미 9월 4일이 되어 빠지는 식으로
+    // 하루 경계가 어긋난다. 이 KST 자정을 UTC로 정확히 변환해서 그 오차를 없앤다.
+    private static DateTime KstDateToUtc(DateTime kstDate)
+    {
+        var kstMidnight = DateTime.SpecifyKind(kstDate.Date, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(kstMidnight, KstZone);
+    }
+
     // Only DCC (the payer) and MFG (the payee) have a side in this ledger; admins can
     // view but don't have a company to scope by, so they see everything from the
     // manufacturer-owed perspective by default.
@@ -453,12 +466,13 @@ public class PayableService : IPayableService
 
         if (query.StartDate.HasValue)
         {
-            dbQuery = dbQuery.Where(p => p.CreatedAt >= query.StartDate.Value);
+            var startInclusive = KstDateToUtc(query.StartDate.Value);
+            dbQuery = dbQuery.Where(p => p.CreatedAt >= startInclusive);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            var endExclusive = KstDateToUtc(query.EndDate.Value.Date.AddDays(1));
             dbQuery = dbQuery.Where(p => p.CreatedAt < endExclusive);
         }
 
@@ -540,12 +554,13 @@ public class PayableService : IPayableService
 
         if (query.StartDate.HasValue)
         {
-            chargesQuery = chargesQuery.Where(p => p.CreatedAt >= query.StartDate.Value);
+            var startInclusive = KstDateToUtc(query.StartDate.Value);
+            chargesQuery = chargesQuery.Where(p => p.CreatedAt >= startInclusive);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            var endExclusive = KstDateToUtc(query.EndDate.Value.Date.AddDays(1));
             chargesQuery = chargesQuery.Where(p => p.CreatedAt < endExclusive);
         }
 
@@ -916,12 +931,13 @@ public class PayableService : IPayableService
 
         if (query.StartDate.HasValue)
         {
-            dbQuery = dbQuery.Where(p => p.CreatedAt >= query.StartDate.Value);
+            var startInclusive = KstDateToUtc(query.StartDate.Value);
+            dbQuery = dbQuery.Where(p => p.CreatedAt >= startInclusive);
         }
 
         if (query.EndDate.HasValue)
         {
-            var endExclusive = query.EndDate.Value.Date.AddDays(1);
+            var endExclusive = KstDateToUtc(query.EndDate.Value.Date.AddDays(1));
             dbQuery = dbQuery.Where(p => p.CreatedAt < endExclusive);
         }
 

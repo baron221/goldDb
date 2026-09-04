@@ -641,9 +641,9 @@ const fetchPayableList = async () => {
   }
 };
 
-// Lifetime running totals for the currently filtered company (or every company when
-// no filter is applied) - deliberately not date-scoped, matching the same "총 is a
-// running balance" convention the settlement worklists already use.
+// Totals for the currently filtered company and 기간 date range (or everything when no
+// filter is applied) - scoped by charge date, matching the same range the list/worklist
+// above is already filtered by, so this table always reflects what's actually on screen.
 const payableSummary = reactive({
   totalChargeAmount: 0,
   totalChargeWeight: 0,
@@ -657,7 +657,13 @@ const fetchPayableSummary = async () => {
   try {
     // page/pageSize must still be sent (backend binds them as non-nullable ints - the
     // request interceptor strips falsy params entirely, and omitting them 400s the request).
-    const res: any = await getPayableOrderHistorySummary({ page: 1, pageSize: 1, companyId: payableQuery.companyId });
+    const res: any = await getPayableOrderHistorySummary({
+      page: 1,
+      pageSize: 1,
+      companyId: payableQuery.companyId,
+      startDate: payableQuery.startDate,
+      endDate: payableQuery.endDate
+    });
     Object.assign(payableSummary, res.data);
   } catch (error) {
     console.error('Failed to fetch payable order history summary:', error);
@@ -1302,9 +1308,9 @@ const fetchReceivableList = async () => {
   }
 };
 
-// Lifetime running totals for the currently filtered company (or every company when
-// no filter is applied) - deliberately not date-scoped, matching the same "총 is a
-// running balance" convention the settlement worklists already use.
+// Totals for the currently filtered company and 기간 date range (or everything when no
+// filter is applied) - scoped by charge date, matching the same range the list/worklist
+// above is already filtered by, so this table always reflects what's actually on screen.
 const receivableSummary = reactive({
   totalChargeAmount: 0,
   totalChargeWeight: 0,
@@ -1316,7 +1322,13 @@ const receivableOutstandingWeight = computed(() => Math.max(0, (receivableSummar
 
 const fetchReceivableSummary = async () => {
   try {
-    const res: any = await getReceivableOrderHistorySummary({ page: 1, pageSize: 1, companyId: receivableQuery.companyId });
+    const res: any = await getReceivableOrderHistorySummary({
+      page: 1,
+      pageSize: 1,
+      companyId: receivableQuery.companyId,
+      startDate: receivableQuery.startDate,
+      endDate: receivableQuery.endDate
+    });
     Object.assign(receivableSummary, res.data);
   } catch (error) {
     console.error('Failed to fetch receivable order history summary:', error);
