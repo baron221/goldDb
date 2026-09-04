@@ -705,6 +705,17 @@ public class ReceivableService : IReceivableService
 
         var allRecords = await _receivableRepository.GetReceivablesForUserAsync(anchor.UserId);
 
+        // A charge that has never been touched by any application - still sitting untouched
+        // in the worklist - must stay completely invisible to this ledger, exactly like
+        // GetReceivableChargeSummaryAsync's identical fix for the pre-settlement dialog.
+        var allChargeIds = allRecords.Where(r => r.Type == "CHARGE").Select(r => r.Id).ToList();
+        var touchedChargeIds = (await _dbContext.ReceivableApplications
+            .Where(a => allChargeIds.Contains(a.ChargeId))
+            .Select(a => a.ChargeId)
+            .Distinct()
+            .ToListAsync())
+            .ToHashSet();
+
         // Running balance as of right after the most recent deposit (0 if there's never
         // been one), plus whatever charges have arrived since - kept as two separate
         // running totals so a new charge doesn't quietly disappear into "beforeAmount".
@@ -718,7 +729,7 @@ public class ReceivableService : IReceivableService
         foreach (var r in allRecords.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id))
         {
             if (r.Id == anchor.Id) break;
-            if (r.Type == "CHARGE" && !r.IsCancelled)
+            if (r.Type == "CHARGE" && !r.IsCancelled && touchedChargeIds.Contains(r.Id))
             {
                 runningAmount += r.Amount;
                 runningWeight += r.Weight;

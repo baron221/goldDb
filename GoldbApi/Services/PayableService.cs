@@ -829,6 +829,20 @@ public class PayableService : IPayableService
             .OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
             .ToListAsync();
 
+        // A charge that has never been touched by any application - still sitting untouched
+        // in 정산 내역's worklist - must stay completely invisible to this ledger, exactly
+        // like GetOrderChargeSummaryAsync's identical fix for the pre-settlement dialog.
+        // Without this, an unrelated order that simply hasn't been settled yet would still
+        // get walked in as a "charge" the moment it's created, inflating 거래 전 미수(A) with
+        // a debt that doesn't actually exist in 미수금 관리 (or anywhere visible) yet.
+        var allPairChargeIds = priorRecords.Where(p => p.Type == "CHARGE").Select(p => p.Id).ToList();
+        var touchedChargeIds = (await _dbContext.PayableApplications
+            .Where(a => allPairChargeIds.Contains(a.ChargeId))
+            .Select(a => a.ChargeId)
+            .Distinct()
+            .ToListAsync())
+            .ToHashSet();
+
         // Running balance as of right after the most recent payment (0 if there's never
         // been one), plus whatever charges have arrived since - kept as two separate
         // running totals so a new charge doesn't quietly disappear into "beforeAmount".
@@ -841,7 +855,7 @@ public class PayableService : IPayableService
 
         foreach (var r in priorRecords)
         {
-            if (r.Type == "CHARGE" && !r.IsCancelled)
+            if (r.Type == "CHARGE" && !r.IsCancelled && touchedChargeIds.Contains(r.Id))
             {
                 runningAmount += r.Amount;
                 runningWeight += r.Weight;
