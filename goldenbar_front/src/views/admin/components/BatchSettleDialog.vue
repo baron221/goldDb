@@ -50,6 +50,23 @@
       </table>
     </div>
 
+    <table v-if="!hideProducts && localItems.length > 0" class="purity-summary-table" style="margin-bottom: 1.25rem;">
+      <thead>
+        <tr>
+          <th>14K 합계(g)</th>
+          <th>18K 합계(g)</th>
+          <th>순금 합계(g)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ purityTotals.p14.toFixed(2) }}</td>
+          <td>{{ purityTotals.p18.toFixed(2) }}</td>
+          <td>{{ purityTotals.pure.toFixed(2) }}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <table v-if="!hideProducts && summary && summary.purityBreakdown && summary.purityBreakdown.length > 0" class="ledger-table" style="margin-bottom: 1.25rem;">
       <thead>
         <tr>
@@ -142,6 +159,34 @@ const codeMap = computed(() => codeStore.codeMap);
 const getRawItemWeight = (orderItem: any) => {
   return (orderItem.items || []).reduce((sum: number, p: any) => sum + (p.actualWeight || 0) * (p.quantity || 1), 0);
 };
+
+// 14K/18K raw totals plus the true fine-gold (24K-converted) total across every purity -
+// same computation as settlement-history.vue's getPurityBreakdownForRow, applied across
+// every selected order's items instead of one payment's applied-charge list.
+const purityTotals = computed(() => {
+  let p14 = 0;
+  let p18 = 0;
+  let pure = 0;
+  localItems.value.forEach((orderItem: any) => {
+    (orderItem.items || []).forEach((p: any) => {
+      const weight = (p.actualWeight || 0) * (p.quantity || 1);
+      const purity = (p.purity || '').toUpperCase();
+      if (purity.includes('14K')) p14 += weight;
+      else if (purity.includes('18K')) p18 += weight;
+
+      let ratio = 0;
+      switch (purity) {
+        case '14K': ratio = 0.6435; break;
+        case '18K': ratio = 0.825; break;
+        case '24K': ratio = 1.0; break;
+        case 'PT': ratio = 0.95; break;
+        default: ratio = purity.includes('PURE') ? 1.0 : 0;
+      }
+      pure += weight * ratio;
+    });
+  });
+  return { p14, p18, pure };
+});
 
 const defaultImage = '/thumb_no_img.png';
 
@@ -294,6 +339,21 @@ const handleSubmit = () => {
   text-align: center;
 }
 .ledger-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+.purity-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: center;
+}
+.purity-summary-table th,
+.purity-summary-table td {
+  border: 1px solid #ebeef5;
+  padding: 0.5rem;
+}
+.purity-summary-table th {
   background: #f5f7fa;
   font-weight: 600;
 }

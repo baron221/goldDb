@@ -183,7 +183,7 @@ const handleSubmit = async () => {
       handledByUserId: form.handledByUserId,
       orderMemo: '정산처리 수기 주문 등록'
     });
-    ElMessage.success('주문이 등록되었습니다. 물류승인 화면에서 이어서 처리해주세요.');
+    ElMessage.success('주문이 등록되었습니다. 정산 내역에서 확인해주세요.');
     emit('update:modelValue', false);
     emit('saved');
   } catch (error) {

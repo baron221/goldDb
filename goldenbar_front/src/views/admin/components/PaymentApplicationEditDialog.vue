@@ -86,6 +86,17 @@ watch(() => props.modelValue, (val) => {
   }
 });
 
+// Also resync if the record itself changes while the dialog is already open (e.g. the
+// parent re-points :record at a different order's application without a modelValue
+// false->true transition in between) - otherwise editForm keeps showing the PREVIOUS
+// order's values while silently saving them under the NEW order's id.
+watch(() => props.record?.id, () => {
+  if (props.modelValue && props.record) {
+    editForm.appliedAmount = props.record.appliedAmount || 0;
+    editForm.appliedWeight = props.record.appliedWeight || 0;
+  }
+});
+
 watch(visible, (val) => {
   emit('update:modelValue', val);
 });

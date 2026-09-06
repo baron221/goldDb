@@ -184,8 +184,18 @@ public class OrderService : IOrderService
 
         var createdOrders = new List<Order>();
 
-        var initialStatus = "ORDERED";
-        var initialRemarks = "주문 접수";
+        // 주문 수기 등록 (OrderManualRegisterDialog) always submits a free-text product name
+        // with no catalog product/set behind it - the one caller that does that (product
+        // detail's "바로 구매" always sends a real DirectProductId). That dialog exists
+        // specifically to record something DCC is registering as already past the factory -
+        // starting it at ORDERED like a normal customer order would make it sit in
+        // 물류승인내역 waiting for approval steps that don't apply, instead of landing
+        // directly in 정산처리's own worklist where it belongs.
+        var isManualSettlementOrder = !request.DirectProductId.HasValue && !request.DirectProductSetId.HasValue
+            && !string.IsNullOrWhiteSpace(request.DirectProductName);
+
+        var initialStatus = isManualSettlementOrder ? "InspectedRequested" : "ORDERED";
+        var initialRemarks = isManualSettlementOrder ? "정산처리 수기 주문 등록" : "주문 접수";
 
         foreach (var manufacturerGroup in itemsByManufacturer)
         {
@@ -238,6 +248,14 @@ public class OrderService : IOrderService
                     Price = price,
                     FactoryPrice = baseFactoryPrice,
                     LaborCost = baseLaborCost,
+                    // 주문 수기 등록 (isCustomProductItem) creates its Payable charge
+                    // immediately (see below, isManualSettlementOrder) instead of waiting for
+                    // the factory to confirm 제품출고 - CreateOrderSettlementChargesAsync reads
+                    // FactoryInputMaterialCost/FactoryInputLaborCost specifically (not
+                    // FactoryPrice/LaborCost), so without this the charge would be created
+                    // with a zero amount.
+                    FactoryInputMaterialCost = isCustomProductItem ? cartItem.CustomFactoryPrice : null,
+                    FactoryInputLaborCost = isCustomProductItem ? cartItem.CustomLaborCost : null,
                     Purity = cartItem.Purity,
                     Color = cartItem.Color,
                     Size = cartItem.Size,
@@ -289,6 +307,19 @@ public class OrderService : IOrderService
             _orderRepository.RemoveCartItems(dbCartItems);
         }
         await _orderRepository.SaveChangesAsync();
+
+        // Normally this only runs off a status TRANSITION (UpdateOrderStatusAsync) - since
+        // this order is created directly AT InspectedRequested, no such transition ever
+        // fires, so the Payable charge (what DCC owes the manufacturer) has to be created
+        // explicitly here instead. triggerStatus="InspectedRequested" also correctly skips
+        // creating a premature Receivable charge (see CreateOrderSettlementChargesAsync).
+        if (isManualSettlementOrder)
+        {
+            foreach (var order in createdOrders)
+            {
+                await _receivableService.CreateOrderSettlementChargesAsync(order.Id, "InspectedRequested");
+            }
+        }
 
         var firstOrder = createdOrders.First();
         return ApiResponse<OrderDto>.Success(new OrderDto 
