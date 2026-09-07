@@ -191,14 +191,19 @@ public class OrderService : IOrderService
         // 주문 수기 등록 (OrderManualRegisterDialog) always submits a free-text product name
         // with no catalog product/set behind it - the one caller that does that (product
         // detail's "바로 구매" always sends a real DirectProductId). That dialog exists
-        // specifically to record something DCC is registering as already past the factory -
-        // starting it at ORDERED like a normal customer order would make it sit in
-        // 물류승인내역 waiting for approval steps that don't apply, instead of landing
-        // directly in 정산처리's own worklist where it belongs.
+        // specifically to record something DCC is registering as already past the factory AND
+        // past 물류도착 - starting it at ORDERED like a normal customer order would make it sit
+        // in 물류승인내역 waiting for approval steps that don't apply. PENDING (not
+        // InspectedRequested) specifically: 물류승인내역's own default worklist excludes
+        // PENDING-onward via ExcludeArrived=true but does NOT exclude InspectedRequested
+        // itself, so InspectedRequested still leaked in there; PENDING also correctly creates
+        // the Receivable charge too (CreateOrderSettlementChargesAsync skips that charge only
+        // when triggerStatus=="InspectedRequested"), which is what lands this order in
+        // 정산 대상 내역 (settlement-management.vue, Receivable-based) when 소매점 was targeted.
         var isManualSettlementOrder = !request.DirectProductId.HasValue && !request.DirectProductSetId.HasValue
             && !string.IsNullOrWhiteSpace(request.DirectProductName);
 
-        var initialStatus = isManualSettlementOrder ? "InspectedRequested" : "ORDERED";
+        var initialStatus = isManualSettlementOrder ? "PENDING" : "ORDERED";
         var initialRemarks = isManualSettlementOrder ? "정산처리 수기 주문 등록" : "주문 접수";
 
         foreach (var manufacturerGroup in itemsByManufacturer)
@@ -318,15 +323,17 @@ public class OrderService : IOrderService
         await _orderRepository.SaveChangesAsync();
 
         // Normally this only runs off a status TRANSITION (UpdateOrderStatusAsync) - since
-        // this order is created directly AT InspectedRequested, no such transition ever
-        // fires, so the Payable charge (what DCC owes the manufacturer) has to be created
-        // explicitly here instead. triggerStatus="InspectedRequested" also correctly skips
-        // creating a premature Receivable charge (see CreateOrderSettlementChargesAsync).
+        // this order is created directly AT PENDING, no such transition ever fires, so both
+        // charges have to be created explicitly here instead. triggerStatus="PENDING" (not
+        // "InspectedRequested") creates the Payable charge (DCC's self-placeholder, always)
+        // AND the Receivable charge against the targeted 소매점, when one was targeted -
+        // CreateOrderSettlementChargesAsync's own isSelfPurchase check already skips the
+        // Receivable side correctly for a self-purchase (물류사 자체 재고용) order.
         if (isManualSettlementOrder)
         {
             foreach (var order in createdOrders)
             {
-                await _receivableService.CreateOrderSettlementChargesAsync(order.Id, "InspectedRequested");
+                await _receivableService.CreateOrderSettlementChargesAsync(order.Id, "PENDING");
             }
         }
 
