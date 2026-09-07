@@ -237,10 +237,15 @@ public class CreateOrderDto
 
     public decimal? DirectWeight { get; set; }
 
-    // Required alongside DirectProductName: with no catalog product there's no
-    // Product.CompanyId to derive the manufacturer from, and without one the order
-    // item is silently excluded from Payable (제조사 청구) creation entirely.
+    // Legacy field from when 주문 수기 등록's 제조사 was a real-company dropdown - no
+    // longer sent by that dialog (see DirectManufacturerName), kept only so this DTO
+    // shape doesn't break if anything else still posts it.
     public int? DirectManufacturerCompanyId { get; set; }
+
+    // 주문 수기 등록의 제조사 입력 - 실제 카탈로그 회사가 아닌 자유 입력 텍스트.
+    // OrderItem.CustomManufacturerName으로 저장되고, 청구는 실제 제조사가 아닌 DCC
+    // 자기 자신을 상대로 생성되어 어느 제조사 계정에도 노출되지 않는다.
+    public string? DirectManufacturerName { get; set; }
 }
 
 public class SettlementHistorySummaryDto

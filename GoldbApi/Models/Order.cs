@@ -148,9 +148,19 @@ public class OrderItem : BaseModel
 
     // 위와 같은 경우, Payable(제조사 청구) 생성 시 제조사를 Product.CompanyId에서
     // 얻을 수 없으므로 수기로 지정한 제조사 회사 ID - CreateOrderSettlementChargesAsync의
-    // 제조사별 그룹핑이 이 값으로 폴백한다.
-    [Description("수기 등록 제조사 회사 ID")]
+    // 제조사별 그룹핑이 이 값으로 폴백한다. 실제 제조사 회사가 아니라 DCC 자기 자신의
+    // 회사 ID가 들어간다(자기 자신을 청구 상대로 지정하는 placeholder) - 어느 실제
+    // 제조사 계정의 정산 화면에도 이 청구가 노출되지 않도록 하기 위함이며, 화면에
+    // 보여줄 이름은 ManufacturerCompany.Name이 아니라 CustomManufacturerName을
+    // 우선해야 한다.
+    [Description("수기 등록 청구 대상 회사 ID (DCC 자기 자신 - placeholder)")]
     public int? CustomManufacturerCompanyId { get; set; }
+
+    // 자유 입력한 제조사명 - CustomManufacturerCompanyId가 실제 제조사가 아닌 DCC
+    // 자신이므로, 화면 표시용 이름은 Company 테이블 조인이 아니라 이 값에서 가져온다.
+    [Description("수기 입력 제조사명")]
+    [MaxLength(200)]
+    public string? CustomManufacturerName { get; set; }
 
     [Description("상위 주문 상세 ID")]
     public int? ParentId { get; set; }

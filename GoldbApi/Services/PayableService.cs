@@ -400,7 +400,15 @@ public class PayableService : IPayableService
                 ActualWeight = item != null ? GetEffectiveWeight(item.ConfirmedWeight, item.ActualWeight, item.OrderWeight) : null,
                 RemainingAmount = c.RemainingAmount,
                 OrderDate = c.CreatedAt,
-                ManufacturerName = companyNames.GetValueOrDefault(manufacturerCompanyId),
+                // manufacturerCompanyId == logisticsCompanyId means this charge's
+                // "manufacturer" is really the DCC's own self-placeholder (a 주문 수기
+                // 등록 item with no real manufacturer - see OrderItem.
+                // CustomManufacturerCompanyId), so the company-name join above would
+                // wrongly show the DCC's own name; use the free-text name they typed
+                // instead.
+                ManufacturerName = manufacturerCompanyId == logisticsCompanyId
+                    ? item?.CustomManufacturerName
+                    : companyNames.GetValueOrDefault(manufacturerCompanyId),
                 LogisticsCompanyName = companyNames.GetValueOrDefault(logisticsCompanyId),
                 Items = orderItems.Select(oi => new PayableOrderItemSummaryDto
                 {
@@ -670,7 +678,13 @@ public class PayableService : IPayableService
                 LogisticsCompanyId = p.LogisticsCompanyId,
                 LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
                 ManufacturerCompanyId = p.ManufacturerCompanyId,
-                ManufacturerCompanyName = p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null,
+                // LogisticsCompanyId == ManufacturerCompanyId means this charge's
+                // "manufacturer" is a 주문 수기 등록 self-placeholder (no real manufacturer -
+                // see OrderItem.CustomManufacturerCompanyId), so the join would wrongly show
+                // the DCC's own name; show the free-text name they typed instead.
+                ManufacturerCompanyName = p.LogisticsCompanyId == p.ManufacturerCompanyId
+                    ? (p.Order != null ? p.Order.OrderItems.Where(oi => oi.ParentId == null).Select(oi => oi.CustomManufacturerName).FirstOrDefault() : null)
+                    : (p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null),
                 OrderDate = p.CreatedAt,
                 ChargeAmount = p.Amount,
                 ChargeWeight = p.Weight,
@@ -760,7 +774,13 @@ public class PayableService : IPayableService
                 LogisticsCompanyId = p.LogisticsCompanyId,
                 LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
                 ManufacturerCompanyId = p.ManufacturerCompanyId,
-                ManufacturerCompanyName = p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null,
+                // LogisticsCompanyId == ManufacturerCompanyId means this charge's
+                // "manufacturer" is a 주문 수기 등록 self-placeholder (no real manufacturer -
+                // see OrderItem.CustomManufacturerCompanyId), so the join would wrongly show
+                // the DCC's own name; show the free-text name they typed instead.
+                ManufacturerCompanyName = p.LogisticsCompanyId == p.ManufacturerCompanyId
+                    ? (p.Order != null ? p.Order.OrderItems.Where(oi => oi.ParentId == null).Select(oi => oi.CustomManufacturerName).FirstOrDefault() : null)
+                    : (p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null),
                 OrderDate = p.CreatedAt,
                 ChargeAmount = p.Amount,
                 ChargeWeight = p.Weight,
@@ -982,7 +1002,13 @@ public class PayableService : IPayableService
                 LogisticsCompanyId = p.LogisticsCompanyId,
                 LogisticsCompanyName = p.LogisticsCompany != null ? p.LogisticsCompany.Name : null,
                 ManufacturerCompanyId = p.ManufacturerCompanyId,
-                ManufacturerCompanyName = p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null,
+                // LogisticsCompanyId == ManufacturerCompanyId means this charge's
+                // "manufacturer" is a 주문 수기 등록 self-placeholder (no real manufacturer -
+                // see OrderItem.CustomManufacturerCompanyId), so the join would wrongly show
+                // the DCC's own name; show the free-text name they typed instead.
+                ManufacturerCompanyName = p.LogisticsCompanyId == p.ManufacturerCompanyId
+                    ? (p.Order != null ? p.Order.OrderItems.Where(oi => oi.ParentId == null).Select(oi => oi.CustomManufacturerName).FirstOrDefault() : null)
+                    : (p.ManufacturerCompany != null ? p.ManufacturerCompany.Name : null),
                 OrderId = p.OrderId,
                 OrderNo = p.Order != null ? p.Order.OrderNo : null,
                 Type = p.Type,

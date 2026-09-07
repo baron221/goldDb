@@ -179,8 +179,12 @@ public class OrderService : IOrderService
 
         var groupOrderNo = $"GRP-{DateTime.Now:yyyyMMddHHmmss}-{userId}";
 
+        // The free-text 주문 수기 등록 path (no catalog product/set) has no real manufacturer
+        // to group by - falls back to the DCC's own company id (see
+        // OrderItem.CustomManufacturerCompanyId's comment for why that's a placeholder, not
+        // a mistake).
         var itemsByManufacturer = cartItems.GroupBy(ci =>
-            ci.Product?.CompanyId ?? ci.ProductSet?.CompanyId ?? request.DirectManufacturerCompanyId ?? 0);
+            ci.Product?.CompanyId ?? ci.ProductSet?.CompanyId ?? assignedLogisticsId ?? 0);
 
         var createdOrders = new List<Order>();
 
@@ -262,7 +266,12 @@ public class OrderService : IOrderService
                     Memo = cartItem.Memo,
                     OrderWeight = requestedWeight,
                     CustomProductName = isCustomProductItem ? request.DirectProductName : null,
-                    CustomManufacturerCompanyId = isCustomProductItem ? request.DirectManufacturerCompanyId : null
+                    // A self-placeholder (the DCC's own company id), not a real manufacturer -
+                    // see the field's own comment on OrderItem. The free-text name the DCC
+                    // actually typed is CustomManufacturerName below; display code must prefer
+                    // that over ManufacturerCompany.Name for these items.
+                    CustomManufacturerCompanyId = isCustomProductItem ? assignedLogisticsId : null,
+                    CustomManufacturerName = isCustomProductItem ? request.DirectManufacturerName : null
                 };
 
                 if (cartItem.ProductSetId.HasValue)

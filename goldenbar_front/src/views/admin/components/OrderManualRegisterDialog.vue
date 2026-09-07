@@ -12,7 +12,7 @@
       </el-form-item>
 
       <el-form-item label="제조사" required>
-        <company-select v-model="form.manufacturerCompanyId" category="MFG" placeholder="제조사를 선택하세요" style="width: 100%;" />
+        <el-input v-model="form.manufacturerName" placeholder="제조사명을 입력하세요" />
       </el-form-item>
 
       <div style="display: flex; gap: 0.75rem;">
@@ -78,7 +78,6 @@ import { getRetailersByCenter, getCompanyUsers } from '@/api/company';
 import { createOrder } from '@/api/order';
 import useUserStore from '@/store/modules/user';
 import BasePopup from '@/components/BasePopup/index.vue';
-import CompanySelect from '@/components/CompanySelect/index.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -97,7 +96,7 @@ const employeeList = ref<any[]>([]);
 // there's no product search here - what's typed is exactly what gets saved.
 const form = reactive({
   productName: '',
-  manufacturerCompanyId: null as number | null,
+  manufacturerName: '',
   purity: '',
   color: '',
   size: '',
@@ -112,7 +111,7 @@ const form = reactive({
 
 const resetForm = () => {
   form.productName = '';
-  form.manufacturerCompanyId = null;
+  form.manufacturerName = '';
   form.purity = '';
   form.color = '';
   form.size = '';
@@ -153,8 +152,8 @@ const handleSubmit = async () => {
     ElMessage.warning('제품명을 입력해주세요.');
     return;
   }
-  if (!form.manufacturerCompanyId) {
-    ElMessage.warning('제조사를 선택해주세요.');
+  if (!form.manufacturerName.trim()) {
+    ElMessage.warning('제조사명을 입력해주세요.');
     return;
   }
   if (!form.purity.trim()) {
@@ -170,7 +169,7 @@ const handleSubmit = async () => {
   try {
     await createOrder({
       directProductName: form.productName,
-      directManufacturerCompanyId: form.manufacturerCompanyId,
+      directManufacturerName: form.manufacturerName,
       directWeight: form.weight,
       directQuantity: form.quantity,
       directPurity: form.purity,
