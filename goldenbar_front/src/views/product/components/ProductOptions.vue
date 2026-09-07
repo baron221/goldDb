@@ -37,7 +37,7 @@
           :model-value="selectedPurity"
           @update:model-value="$emit('update:selectedPurity', $event)"
           class="jovenca-select"
-          :disabled="!isRetailUser && !isLogisticsUser"
+          :disabled="!isRetailUser && !isLogisticsUser && !isMfgUser"
         >
           <el-option
             v-for="code in purityOptions"
@@ -53,7 +53,7 @@
           :model-value="selectedColor"
           @update:model-value="$emit('update:selectedColor', $event)"
           class="jovenca-select"
-          :disabled="!isRetailUser && !isLogisticsUser"
+          :disabled="!isRetailUser && !isLogisticsUser && !isMfgUser"
         >
           <el-option
             v-for="code in colorOptions"
@@ -73,7 +73,7 @@
           :model-value="orderSize"
           @update:model-value="$emit('update:orderSize', $event)"
           :placeholder="$t('productDetail.labels.orderSizePlaceholder')"
-          :disabled="!isRetailUser && !isLogisticsUser"
+          :disabled="!isRetailUser && !isLogisticsUser && !isMfgUser"
           class="order-size-input"
         />
       </div>
@@ -141,7 +141,7 @@
       </el-select>
     </div>
 
-    <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !isLogisticsUser }">
+    <div class="action-section" :class="{ 'is-disabled': !isRetailUser && !isLogisticsUser && !isMfgUser }">
       <div class="memo-input-row">
         <span class="option-label">{{ $t('productDetail.labels.memo') }}</span>
         <el-input
@@ -151,7 +151,7 @@
           :rows="2"
           :maxlength="500"
           :placeholder="$t('productDetail.labels.memoPlaceholder')"
-          :disabled="!isRetailUser && !isLogisticsUser"
+          :disabled="!isRetailUser && !isLogisticsUser && !isMfgUser"
         />
       </div>
       <div class="quantity-input-row">
@@ -161,7 +161,7 @@
           @update:model-value="$emit('update:quantity', $event)"
           :min="1"
           class="jovenca-qty"
-          :disabled="!isRetailUser && !isLogisticsUser"
+          :disabled="!isRetailUser && !isLogisticsUser && !isMfgUser"
         />
       </div>
       <div class="button-group">
@@ -177,7 +177,7 @@
           <el-icon v-if="isFavorite"><StarFilled /></el-icon>
           <el-icon v-else><Star /></el-icon>
         </el-button>
-        <el-button v-if="isLogisticsUser" type="warning" plain class="btn-secondary btn-jovenca" @click="$emit('register-stock')">{{ $t('productDetail.labels.registerStock') }}</el-button>
+        <el-button v-if="isLogisticsUser || isMfgUser || isRetailUser" type="warning" plain class="btn-secondary btn-jovenca" @click="$emit('register-stock')">{{ $t('productDetail.labels.registerStock') }}</el-button>
         <el-button type="primary" class="btn-secondary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleCart()">{{ $t('productDetail.labels.addToCart') }}</el-button>
         <el-button type="primary" class="btn-primary btn-jovenca" :disabled="!isRetailUser && !isLogisticsUser" @click="handleBuy()">{{ $t('productDetail.labels.buyNow') }}</el-button>
       </div>
@@ -187,7 +187,7 @@
       <el-icon class="alert-icon"><InfoFilled /></el-icon>
       <span class="alert-desc">관리 물류업체가 지정되지 않았습니다. 주문 및 장바구니 이용을 위해 관리자에게 물류업체 지정을 요청해 주세요.</span>
     </div>
-    <div v-else-if="!isRetailUser && !isLogisticsUser" class="non-retail-alert">
+    <div v-else-if="!isRetailUser && !isLogisticsUser && !isMfgUser" class="non-retail-alert">
       <el-icon class="alert-icon"><InfoFilled /></el-icon>
       <span class="alert-desc">{{ $t('productDetail.messages.retailOnly') }}</span>
     </div>
