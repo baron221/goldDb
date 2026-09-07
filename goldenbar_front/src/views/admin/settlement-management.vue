@@ -3,7 +3,7 @@
     <el-card v-if="isDcc" shadow="never" class="filter-card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9375rem;">
         <div style="font-size: 1.1rem; font-weight: bold;">정산 대상 내역</div>
-        <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">주문 수기 등록</el-button>
+        <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">판매 수기 등록</el-button>
       </div>
       <el-form :inline="true" :model="orderHistoryQuery" class="demo-form-inline">
         <el-form-item label="소매점">
@@ -92,6 +92,7 @@
 
     <order-manual-register-dialog
       v-model="manualOrderDialogVisible"
+      title="판매 수기 등록"
       @saved="onManualOrderSaved"
     />
   </div>

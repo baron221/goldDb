@@ -2,7 +2,7 @@
 <base-popup
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
-    title="주문 수기 등록"
+    :title="title"
     width="560px"
     append-to-body
   >
@@ -81,7 +81,10 @@ import BasePopup from '@/components/BasePopup/index.vue';
 
 const props = defineProps<{
   modelValue: boolean;
+  title?: string;
 }>();
+
+const title = props.title ?? '주문 수기 등록';
 
 const emit = defineEmits(['update:modelValue', 'saved']);
 

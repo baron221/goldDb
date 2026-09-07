@@ -36,17 +36,17 @@
     <div v-if="canViewPrice" class="price-section">
       <div class="price-value">
         <span class="currency-symbol">₩</span>
-        <span class="price-amount">{{ formatPrice((productSet.factoryPrice || 0) + (productSet.laborCost || 0)) }}</span>
+        <span class="price-amount">{{ formatPrice(displayFactoryPrice + displayLaborCost) }}</span>
       </div>
 
       <div class="set-price-details-luxury">
         <div class="price-detail-row">
           <span class="label">{{ $t('productDetail.labels.factoryPrice') || '공장도가' }}</span>
-          <span class="val">₩{{ formatPrice(productSet.factoryPrice || 0) }}</span>
+          <span class="val">₩{{ formatPrice(displayFactoryPrice) }}</span>
         </div>
         <div class="price-detail-row">
           <span class="label">{{ $t('productDetail.labels.laborCost') || '수공비' }}</span>
-          <span class="val">₩{{ formatPrice(productSet.laborCost || 0) }}</span>
+          <span class="val">₩{{ formatPrice(displayLaborCost) }}</span>
         </div>
       </div>
     </div>
@@ -116,13 +116,16 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Edit, Star, StarFilled, InfoFilled } from '@element-plus/icons-vue';
 import { formatPrice } from '@/utils/format';
 import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+import useUserStore from '@/store/modules/user';
 
 const canViewPrice = useCanViewPrice();
+const userStore = useUserStore();
 
-defineProps({
+const props = defineProps({
   productSet: {
     type: Object,
     required: true
@@ -148,6 +151,12 @@ defineProps({
     required: true
   }
 });
+
+// RETAILER가 보는 화면상의 참고 가격만 2배로 보여준다 - 실제 장바구니/주문/정산 금액은
+// 서버가 원가(factoryPrice+laborCost) 그대로 계산하므로 영향받지 않는다.
+const priceMultiplier = computed(() => (userStore.companyType === 'RTL' ? 2 : 1));
+const displayFactoryPrice = computed(() => (props.productSet.factoryPrice || 0) * priceMultiplier.value);
+const displayLaborCost = computed(() => (props.productSet.laborCost || 0) * priceMultiplier.value);
 
 const emit = defineEmits([
   'update:quantity',

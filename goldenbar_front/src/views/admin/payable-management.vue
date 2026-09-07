@@ -91,7 +91,6 @@
     <template v-if="isLogistics">
       <div style="display: flex; justify-content: space-between; align-items: center; margin: 1.25rem 0 0.9375rem;">
         <div style="font-size: 1.1rem; font-weight: bold;">정산받은 내역</div>
-        <el-button type="warning" plain :icon="Plus" @click="manualOrderDialogVisible = true">주문 수기 등록</el-button>
       </div>
       <settlement-history-filter
         :query="payableQuery"

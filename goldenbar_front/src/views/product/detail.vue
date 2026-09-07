@@ -186,7 +186,10 @@ const hasOptionWeight = computed(() => {
 const totalPrice = computed(() => {
   const factoryPrice = product.value?.factoryPrice || 0;
   const laborCost = product.value?.laborCost || 0;
-  return (factoryPrice + laborCost) * quantity.value;
+  const base = (factoryPrice + laborCost) * quantity.value;
+  // RETAILER가 보는 화면상의 참고 가격만 2배로 보여준다 - 실제 장바구니/주문/정산 금액은
+  // 서버가 원가(factoryPrice+laborCost) 그대로 계산하므로 여기서 영향받지 않는다.
+  return userStore.companyType === 'RTL' ? base * 2 : base;
 });
 
 const purityOptions = computed(() => {
