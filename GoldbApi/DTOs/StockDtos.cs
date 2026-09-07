@@ -159,6 +159,10 @@ public class CreateStockDto
     // being matched against the catalog. See Stock.ProductName.
     public string? ProductName { get; set; }
 
+    // Only used when ProductId/ProductSetId are left unset - a manually-typed factory name
+    // that isn't tied to a real Company. See Stock.FactoryName.
+    public string? FactoryName { get; set; }
+
     public int? ProductSetId { get; set; }
 
     public int? CompanyId { get; set; }

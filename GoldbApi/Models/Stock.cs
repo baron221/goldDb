@@ -24,6 +24,12 @@ public class Stock : BaseModel
     [MaxLength(200)]
     public string? ProductName { get; set; }
 
+    // ProductId/ProductSetId가 있으면 그 제품의 제조사(Company)가 항상 CompanyName 표시에
+    // 우선하고, 이 필드는 카탈로그 연결이 없는 수기 재고에서만 쓰인다. Mirrors ProductName.
+    [Description("직접 입력한 생산공장명 (카탈로그 제품과 연결되지 않은 경우)")]
+    [MaxLength(200)]
+    public string? FactoryName { get; set; }
+
     [Description("세트 제품 ID")]
     public int? ProductSetId { get; set; }
 

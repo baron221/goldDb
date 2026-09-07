@@ -17,8 +17,8 @@ public class StockMappingRegister : IRegister
             .Map(dest => dest.PhotoUrl, src => src.Product != null ? src.Product.ProductPhotos.OrderBy(pp => pp.SortOrder).Select(pp => pp.PhotoUrl).FirstOrDefault() : null);
 
         config.NewConfig<Stock, StockDto>()
-            .Map(dest => dest.CompanyName, src => src.Product != null && src.Product.Company != null ? src.Product.Company.Name : 
-                                                 (src.ProductSet != null && src.ProductSet.Company != null ? src.ProductSet.Company.Name : null))
+            .Map(dest => dest.CompanyName, src => src.Product != null && src.Product.Company != null ? src.Product.Company.Name :
+                                                 (src.ProductSet != null && src.ProductSet.Company != null ? src.ProductSet.Company.Name : src.FactoryName))
             .Map(dest => dest.LogisticsCompanyName, src => src.SourceOrder != null && src.SourceOrder.LogisticsCompany != null ? src.SourceOrder.LogisticsCompany.Name : null)
             .Map(dest => dest.Attachments, src => src.Attachments)
             .Map(dest => dest.Children, src => src.Children)

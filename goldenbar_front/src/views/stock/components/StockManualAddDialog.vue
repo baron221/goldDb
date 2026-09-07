@@ -12,7 +12,7 @@
       </el-form-item>
 
       <el-form-item label="생산공장">
-        <el-input :model-value="companyName" disabled />
+        <el-input v-model="form.factoryName" placeholder="생산공장을 입력하세요 (선택 사항)" />
       </el-form-item>
 
       <el-form-item label="함량" required>
@@ -74,13 +74,13 @@ const emit = defineEmits(['update:modelValue', 'saved']);
 const userStore = useUserStore();
 const submitting = ref(false);
 const imageAttachmentId = ref<number | null>(null);
-const companyName = ref('');
 
-// 제품/함량/컬러 - a plain-text entry, not a catalog lookup. This dialog only ever exists to
-// record stock that isn't (or doesn't need to be) tied to a real catalog product, so there's
-// no product search here - what's typed is exactly what gets saved.
+// 제품/함량/컬러/생산공장 - a plain-text entry, not a catalog lookup. This dialog only ever
+// exists to record stock that isn't (or doesn't need to be) tied to a real catalog product,
+// so there's no product/company search here - what's typed is exactly what gets saved.
 const form = reactive({
   productName: '',
+  factoryName: '',
   purity: '',
   color: '',
   size: '',
@@ -92,6 +92,7 @@ const form = reactive({
 
 const resetForm = () => {
   form.productName = '';
+  form.factoryName = userStore.companyName || '';
   form.purity = '';
   form.color = '';
   form.size = '';
@@ -100,7 +101,6 @@ const resetForm = () => {
   form.retailerConfirmLaborCost = 0;
   form.note = '';
   imageAttachmentId.value = null;
-  companyName.value = userStore.companyName || '';
 };
 
 watch(() => props.modelValue, (val) => {
@@ -125,6 +125,7 @@ const handleSubmit = async () => {
   try {
     const res: any = await createStock({
       productName: form.productName,
+      factoryName: form.factoryName || undefined,
       purity: form.purity,
       color: form.color || undefined,
       size: form.size || undefined,

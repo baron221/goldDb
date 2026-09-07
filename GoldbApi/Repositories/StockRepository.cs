@@ -98,8 +98,8 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
                 ProductionDate = s.ProductionDate,
                 SourceOrderId = s.SourceOrderId,
                 SourceOrderItemId = s.SourceOrderItemId,
-                CompanyName = s.Product != null && s.Product.Company != null ? s.Product.Company.Name : 
-                              (s.ProductSet != null && s.ProductSet.Company != null ? s.ProductSet.Company.Name : null),
+                CompanyName = s.Product != null && s.Product.Company != null ? s.Product.Company.Name :
+                              (s.ProductSet != null && s.ProductSet.Company != null ? s.ProductSet.Company.Name : s.FactoryName),
                 OwnerCompanyName = s.Company != null ? s.Company.Name : null,
                 LogisticsCompanyName = s.SourceOrder != null && s.SourceOrder.LogisticsCompany != null ? s.SourceOrder.LogisticsCompany.Name : null,
                 SourceOrderNo = s.SourceOrder != null ? s.SourceOrder.OrderNo : null,

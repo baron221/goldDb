@@ -192,6 +192,7 @@ public class StockService : IStockService
         {
             ProductId = request.ProductId,
             ProductName = request.ProductId.HasValue ? null : request.ProductName,
+            FactoryName = (request.ProductId.HasValue || request.ProductSetId.HasValue) ? null : request.FactoryName,
             ProductSetId = request.ProductSetId,
             CompanyId = request.CompanyId,
             StockNo = stockNo,
