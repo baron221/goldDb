@@ -532,7 +532,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { getPayables, getPaymentApplications, getCompanySummaries, updatePayable, deletePayable, getLedgerBefore, getPayableOrderHistorySummary } from '@/api/payable';
 import { getReceivables, getUserSummaries, updateReceivable, getLedgerBefore as getReceivableLedgerBefore, getReceivableOrderHistorySummary } from '@/api/receivable';
 import { parseTime } from '@/utils';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, roundTo2 } from '@/utils/format';
 import useCodeStore from '@/store/modules/code';
 import useUserStore from '@/store/modules/user';
 import BaseTable from '@/components/BaseTable/index.vue';
@@ -767,7 +767,7 @@ const getPurityBreakdownForRow = (row: any) => {
     }
     pure += weight * ratio;
   });
-  return { p14, p18, pure };
+  return { p14: roundTo2(p14), p18: roundTo2(p18), pure: roundTo2(pure) };
 };
 
 const getLedgerForRow = (record: any) => {
@@ -953,7 +953,7 @@ const buildStatementPurityRows = (items: any[]) => {
     }
     pure += weight * ratio;
   });
-  return `<tr><td align="right">${p14.toFixed(2)}g</td><td align="right">${p18.toFixed(2)}g</td><td align="right">${pure.toFixed(2)}g</td></tr>`;
+  return `<tr><td align="right">${roundTo2(p14).toFixed(2)}g</td><td align="right">${roundTo2(p18).toFixed(2)}g</td><td align="right">${roundTo2(pure).toFixed(2)}g</td></tr>`;
 };
 
 const buildStatementBalanceRows = (ledger: any, record: any) => {
@@ -1452,7 +1452,7 @@ const getPurityBreakdownForReceivableRow = (row: any) => {
     }
     pure += weight * ratio;
   });
-  return { p14, p18, pure };
+  return { p14: roundTo2(p14), p18: roundTo2(p18), pure: roundTo2(pure) };
 };
 
 const receivableLedgerDetailVisible = ref(false);

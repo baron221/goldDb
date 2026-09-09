@@ -426,7 +426,7 @@ import { getCompanySummaries, getPayableOrderHistory, getPayables, getPaymentApp
 import { ElMessage } from 'element-plus';
 import { Search, Refresh, Plus } from '@element-plus/icons-vue';
 import { parseTime } from '@/utils';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, roundTo2 } from '@/utils/format';
 import BaseTable from '@/components/BaseTable/index.vue';
 import BasePopup from '@/components/BasePopup/index.vue';
 import BatchSettleDialog from './components/BatchSettleDialog.vue';
@@ -757,7 +757,7 @@ const getPurityBreakdownForRow = (row: any) => {
     }
     pure += weight * ratio;
   });
-  return { p14, p18, pure };
+  return { p14: roundTo2(p14), p18: roundTo2(p18), pure: roundTo2(pure) };
 };
 
 // Amount and weight settle a charge together (either side fully paid clears both), so a
@@ -862,7 +862,7 @@ const buildStatementPurityRows = (items: any[]) => {
     }
     pure += weight * ratio;
   });
-  return `<tr><td align="right">${p14.toFixed(2)}g</td><td align="right">${p18.toFixed(2)}g</td><td align="right">${pure.toFixed(2)}g</td></tr>`;
+  return `<tr><td align="right">${roundTo2(p14).toFixed(2)}g</td><td align="right">${roundTo2(p18).toFixed(2)}g</td><td align="right">${roundTo2(pure).toFixed(2)}g</td></tr>`;
 };
 
 const buildStatementBalanceRows = (ledger: any, record: any) => {

@@ -146,7 +146,7 @@ import { ref, reactive, computed, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getOrderChargeSummary, processPayment } from '@/api/payable';
 import BasePopup from '@/components/BasePopup/index.vue';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, roundTo2 } from '@/utils/format';
 import { parseTime } from '@/utils';
 import useCodeStore from '@/store/modules/code';
 
@@ -185,7 +185,7 @@ const purityTotals = computed(() => {
       pure += weight * ratio;
     });
   });
-  return { p14, p18, pure };
+  return { p14: roundTo2(p14), p18: roundTo2(p18), pure: roundTo2(pure) };
 });
 
 const defaultImage = '/thumb_no_img.png';
