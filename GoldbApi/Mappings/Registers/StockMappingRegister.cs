@@ -19,6 +19,7 @@ public class StockMappingRegister : IRegister
         config.NewConfig<Stock, StockDto>()
             .Map(dest => dest.CompanyName, src => src.Product != null && src.Product.Company != null ? src.Product.Company.Name :
                                                  (src.ProductSet != null && src.ProductSet.Company != null ? src.ProductSet.Company.Name : src.FactoryName))
+            .Map(dest => dest.ProductNo, src => src.Product != null ? (src.Product.ProductNo ?? "") : (src.ProductNo ?? ""))
             .Map(dest => dest.LogisticsCompanyName, src => src.SourceOrder != null && src.SourceOrder.LogisticsCompany != null ? src.SourceOrder.LogisticsCompany.Name : null)
             .Map(dest => dest.Attachments, src => src.Attachments)
             .Map(dest => dest.Children, src => src.Children)

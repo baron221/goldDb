@@ -78,7 +78,7 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
                 CompanyId = s.CompanyId,
                 ProductName = s.Product != null ? s.Product.Name : (s.ProductName ?? string.Empty),
                 ProductSetTitle = s.ProductSet != null ? s.ProductSet.Title : string.Empty,
-                ProductNo = s.Product != null ? (s.Product.ProductNo ?? string.Empty) : string.Empty,
+                ProductNo = s.Product != null ? (s.Product.ProductNo ?? string.Empty) : (s.ProductNo ?? string.Empty),
                 ProductPhotoUrl = s.Product != null && s.Product.ProductPhotos.Any() 
                                   ? s.Product.ProductPhotos.OrderBy(p => p.SortOrder).First().PhotoUrl 
                                   : (s.ProductSet != null && s.ProductSet.ProductSetPhotos.Any() 
@@ -312,6 +312,12 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
             dbQuery = dbQuery.Where(s => s.StockNo.Contains(query.StockNo));
         }
 
+        if (!string.IsNullOrEmpty(query.ProductNo))
+        {
+            dbQuery = dbQuery.Where(s => (s.Product != null && s.Product.ProductNo != null && s.Product.ProductNo.Contains(query.ProductNo)) ||
+                                         (s.ProductNo != null && s.ProductNo.Contains(query.ProductNo)));
+        }
+
         if (!string.IsNullOrEmpty(query.ProductName))
         {
             dbQuery = dbQuery.Where(s => (s.Product != null && s.Product.Name.Contains(query.ProductName)) ||
@@ -320,9 +326,11 @@ public class StockRepository : RepositoryBase<Stock>, IStockRepository
 
         if (!string.IsNullOrEmpty(query.SearchText))
         {
-            dbQuery = dbQuery.Where(s => s.StockNo.Contains(query.SearchText) || 
+            dbQuery = dbQuery.Where(s => s.StockNo.Contains(query.SearchText) ||
                                          (s.Product != null && s.Product.Name.Contains(query.SearchText)) ||
-                                         (s.ProductSet != null && s.ProductSet.Title.Contains(query.SearchText)));
+                                         (s.ProductSet != null && s.ProductSet.Title.Contains(query.SearchText)) ||
+                                         (s.Product != null && s.Product.ProductNo != null && s.Product.ProductNo.Contains(query.SearchText)) ||
+                                         (s.ProductNo != null && s.ProductNo.Contains(query.SearchText)));
         }
 
         if (query.IsExhausted.HasValue)

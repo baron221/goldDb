@@ -41,6 +41,16 @@
           style="width: 150px;"
         />
       </el-form-item>
+      <el-form-item label="제품번호">
+        <el-input
+          :model-value="modelValue.productNo"
+          @update:model-value="val => updateField('productNo', val)"
+          placeholder="제품번호"
+          clearable
+          @keyup.enter="handleFilter"
+          style="width: 150px;"
+        />
+      </el-form-item>
       <el-form-item label="중량 범위">
         <el-input-number
           :model-value="modelValue.minWeight"

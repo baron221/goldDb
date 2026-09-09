@@ -163,6 +163,10 @@ public class CreateStockDto
     // that isn't tied to a real Company. See Stock.FactoryName.
     public string? FactoryName { get; set; }
 
+    // Only used when ProductId/ProductSetId are left unset - a manually-typed product number.
+    // See Stock.ProductNo.
+    public string? ProductNo { get; set; }
+
     public int? ProductSetId { get; set; }
 
     public int? CompanyId { get; set; }
@@ -258,6 +262,8 @@ public class StockQueryDto
     public string? OrderNo { get; set; }
 
     public string? StockNo { get; set; }
+
+    public string? ProductNo { get; set; }
 
     public string? ProductName { get; set; }
 

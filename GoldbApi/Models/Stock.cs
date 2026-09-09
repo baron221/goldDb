@@ -30,6 +30,12 @@ public class Stock : BaseModel
     [MaxLength(200)]
     public string? FactoryName { get; set; }
 
+    // ProductId/ProductSetId가 있으면 그 제품의 ProductNo가 항상 표시/검색에 우선하고, 이
+    // 필드는 카탈로그 연결이 없는 수기 재고에서만 쓰인다. Mirrors FactoryName/ProductName.
+    [Description("직접 입력한 제품번호 (카탈로그 제품과 연결되지 않은 경우)")]
+    [MaxLength(100)]
+    public string? ProductNo { get; set; }
+
     [Description("세트 제품 ID")]
     public int? ProductSetId { get; set; }
 

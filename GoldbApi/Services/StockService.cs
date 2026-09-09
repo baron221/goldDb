@@ -132,7 +132,11 @@ public class StockService : IStockService
         var summary = new StockSummaryDto();
         foreach (var s in list)
         {
-            var purity = (s.Purity ?? (s.Product != null ? s.Product.Purity : "") ?? "").ToUpperInvariant();
+            var purity = (s.Purity ?? (s.Product != null ? s.Product.Purity : "") ?? "").Trim().ToUpperInvariant();
+            // 재고 수기등록의 함량은 자유 텍스트라 실제로 "14K" 대신 그냥 "14"만 입력되는
+            // 경우가 흔하다 - 순수 캐럿 숫자면 K를 보충해 아래 Contains 매칭이 조용히
+            // 빠지지 않게 한다.
+            if (purity == "14" || purity == "18" || purity == "24") purity += "K";
             var weight = s.ActualWeight * s.Quantity;
 
             if (purity.Contains("24K") || purity.Contains("PURE")) summary.TotalPureGoldWeight += weight;
@@ -193,6 +197,7 @@ public class StockService : IStockService
             ProductId = request.ProductId,
             ProductName = request.ProductId.HasValue ? null : request.ProductName,
             FactoryName = (request.ProductId.HasValue || request.ProductSetId.HasValue) ? null : request.FactoryName,
+            ProductNo = (request.ProductId.HasValue || request.ProductSetId.HasValue) ? null : request.ProductNo,
             ProductSetId = request.ProductSetId,
             CompanyId = request.CompanyId,
             StockNo = stockNo,

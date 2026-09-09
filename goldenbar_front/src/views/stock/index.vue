@@ -261,6 +261,7 @@ const listQuery = ref({
   orderNo: '',
   stockNo: '',
   productName: '',
+  productNo: '',
   status: '',
   categoryLarge: '',
   categoryMedium: '',

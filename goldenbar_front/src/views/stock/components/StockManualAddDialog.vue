@@ -11,6 +11,10 @@
         <el-input v-model="form.productName" placeholder="제품명을 입력하세요" />
       </el-form-item>
 
+      <el-form-item label="제품번호">
+        <el-input v-model="form.productNo" placeholder="제품번호를 입력하세요 (선택 사항)" />
+      </el-form-item>
+
       <el-form-item label="생산공장">
         <el-input v-model="form.factoryName" placeholder="생산공장을 입력하세요 (선택 사항)" />
       </el-form-item>
@@ -80,6 +84,7 @@ const imageAttachmentId = ref<number | null>(null);
 // so there's no product/company search here - what's typed is exactly what gets saved.
 const form = reactive({
   productName: '',
+  productNo: '',
   factoryName: '',
   purity: '',
   color: '',
@@ -92,6 +97,7 @@ const form = reactive({
 
 const resetForm = () => {
   form.productName = '';
+  form.productNo = '';
   form.factoryName = userStore.companyName || '';
   form.purity = '';
   form.color = '';
@@ -123,10 +129,16 @@ const handleSubmit = async () => {
 
   submitting.value = true;
   try {
+    // 함량은 자유 텍스트라 "14K" 대신 그냥 "14"만 입력하기 쉽다 - 그 상태로 저장되면
+    // 14K/18K/순금 합계 집계에서 조용히 빠져버리므로, 순수 캐럿 숫자면 여기서 K를 보충한다.
+    const trimmedPurity = form.purity.trim();
+    const normalizedPurity = /^(14|18|24)$/.test(trimmedPurity) ? `${trimmedPurity}K` : trimmedPurity;
+
     const res: any = await createStock({
       productName: form.productName,
+      productNo: form.productNo || undefined,
       factoryName: form.factoryName || undefined,
-      purity: form.purity,
+      purity: normalizedPurity,
       color: form.color || undefined,
       size: form.size || undefined,
       actualWeight: form.actualWeight,
