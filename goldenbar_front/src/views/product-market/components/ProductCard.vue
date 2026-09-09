@@ -153,6 +153,18 @@ const getPurityWeight = (purityCode: string): string | null => {
 .attr-tag { border-radius: 0; font-size: 0.65rem; height: 20px; line-height: 18px; padding: 0 5px; color: #888; border-color: #eeeeee; }
 .product-id-label { font-size: 0.75rem; color: #cccccc; font-family: 'S-CoreDream', 'Jost', sans-serif; font-weight: 400; }
 
+// Two cards per row on phones (see :xs="12" on product-market/index.vue's el-col) - the
+// desktop padding/type scale and 36px action buttons are too large for a half-width mobile
+// card, so they're tightened here rather than shrinking the shared desktop styles above.
+@media (max-width: 767px) {
+  .product-details-box { padding: 0.75rem; }
+  .product-name-title { font-size: 0.8rem; margin: 0 0 0.375rem 0; }
+  .manufacturer-badge { font-size: 0.6rem; margin-bottom: 0.375rem; }
+  .attr-tag { font-size: 0.6rem; height: 18px; line-height: 16px; }
+  .product-id-label { font-size: 0.65rem; }
+  .quick-action-button { width: 28px; height: 28px; }
+}
+
 :global(html.dark) {
   .jovenca-product-card {
     background-color: #1a1a1a;

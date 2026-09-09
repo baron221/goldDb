@@ -42,7 +42,7 @@
 
           <div v-loading="loading" class="collections-grid-wrapper">
             <el-row :gutter="24" class="luxury-products-grid">
-              <el-col :xs="24" :sm="12" :md="12" :lg="8" v-for="item in displayList" :key="item.id + (item.isSet ? '-set' : '-prod')">
+              <el-col :xs="12" :sm="12" :md="12" :lg="8" v-for="item in displayList" :key="item.id + (item.isSet ? '-set' : '-prod')">
                 <div class="luxury-product-card" @click="goToDetail(item)">
 
                   <div class="card-image-box">
