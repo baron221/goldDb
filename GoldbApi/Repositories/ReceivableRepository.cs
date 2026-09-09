@@ -146,9 +146,21 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
 
         if (!string.IsNullOrEmpty(query.ProductName))
         {
-            dbQuery = dbQuery.Where(r => r.Order != null && r.Order.OrderItems.Any(oi => 
-                (oi.Product != null && oi.Product.Name.Contains(query.ProductName)) || 
-                (oi.ProductSet != null && oi.ProductSet.Title.Contains(query.ProductName))));
+            // A DEPOSIT settling multiple orders at once (see ProcessDepositAsync's OrderIds
+            // batch path) only ever gets its own OrderId set when it happens to cover a single
+            // order - for a real multi-order settlement it's null, and r.Order was always null
+            // too, so this filter matched nothing for the common case. Fall back to whatever
+            // charges this deposit actually applied to (ReceivableApplication -> Charge.Order)
+            // so a product search finds a deposit by ANY order it settled, not just OrderId.
+            dbQuery = dbQuery.Where(r =>
+                (r.Order != null && r.Order.OrderItems.Any(oi =>
+                    (oi.Product != null && oi.Product.Name.Contains(query.ProductName)) ||
+                    (oi.ProductSet != null && oi.ProductSet.Title.Contains(query.ProductName))))
+                || Context.ReceivableApplications
+                    .Where(a => a.DepositId == r.Id)
+                    .Any(a => a.Charge != null && a.Charge.Order != null && a.Charge.Order.OrderItems.Any(oi =>
+                        (oi.Product != null && oi.Product.Name.Contains(query.ProductName)) ||
+                        (oi.ProductSet != null && oi.ProductSet.Title.Contains(query.ProductName)))));
         }
 
         if (query.ManufacturerId.HasValue)
