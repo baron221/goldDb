@@ -46,6 +46,15 @@ public class Order : BaseModel
 
     public string? OrderMemo { get; set; }
 
+    // 주문 접수 시점의 OrderMemo와 달리, 소매점이 고객관리 > 주문내역에서 나중에 자유롭게
+    // 남기는 메모 - 예: 고객에게 어떤 걸 줬는지, 특이 요청 등을 사진과 함께 기록.
+    [Description("소매점이 고객관리 주문내역에서 남긴 메모 (사진 첨부 가능)")]
+    [MaxLength(500)]
+    public string? CustomerNoteMemo { get; set; }
+
+    [Description("위 메모에 첨부된 사진 URL")]
+    public string? CustomerNotePhotoUrl { get; set; }
+
     [Description("공장 추가 메시지")]
     [MaxLength(500)]
 

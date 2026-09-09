@@ -32,6 +32,11 @@ public static class OrderEndpoints
             return Results.Ok(await service.UpdateOrderStatusAsync(id, request));
         }).WithValidation<UpdateOrderStatusDto>();
 
+        group.MapPut("/{id:int}/customer-note", async (int id, UpdateOrderCustomerNoteDto request, IOrderService service) =>
+        {
+            return Results.Ok(await service.UpdateCustomerNoteAsync(id, request));
+        });
+
         group.MapDelete("/{id:int}", async (int id, IOrderService service) =>
         {
             return Results.Ok(await service.DeleteOrderAsync(id));

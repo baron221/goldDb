@@ -618,6 +618,8 @@ public class OrderRepository : RepositoryBase<Order>, IOrderRepository
             TotalAmount = o.TotalAmount,
             Status = o.Status,
             OrderMemo = o.OrderMemo,
+            CustomerNoteMemo = o.CustomerNoteMemo,
+            CustomerNotePhotoUrl = o.CustomerNotePhotoUrl,
             FactoryRemarks = o.FactoryRemarks,
             LogisticsRemarks = o.LogisticsRemarks,
             InspectionRemarks = o.InspectionRemarks,

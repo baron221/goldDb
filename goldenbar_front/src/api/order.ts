@@ -32,6 +32,14 @@ export function updateOrderStatus(id: number, data: any) {
   });
 }
 
+export function updateOrderCustomerNote(id: number, data: any) {
+  return request({
+    url: `/order/${id}/customer-note`,
+    method: 'put',
+    data
+  });
+}
+
 export function deleteOrder(id: number) {
   return request({
     url: `/order/${id}`,

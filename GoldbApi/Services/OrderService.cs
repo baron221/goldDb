@@ -17,6 +17,8 @@ public interface IOrderService
 
     Task<ApiResponse<bool>> UpdateOrderStatusAsync(int id, UpdateOrderStatusDto request);
 
+    Task<ApiResponse<bool>> UpdateCustomerNoteAsync(int id, UpdateOrderCustomerNoteDto request);
+
     Task<ApiResponse<bool>> DeleteOrderAsync(int id);
 
     Task<ApiResponse<SettlementHistorySummaryDto>> GetSettlementSummaryAsync(OrderQueryDto query);
@@ -421,6 +423,26 @@ public class OrderService : IOrderService
         var summary = await _orderRepository.GetSettlementSummaryAsync(query);
 
         return ApiResponse<SettlementHistorySummaryDto>.Success(summary);
+    }
+
+    // 고객관리 > 주문내역에서 소매점 직원이 남기는 자유 메모+사진 - 주문 자체의 흐름/상태와는
+    // 무관하므로 UpdateOrderStatusAsync와 별도의 가벼운 경로로 둔다. GetMyOrdersAsync와 같은
+    // UserId 스코프(이 주문을 만든 그 직원 계정만)를 그대로 재사용해 권한을 맞춘다.
+    public async Task<ApiResponse<bool>> UpdateCustomerNoteAsync(int id, UpdateOrderCustomerNoteDto request)
+    {
+        var order = await _orderRepository.GetByIdAsync(id);
+        if (order == null) return ApiResponse<bool>.Failure("Order not found", 404);
+
+        if (!_currentUserService.IsAdmin && order.UserId != GetCurrentUserId())
+        {
+            return ApiResponse<bool>.Failure("Forbidden", 403);
+        }
+
+        order.CustomerNoteMemo = request.CustomerNoteMemo;
+        order.CustomerNotePhotoUrl = request.CustomerNotePhotoUrl;
+
+        await _orderRepository.SaveChangesAsync();
+        return ApiResponse<bool>.Success(true);
     }
 
     public async Task<ApiResponse<bool>> UpdateOrderStatusAsync(int id, UpdateOrderStatusDto request)

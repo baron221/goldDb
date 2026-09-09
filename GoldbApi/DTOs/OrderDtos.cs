@@ -27,6 +27,10 @@ public class OrderDto
 
     public string? OrderMemo { get; set; }
 
+    public string? CustomerNoteMemo { get; set; }
+
+    public string? CustomerNotePhotoUrl { get; set; }
+
     public string? FactoryRemarks { get; set; }
 
     public string? LogisticsRemarks { get; set; }
@@ -329,6 +333,14 @@ public class OrderQueryDto
     public string? SortBy { get; set; } = "CreatedAt";
 
     public bool? IsDescending { get; set; } = true;
+}
+
+public class UpdateOrderCustomerNoteDto
+{
+
+    public string? CustomerNoteMemo { get; set; }
+
+    public string? CustomerNotePhotoUrl { get; set; }
 }
 
 public class UpdateOrderStatusDto
