@@ -86,7 +86,7 @@
               <el-tag v-else type="success" size="small">완료</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="미수 잔액" width="150" align="right">
+          <el-table-column label="거래액" width="150" align="right">
             <template #default="{row}">
               <span v-if="!row.isCancelled && ((row.outstandingChargeAmount || 0) > 0 || (row.outstandingChargeWeight || 0) > 0)" style="color: #f56c6c; font-weight: bold;">
                 ₩ {{ formatPrice(row.outstandingChargeAmount) }}
@@ -337,7 +337,7 @@
               <el-tag v-else type="success" size="small">완료</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="미수 잔액" width="150" align="right">
+          <el-table-column label="거래액" width="150" align="right">
             <template #default="{row}">
               <span v-if="!row.isCancelled && ((row.outstandingChargeAmount || 0) > 0 || (row.outstandingChargeWeight || 0) > 0)" style="color: #f56c6c; font-weight: bold;">
                 ₩ {{ formatPrice(row.outstandingChargeAmount) }}
