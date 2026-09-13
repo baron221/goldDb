@@ -30,7 +30,7 @@
 
       <el-tab-pane v-if="!isNewMode" label="주문 내역" name="orders">
         <div class="order-list-section" style="margin-top: 15px;">
-          <base-table :data="customerOrders" v-loading="ordersLoading" border style="width: 100%">
+          <base-table :data="customerOrders" row-key="id" v-loading="ordersLoading" border style="width: 100%">
 
             <el-table-column type="expand">
               <template #default="props">
@@ -70,36 +70,25 @@
 
                   <div class="customer-note-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #e0dcd5;">
                     <h4 style="margin: 0 0 10px 0; color: #222; font-size: 14px; border-left: 3px solid #c5a880; padding-left: 8px;">
-                      메모 &amp; 사진
+                      메모
                     </h4>
-                    <div style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
-                      <div style="width: 200px; flex-shrink: 0;">
-                        <image-upload
-                          :initial-url="props.row.customerNotePhotoUrl"
-                          @update:initial-url="(val: string | null) => { props.row.customerNotePhotoUrl = val; }"
-                          sub-dir="orders"
-                        />
-                      </div>
-                      <div style="flex: 1; min-width: 240px;">
-                        <el-input
-                          v-model="props.row.customerNoteMemo"
-                          type="textarea"
-                          :rows="3"
-                          maxlength="500"
-                          show-word-limit
-                          placeholder="메모를 입력하세요 (선택 사항)"
-                        />
-                        <div style="margin-top: 8px; text-align: right;">
-                          <el-button
-                            type="primary"
-                            size="small"
-                            :loading="savingNoteId === props.row.id"
-                            @click="handleSaveNote(props.row)"
-                          >
-                            저장
-                          </el-button>
-                        </div>
-                      </div>
+                    <el-input
+                      v-model="props.row.customerNoteMemo"
+                      type="textarea"
+                      :rows="3"
+                      maxlength="500"
+                      show-word-limit
+                      placeholder="메모를 입력하세요 (선택 사항)"
+                    />
+                    <div style="margin-top: 8px; text-align: right;">
+                      <el-button
+                        type="primary"
+                        size="small"
+                        :loading="savingNoteId === props.row.id"
+                        @click="handleSaveNote(props.row)"
+                      >
+                        저장
+                      </el-button>
                     </div>
                   </div>
                 </div>
@@ -144,7 +133,6 @@ import { ElMessage } from 'element-plus';
 import { Check, Picture } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import BaseTable from '@/components/BaseTable/index.vue';
-import ImageUpload from '@/components/ImageUpload/index.vue';
 import CustomerForm from './CustomerForm.vue';
 
 const props = defineProps<{
@@ -202,8 +190,7 @@ const handleSaveNote = async (row: any) => {
   savingNoteId.value = row.id;
   try {
     await updateOrderCustomerNote(row.id, {
-      customerNoteMemo: row.customerNoteMemo || undefined,
-      customerNotePhotoUrl: row.customerNotePhotoUrl || undefined
+      customerNoteMemo: row.customerNoteMemo || undefined
     });
     ElMessage.success('저장되었습니다.');
   } catch (error) {

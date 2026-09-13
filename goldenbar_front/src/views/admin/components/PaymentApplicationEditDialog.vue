@@ -108,6 +108,18 @@ const handleClose = () => {
 const handleSubmit = async () => {
   if (!props.record) return;
 
+  // Nothing edited - close without ever contacting the server. Calling
+  // updatePaymentApplication with the exact same values still bumps the underlying
+  // Payable/Deposit row's UpdatedAt, which the 정산완료내역 list is sorted by - that alone
+  // would make an untouched row jump to the top of the list just from opening this
+  // dialog and clicking 저장.
+  const amountUnchanged = (editForm.appliedAmount || 0) === (props.record.appliedAmount || 0);
+  const weightUnchanged = (editForm.appliedWeight || 0) === (props.record.appliedWeight || 0);
+  if (amountUnchanged && weightUnchanged) {
+    visible.value = false;
+    return;
+  }
+
   submitting.value = true;
   try {
     await updatePaymentApplication(props.record.id, {

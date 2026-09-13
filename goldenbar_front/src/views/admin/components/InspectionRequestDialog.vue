@@ -18,6 +18,7 @@
                 </div>
                 <div class="product-no" style="font-size: 0.8875rem;">{{ scope.row.productNo }}</div>
                 <span style="font-size: 0.95rem; color: #E6A23C;">물류: {{ props.order?.logisticsCompanyName || '-' }}</span>
+                <div v-if="scope.row.memo" style="font-size: 0.825rem; color: #606266; margin-top: 0.25rem;">📝 {{ scope.row.memo }}</div>
               </div>
             </div>
           </template>
@@ -51,9 +52,8 @@
           :excel-formatter="(row: any) => row.approvedWeight ? row.approvedWeight + 'g' : '-'"
         >
           <template #default="scope">
-            <el-tooltip :content="scope.row.approvedMemo || $t('admin.inspectionRequest.labels.noMemo')" placement="top" :disabled="!scope.row.approvedMemo">
-              <span style="color: #67C23A;">{{ scope.row.approvedWeight ? scope.row.approvedWeight + 'g' : '-' }}</span>
-            </el-tooltip>
+            <span style="color: #67C23A;">{{ scope.row.approvedWeight ? scope.row.approvedWeight + 'g' : '-' }}</span>
+            <div v-if="scope.row.approvedMemo" style="font-size: 0.8125rem; color: #67C23A; margin-top: 0.25rem;">📝 {{ scope.row.approvedMemo }}</div>
           </template>
         </el-table-column>
         <el-table-column
@@ -189,6 +189,7 @@ const initializeForm = () => {
       purity: item.purity,
       color: item.color,
       size: item.size,
+      memo: item.memo,
       factoryPrice: item.factoryPrice,
       laborCost: item.laborCost,
       factoryInputMaterialCost: item.factoryInputMaterialCost || item.retailerConfirmMaterialCost || item.factoryPrice || 0,
@@ -220,6 +221,7 @@ const initializeForm = () => {
           purity: child.purity,
           color: child.color,
           size: child.size,
+          memo: child.memo,
           factoryPrice: child.factoryPrice,
           laborCost: child.laborCost,
           factoryInputMaterialCost: child.factoryInputMaterialCost || child.retailerConfirmMaterialCost || child.factoryPrice || 0,
