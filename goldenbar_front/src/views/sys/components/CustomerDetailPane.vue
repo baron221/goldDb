@@ -103,14 +103,10 @@
             </el-table-column>
             <el-table-column prop="orderMemo" label="메모" min-width="150" show-overflow-tooltip>
               <template #default="scope">
-                {{ scope.row.orderMemo || '-' }}
-                <el-icon
-                  v-if="scope.row.customerNoteMemo || scope.row.customerNotePhotoUrl"
-                  title="메모/사진 있음"
-                  style="color: #c5a880; vertical-align: -2px; margin-left: 4px;"
-                >
-                  <Picture />
-                </el-icon>
+                <template v-if="scope.row.customerNoteMemo">
+                  <el-icon title="고객관리에서 남긴 메모" style="color: #c5a880; vertical-align: -2px; margin-right: 3px;"><ChatDotRound /></el-icon>{{ scope.row.customerNoteMemo }}
+                </template>
+                <template v-else>{{ scope.row.orderMemo || '-' }}</template>
               </template>
             </el-table-column>
             <el-table-column prop="totalAmount" label="총 주문금액" align="right" :excel-formatter="scope => formatPrice(scope.totalAmount)">
@@ -130,7 +126,7 @@
 import { ref, watch } from 'vue';
 import { getMyOrders, updateOrderCustomerNote } from '@/api/order';
 import { ElMessage } from 'element-plus';
-import { Check, Picture } from '@element-plus/icons-vue';
+import { Check, ChatDotRound } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import BaseTable from '@/components/BaseTable/index.vue';
 import CustomerForm from './CustomerForm.vue';
