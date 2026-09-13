@@ -7,7 +7,7 @@
     append-to-body
   >
     <el-form :model="form" label-position="top">
-      <el-form-item label="제품 선택" required>
+      <el-form-item label="제품명" required>
         <el-input v-model="form.productName" placeholder="제품명을 입력하세요" />
       </el-form-item>
 
@@ -35,13 +35,13 @@
 
       <div style="display: flex; gap: 0.75rem;">
         <el-form-item label="재료비" style="flex: 1;">
-          <el-input-number v-model="form.materialCost" :min="0" :step="1000" style="width: 100%;" />
+          <el-input-number v-model="form.materialCost" :step="1000" style="width: 100%;" />
         </el-form-item>
         <el-form-item label="수공비" style="flex: 1;">
-          <el-input-number v-model="form.laborCost" :min="0" :step="1000" style="width: 100%;" />
+          <el-input-number v-model="form.laborCost" :step="1000" style="width: 100%;" />
         </el-form-item>
         <el-form-item label="중량(g)" required style="flex: 1;">
-          <el-input-number v-model="form.weight" :min="0" :precision="2" :step="0.1" style="width: 100%;" />
+          <el-input-number v-model="form.weight" :precision="2" :step="0.1" style="width: 100%;" />
         </el-form-item>
       </div>
 
@@ -163,7 +163,7 @@ const handleSubmit = async () => {
     ElMessage.warning('함량을 입력해주세요.');
     return;
   }
-  if (!form.weight || form.weight <= 0) {
+  if (!form.weight) {
     ElMessage.warning('중량을 입력해주세요.');
     return;
   }

@@ -87,7 +87,7 @@
                 <el-option
                   v-for="s in scope.row.matchingStocks"
                   :key="s.id"
-                  :label="`${s.stockNo} (${s.actualWeight}g)`"
+                  :label="`${s.stockNo} (${s.actualWeight}g${s.size ? ` / ${s.size}` : ''})`"
                   :value="s.id"
                 />
               </el-select>
