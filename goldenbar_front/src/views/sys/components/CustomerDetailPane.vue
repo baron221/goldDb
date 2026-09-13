@@ -40,7 +40,14 @@
                   </h4>
                   <base-table :data="props.row.orderItems" border size="small" style="width: 100%">
                     <el-table-column prop="productNo" label="제품번호" width="120" />
-                    <el-table-column prop="productName" label="제품명" min-width="150" show-overflow-tooltip />
+                    <el-table-column prop="productName" label="제품명" min-width="180">
+                      <template #default="scope">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <el-image :src="scope.row.photoUrl || defaultImage" fit="cover" style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 2px;" />
+                          <span>{{ scope.row.productName }}</span>
+                        </div>
+                      </template>
+                    </el-table-column>
                     <el-table-column prop="purity" label="함량" width="90" align="center" />
                     <el-table-column prop="orderWeight" label="중량" width="90" align="right" :excel-formatter="scope => scope.orderWeight ? scope.orderWeight.toFixed(2) + 'g' : '-'">
                       <template #default="scope">
@@ -146,6 +153,8 @@ const props = defineProps<{
   customerDetail: any;
   activeTab: string;
 }>();
+
+const defaultImage = '/thumb_no_img.png';
 
 const emit = defineEmits(['success', 'update:activeTab']);
 

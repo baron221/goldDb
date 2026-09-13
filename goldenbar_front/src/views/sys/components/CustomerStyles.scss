@@ -140,3 +140,37 @@
   border-radius: 2px;
   border: 1px solid #eae6df;
 }
+
+// Below the same breakpoint useMobile() switches on (991px) - the fixed drag-resized
+// left/right split makes no sense on a touch screen, so panes stack vertically and each
+// takes the full width/its own natural height instead of sharing one 100vh row.
+.app-container.is-mobile {
+  height: auto;
+  overflow: visible;
+
+  .split-container {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .left-pane {
+    width: 100% !important;
+    min-width: 0;
+    height: auto;
+    max-height: 60vh;
+  }
+
+  .right-pane {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+    padding-left: 0;
+    margin-top: 0.9375rem;
+  }
+
+  :deep(.right-detail-card .el-card__body) {
+    overflow-y: visible;
+  }
+}

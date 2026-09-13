@@ -81,17 +81,17 @@
         header-align="center"
         :excel-formatter="(row) => {
           if (userStore.companyType === 'RTL' && !canViewPrice) return '-';
-          const base = row.customFactoryPrice || row.factoryPrice || 0;
-          const labor = row.customLaborCost || row.laborCost || 0;
+          const base = (row.customFactoryPrice || row.factoryPrice || 0) * priceMultiplier;
+          const labor = (row.customLaborCost || row.laborCost || 0) * priceMultiplier;
           return `기본: ₩${formatPrice(base)}\n수공비: ₩${formatPrice(labor)}\n합계: ₩${formatPrice(base + labor)}`;
         }"
       >
         <template #default="{row}">
           <div v-if="userStore.companyType === 'RTL' && canViewPrice" class="price-static-view">
-            <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice(row.customFactoryPrice || row.factoryPrice) }}</div>
-            <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice(row.customLaborCost || row.laborCost) }}</div>
+            <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) * priceMultiplier) }}</div>
+            <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice((row.customLaborCost || row.laborCost || 0) * priceMultiplier) }}</div>
             <div class="price-total-line">
-              {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) }}
+              {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice(((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) * priceMultiplier) }}
             </div>
           </div>
           <span v-else-if="userStore.companyType === 'RTL'">-</span>
@@ -143,10 +143,10 @@
         width="160"
         header-align="center"
         align="right"
-        :excel-formatter="(row) => (userStore.companyType === 'RTL' && !canViewPrice) ? '-' : `₩${formatPrice(row.price * row.quantity)}`"
+        :excel-formatter="(row) => (userStore.companyType === 'RTL' && !canViewPrice) ? '-' : `₩${formatPrice(row.price * row.quantity * priceMultiplier)}`"
       >
         <template #default="{row}">
-          <span v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">₩ {{ formatPrice(row.price * row.quantity) }}</span>
+          <span v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">₩ {{ formatPrice(row.price * row.quantity * priceMultiplier) }}</span>
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -207,10 +207,10 @@
 
         <div class="mobile-card-prices">
           <div v-if="userStore.companyType === 'RTL' && canViewPrice" class="price-static-view">
-            <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice(row.customFactoryPrice || row.factoryPrice) }}</div>
-            <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice(row.customLaborCost || row.laborCost) }}</div>
+            <div class="price-line">{{ $t('cart.itemList.labels.base') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) * priceMultiplier) }}</div>
+            <div class="price-line">{{ $t('cart.itemList.labels.labor') }} ₩ {{ formatPrice((row.customLaborCost || row.laborCost || 0) * priceMultiplier) }}</div>
             <div class="price-total-line">
-              {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) }}
+              {{ $t('cart.itemList.labels.total') }} ₩ {{ formatPrice(((row.customFactoryPrice || row.factoryPrice || 0) + (row.customLaborCost || row.laborCost || 0)) * priceMultiplier) }}
             </div>
           </div>
           <span v-else-if="userStore.companyType === 'RTL'">-</span>
@@ -241,7 +241,7 @@
               @change="(val) => handleQuantityChange(row, val)"
             />
           </div>
-          <div v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">합계: ₩ {{ formatPrice(row.price * row.quantity) }}</div>
+          <div v-if="userStore.companyType !== 'RTL' || canViewPrice" class="row-total-price">합계: ₩ {{ formatPrice(row.price * row.quantity * priceMultiplier) }}</div>
           <div v-else class="row-total-price">합계: -</div>
         </div>
       </div>
@@ -299,6 +299,11 @@ const selectedItems = ref<any[]>([]);
 const defaultImage = '/thumb_no_img.png';
 
 const isSingleSelectOnly = computed(() => props.userStore.companyType === 'RTL');
+
+// RETAILER가 보는 참고 가격만 2배로 보여준다 (product/detail.vue와 동일한 규칙) - 실제
+// 장바구니/주문 금액은 서버가 원가(factoryPrice+laborCost) 그대로 계산하므로 영향받지
+// 않는다. RTL이 아니면 1배 그대로.
+const priceMultiplier = computed(() => (props.userStore.companyType === 'RTL' ? 2 : 1));
 
 // 소매점(RTL)은 한 번에 하나의 상품만 주문할 수 있어야 하므로, 새로 선택된 행 외의
 // 기존 선택은 모두 해제한다 (체크박스를 라디오처럼 동작시킴). This used to live in a

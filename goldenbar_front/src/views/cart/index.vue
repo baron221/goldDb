@@ -138,8 +138,12 @@ const handleClearCustomer = () => {
   mainCustomerSearch.value = '';
 };
 
+// RETAILER가 보는 참고 가격만 2배로 보여준다 (product/detail.vue, CartItemList.vue와 동일한
+// 규칙) - 실제 주문은 cartItemIds만 서버로 보내고 서버가 원가로 재계산하므로 이 합계는
+// 순전히 화면 표시용이라 영향받지 않는다.
 const totalPrice = computed(() => {
-  return selectedItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const multiplier = userStore.companyType === 'RTL' ? 2 : 1;
+  return selectedItems.value.reduce((sum, item) => sum + (item.price * item.quantity), 0) * multiplier;
 });
 
 const getCartList = async () => {

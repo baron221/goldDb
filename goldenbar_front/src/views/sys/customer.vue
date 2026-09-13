@@ -1,8 +1,8 @@
 <template>
-<div class="app-container">
+<div class="app-container" :class="{ 'is-mobile': isMobile }">
     <div class="split-container" ref="splitContainer">
 
-      <div class="left-pane" :style="{ width: leftWidth + 'px' }">
+      <div class="left-pane" :style="isMobile ? {} : { width: leftWidth + 'px' }">
         <customer-list-pane
           v-model="listQuery"
           :customer-list="customerList"
@@ -16,9 +16,9 @@
         />
       </div>
 
-      <div class="pane-resizer" @mousedown="startResize"></div>
+      <div v-if="!isMobile" class="pane-resizer" @mousedown="startResize"></div>
 
-      <div class="right-pane">
+      <div class="right-pane" ref="rightPaneRef">
         <customer-detail-pane
           v-if="currentCustomer"
           v-model:active-tab="activeTab"
@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 
-import { ref, onMounted, reactive, computed } from 'vue';
+import { ref, onMounted, reactive, computed, nextTick } from 'vue';
 import {
   getCustomers,
   getCustomer,
@@ -49,13 +49,16 @@ import {
 } from '@/api/customer';
 import { getCompanies } from '@/api/company';
 import useUserStore from '@/store/modules/user';
+import { useMobile } from '@/hooks/useMobile';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { InfoFilled } from '@element-plus/icons-vue';
 import CustomerListPane from './components/CustomerListPane.vue';
 import CustomerDetailPane from './components/CustomerDetailPane.vue';
 
-const leftWidth = ref(450); 
+const { isMobile } = useMobile();
+const leftWidth = ref(450);
 const splitContainer = ref<HTMLElement | null>(null);
+const rightPaneRef = ref<HTMLElement | null>(null);
 let isResizing = false;
 
 const startResize = () => {
@@ -156,6 +159,16 @@ const fetchCustomers = async () => {
   }
 };
 
+// On mobile the two panes stack vertically, so a selected customer's detail sits below
+// the (still-visible) list - scroll it into view rather than leaving the user to notice
+// and scroll down manually.
+const scrollToDetailOnMobile = () => {
+  if (!isMobile.value) return;
+  nextTick(() => {
+    rightPaneRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+};
+
 const handleRowClick = async (row: any) => {
   try {
     isNewMode.value = false;
@@ -163,6 +176,7 @@ const handleRowClick = async (row: any) => {
     const res = await getCustomer(row.id);
     Object.assign(customerDetail, res.data);
     activeTab.value = 'basic';
+    scrollToDetailOnMobile();
   } catch (error) {
     ElMessage.error('상세 정보 로드 실패');
   }
@@ -183,6 +197,7 @@ const handleCreate = () => {
     updatedAt: ''
   });
   activeTab.value = 'basic';
+  scrollToDetailOnMobile();
 };
 
 const onCustomerSaveSuccess = async (data: any) => {

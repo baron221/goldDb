@@ -14,7 +14,7 @@
 
     <div class="filter-container" style="margin-bottom: 15px;">
       <el-row :gutter="10">
-        <el-col :span="6">
+        <el-col :xs="12" :sm="12" :md="6">
           <el-select
             v-model="listQuery.companyId"
             placeholder="소매점 선택"
@@ -31,7 +31,7 @@
             />
           </el-select>
         </el-col>
-        <el-col :span="6">
+        <el-col :xs="12" :sm="12" :md="6">
           <el-input
             v-model="listQuery.name"
             placeholder="고객명 검색"
@@ -39,7 +39,7 @@
             @keyup.enter="handleFilter"
           />
         </el-col>
-        <el-col :span="6">
+        <el-col :xs="12" :sm="12" :md="6">
           <el-input
             v-model="listQuery.phone"
             placeholder="연락처 검색"
@@ -47,7 +47,7 @@
             @keyup.enter="handleFilter"
           />
         </el-col>
-        <el-col :span="6">
+        <el-col :xs="12" :sm="12" :md="6">
           <el-date-picker
             v-model="listQuery.birthDate"
             type="date"
