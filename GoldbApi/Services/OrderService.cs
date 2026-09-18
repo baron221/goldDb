@@ -524,8 +524,22 @@ public class OrderService : IOrderService
                     if (itemWeight.SettlementRatio.HasValue) orderItem.SettlementRatio = itemWeight.SettlementRatio.Value;
                     if (itemWeight.SettlementAmount.HasValue) orderItem.SettlementAmount = itemWeight.SettlementAmount;
                     if (itemWeight.SettlementMemo != null) orderItem.SettlementMemo = itemWeight.SettlementMemo;
-                    if (itemWeight.FactoryInputMaterialCost.HasValue) orderItem.FactoryInputMaterialCost = itemWeight.FactoryInputMaterialCost;
-                    if (itemWeight.FactoryInputLaborCost.HasValue) orderItem.FactoryInputLaborCost = itemWeight.FactoryInputLaborCost;
+                    // 정산 계산은 RetailerConfirm* ?? FactoryInput* 순으로 우선순위를 둔다(물류가
+                    // 한번 확정하면 그 값이 최종). 문제는 물류가 먼저 확정한 뒤 공장이 나중에
+                    // 자기 입력값을 다시 수정/삭제하는 경우 - 이 요청에 새 물류 확정값이 같이
+                    // 오지 않는 한, 오래된 RetailerConfirm*이 여전히 새 FactoryInput*보다 우선
+                    // 적용되어 공장의 수정이 정산에 전혀 반영되지 않는다. 공장이 자기 입력을
+                    // 바꿀 때마다 오래된 확정값을 무효화해 재확인을 요구한다.
+                    if (itemWeight.FactoryInputMaterialCost.HasValue)
+                    {
+                        orderItem.FactoryInputMaterialCost = itemWeight.FactoryInputMaterialCost;
+                        if (!itemWeight.RetailerConfirmMaterialCost.HasValue) orderItem.RetailerConfirmMaterialCost = null;
+                    }
+                    if (itemWeight.FactoryInputLaborCost.HasValue)
+                    {
+                        orderItem.FactoryInputLaborCost = itemWeight.FactoryInputLaborCost;
+                        if (!itemWeight.RetailerConfirmLaborCost.HasValue) orderItem.RetailerConfirmLaborCost = null;
+                    }
                     if (itemWeight.RetailerConfirmMaterialCost.HasValue) orderItem.RetailerConfirmMaterialCost = itemWeight.RetailerConfirmMaterialCost;
                     if (itemWeight.RetailerConfirmLaborCost.HasValue) orderItem.RetailerConfirmLaborCost = itemWeight.RetailerConfirmLaborCost;
                     if (itemWeight.ProductionDate.HasValue) orderItem.ProductionDate = itemWeight.ProductionDate;
