@@ -109,9 +109,10 @@
                 <template v-else>{{ scope.row.orderMemo || '-' }}</template>
               </template>
             </el-table-column>
-            <el-table-column prop="totalAmount" label="총 주문금액" align="right" :excel-formatter="scope => formatPrice(scope.totalAmount)">
+            <el-table-column prop="totalAmount" label="총 주문금액" align="right" :excel-formatter="scope => canViewPrice ? formatPrice(scope.totalAmount) : '-'">
               <template #default="scope">
-                ₩ {{ formatPrice(scope.row.totalAmount) }}
+                <span v-if="canViewPrice">₩ {{ formatPrice(scope.row.totalAmount) }}</span>
+                <span v-else>-</span>
               </template>
             </el-table-column>
           </base-table>
@@ -130,6 +131,9 @@ import { Check, ChatDotRound } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import BaseTable from '@/components/BaseTable/index.vue';
 import CustomerForm from './CustomerForm.vue';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
+
+const canViewPrice = useCanViewPrice();
 
 const props = defineProps<{
   currentCustomer: any;

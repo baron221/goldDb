@@ -1043,15 +1043,34 @@ const statementPrintStyles = `
   .receipt-balance-table .after-balance-row td { background-color: #f8f9fa; font-weight: bold; }
 `;
 
+// On mobile, without a viewport meta tag the browser renders this whole page at a virtual
+// desktop width and shrinks it to fit the screen - everything (including the % based
+// widths in statementPrintStyles) ends up tiny regardless of the CSS itself being
+// responsive. Auto-printing and closing after 500ms is also print-only behavior: on a
+// phone that just yanks the tab away before there's any real chance to read it on screen,
+// so skip that entirely on mobile and let the two 고객용/보관용 copies stack instead of
+// sitting side by side (each would otherwise be squeezed into half an already-narrow
+// screen).
 const openStatementPrintWindow = (title: string, bodyHtml: string) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
+  const mobileStyles = isMobile.value
+    ? `<style>.receipt-double-container { flex-direction: column; } .receipt-copy-block { margin-bottom: 10mm; }</style>`
+    : '';
+  const autoPrintScript = isMobile.value
+    ? ''
+    : `<script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>`;
   printWindow.document.write(`
     <html>
-      <head><title>${title}</title><style>${statementPrintStyles}</style></head>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${title}</title>
+        <style>${statementPrintStyles}</style>
+        ${mobileStyles}
+      </head>
       <body>
         <div class="receipt-double-container">${bodyHtml}</div>
-        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); };<\/script>
+        ${autoPrintScript}
       </body>
     </html>
   `);

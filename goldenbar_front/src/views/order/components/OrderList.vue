@@ -108,7 +108,7 @@ const STATUS_LABEL: Record<string, string> = {
   'DELIVERY_READY': '출고대기',
   'DELIVERY_IN_TRANSIT': '이송중',
   'DELIVERED': '수령대기',
-  'Completed': '수령완료'
+  'Completed': '완료'
 };
 
 const getStatusLabel = (status: string): string => STATUS_LABEL[status] ?? status;

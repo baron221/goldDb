@@ -282,7 +282,8 @@
                   </el-table-column>
                   <el-table-column prop="totalAmount" label="총 주문금액" align="right">
                     <template #default="scope">
-                      ₩ {{ formatPrice(scope.row.totalAmount) }}
+                      <span v-if="canViewPrice">₩ {{ formatPrice(scope.row.totalAmount) }}</span>
+                      <span v-else>-</span>
                     </template>
                   </el-table-column>
                 </base-table>
@@ -347,10 +348,12 @@ import UserCreateDialog from './components/UserCreateDialog.vue';
 import { getUserDetail, updateUser } from '@/api/user';
 import { getCompanyUsers, addUserToCompany, removeUserFromCompany, getAvailableUsers } from '@/api/company';
 import { getAllOrders } from '@/api/order';
+import { useCanViewPrice } from '@/hooks/usePriceVisibility';
 
 const { isMobile } = useMobile();
 const { t } = useI18n();
 const userStore = useUserStore();
+const canViewPrice = useCanViewPrice();
 const defaultImage = '/thumb_no_img.png';
 
 const leftWidth = ref(450);
