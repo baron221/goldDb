@@ -482,7 +482,10 @@ const handleOrderHistorySelectionChange = (rows: any[]) => {
 // only rows from that same company remain selectable - prevents silently mixing
 // orders from different DCC partners into one ledger.
 const isOrderRowSelectable = (row: any) => {
-  if (row.remainingAmount <= 0 && row.remainingWeight <= 0) return false;
+  // Exactly 0/0 means fully settled already - not "<= 0", since a 판매 수기 등록
+  // 반품(return) correction can legitimately sit here with a negative remaining
+  // amount/weight (a credit still owed back), which still needs to be selectable.
+  if (row.remainingAmount === 0 && row.remainingWeight === 0) return false;
   if (selectedOrderRows.value.length === 0) return true;
   return row.logisticsCompanyId === selectedOrderRows.value[0].logisticsCompanyId;
 };

@@ -262,6 +262,7 @@ const listQuery = ref({
   stockNo: '',
   productName: '',
   productNo: '',
+  purity: '',
   status: '',
   categoryLarge: '',
   categoryMedium: '',

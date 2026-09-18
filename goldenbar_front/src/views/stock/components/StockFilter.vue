@@ -51,6 +51,16 @@
           style="width: 150px;"
         />
       </el-form-item>
+      <el-form-item label="함량">
+        <el-input
+          :model-value="modelValue.purity"
+          @update:model-value="val => updateField('purity', val)"
+          placeholder="함량 (예: 14K)"
+          clearable
+          @keyup.enter="handleFilter"
+          style="width: 120px;"
+        />
+      </el-form-item>
       <el-form-item label="중량 범위">
         <el-input-number
           :model-value="modelValue.minWeight"

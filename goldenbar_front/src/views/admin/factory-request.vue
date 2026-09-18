@@ -11,6 +11,13 @@
       @date-change="handleDateChange"
     />
 
+    <div class="status-tabs-luxury" style="margin: 0.9375rem 0;">
+      <el-tabs v-model="activeHistoryTab" @tab-change="handleHistoryTabChange">
+        <el-tab-pane label="진행중" name="progress" />
+        <el-tab-pane label="완료" name="completed" />
+      </el-tabs>
+    </div>
+
     <div v-if="!isAdmin" class="print-approved-row" style="display: flex; justify-content: flex-end; margin-bottom: 0.625rem;">
       <el-button type="success" :icon="Printer" @click="handlePrintApprovedList">공장승인 목록 인쇄</el-button>
     </div>
@@ -213,6 +220,22 @@ const getList = async () => {
 const handleFilter = () => {
   listQuery.page = 1;
   getList();
+};
+
+// 진행중/완료 quick tabs - reuse the existing status-group + excludeCompleted mechanism
+// (previously only reachable via the filter panel's status dropdown + a small checkbox)
+// as two prominent, explicit tabs instead. 완료 needs excludeCompleted=false alongside the
+// Post_Inspected_Group status filter, or the two filters cancel each other out server-side.
+const activeHistoryTab = ref<'progress' | 'completed'>('progress');
+const handleHistoryTabChange = (tab: string | number) => {
+  if (tab === 'completed') {
+    listQuery.status = 'Post_Inspected_Group';
+    listQuery.excludeCompleted = false;
+  } else {
+    listQuery.status = undefined;
+    listQuery.excludeCompleted = true;
+  }
+  handleFilter();
 };
 
 const handlePrintApprovedList = async () => {

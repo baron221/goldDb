@@ -134,6 +134,9 @@
         <el-input v-model="settleForm.memo" type="textarea" :rows="3" placeholder="정산 처리 메모" />
       </el-form-item>
     </el-form>
+    <div style="font-size: 0.8125rem; color: #909399; text-align: right; margin-top: 0.5rem;">
+      * 정산 처리 버튼은 실제 입출금이 있을 때만 클릭하세요.
+    </div>
     <template #footer>
       <el-button @click="visible = false">취소</el-button>
       <el-button type="primary" :loading="submitting" @click="handleSubmit">정산 처리</el-button>
@@ -285,38 +288,48 @@ const handleClose = () => {
   visible.value = false;
 };
 
-const handleSubmit = () => {
-  if (!summary.value) return;
+const handleSubmit = async () => {
+  // Guards the whole flow, not just the API call - engaging :loading (and so disabling
+  // the button) only inside the confirm's .then() left a window where a fast double-click
+  // could stack two confirm dialogs before either resolved, each going on to call
+  // processDeposit independently (no idempotency check server-side), producing two DEPOSIT
+  // rows for the same order(s).
+  if (!summary.value || submitting.value) return;
+  submitting.value = true;
 
-  ElMessageBox.confirm(
-    props.hideProducts
-      ? `${summary.value.companyName || summary.value.userDisplayName}로부터 ₩${formatPrice(settleForm.amount)} 입금 처리하시겠습니까?`
-      : `${summary.value.companyName || summary.value.userDisplayName}로부터 ₩${formatPrice(settleForm.amount)} 수납 처리하시겠습니까? (주문 ${localItems.value.length}건)`,
-    '정산 처리 확인',
-    { confirmButtonText: '확인', cancelButtonText: '취소', type: 'warning' }
-  ).then(async () => {
-    submitting.value = true;
-    try {
-      await processDeposit({
-        userId: summary.value.userId,
-        orderIds: localOrderIds.value,
-        amount: settleForm.amount,
-        weight: settleForm.weight,
-        discount: settleForm.discount,
-        discountWeight: settleForm.discountWeight,
-        memo: settleForm.memo,
-        isOverdueCollection: props.hideProducts
-      });
-      ElMessage.success('정산 처리되었습니다.');
-      visible.value = false;
-      emit('saved');
-    } catch (error) {
-      console.error('Failed to process batch deposit:', error);
-      ElMessage.error('정산 처리에 실패했습니다.');
-    } finally {
-      submitting.value = false;
-    }
-  }).catch(() => {});
+  try {
+    await ElMessageBox.confirm(
+      props.hideProducts
+        ? `${summary.value.companyName || summary.value.userDisplayName}로부터 ₩${formatPrice(settleForm.amount)} 입금 처리하시겠습니까?`
+        : `${summary.value.companyName || summary.value.userDisplayName}로부터 ₩${formatPrice(settleForm.amount)} 수납 처리하시겠습니까? (주문 ${localItems.value.length}건)`,
+      '정산 처리 확인',
+      { confirmButtonText: '확인', cancelButtonText: '취소', type: 'warning' }
+    );
+  } catch {
+    submitting.value = false;
+    return;
+  }
+
+  try {
+    await processDeposit({
+      userId: summary.value.userId,
+      orderIds: localOrderIds.value,
+      amount: settleForm.amount,
+      weight: settleForm.weight,
+      discount: settleForm.discount,
+      discountWeight: settleForm.discountWeight,
+      memo: settleForm.memo,
+      isOverdueCollection: props.hideProducts
+    });
+    ElMessage.success('정산 처리되었습니다.');
+    visible.value = false;
+    emit('saved');
+  } catch (error) {
+    console.error('Failed to process batch deposit:', error);
+    ElMessage.error('정산 처리에 실패했습니다.');
+  } finally {
+    submitting.value = false;
+  }
 };
 </script>
 

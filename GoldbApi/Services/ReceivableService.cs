@@ -848,7 +848,10 @@ public class ReceivableService : IReceivableService
         // instant ANY action (even a 0-value acknowledgement, see ProcessDepositAsync) lands
         // on one it drops out of here for good (still fully visible in 미수금 관리 the whole
         // time, since that reads live RemainingAmount, not application history).
-        dbQuery = dbQuery.Where(r => r.RemainingAmount == r.Amount && r.RemainingWeight == r.Weight && (r.Amount > 0 || r.Weight > 0)
+        // Amount/Weight are 0-checked, not > 0 - a 판매 수기 등록 반품(return) correction is
+        // deliberately registered with a negative amount/weight (see OrderManualRegisterDialog),
+        // and > 0 silently excluded those from ever showing here at all.
+        dbQuery = dbQuery.Where(r => r.RemainingAmount == r.Amount && r.RemainingWeight == r.Weight && (r.Amount != 0 || r.Weight != 0)
             && !_dbContext.ReceivableApplications.Any(a => a.ChargeId == r.Id));
 
         var totalCount = await dbQuery.CountAsync();

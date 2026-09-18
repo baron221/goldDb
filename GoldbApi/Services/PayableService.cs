@@ -627,7 +627,10 @@ public class PayableService : IPayableService
         // GetPayableOverdueSummaryAsync's dedicated 미수금 관리 tracker (the totals in
         // GetPayableOrderHistorySummaryAsync still cover everything, settled, partially
         // paid, or not touched at all).
-        dbQuery = dbQuery.Where(p => p.RemainingAmount == p.Amount && p.RemainingWeight == p.Weight && (p.Amount > 0 || p.Weight > 0)
+        // Amount/Weight are 0-checked, not > 0 - a 판매 수기 등록 반품(return) correction is
+        // deliberately registered with a negative amount/weight (see OrderManualRegisterDialog),
+        // and > 0 silently excluded those from ever showing here at all.
+        dbQuery = dbQuery.Where(p => p.RemainingAmount == p.Amount && p.RemainingWeight == p.Weight && (p.Amount != 0 || p.Weight != 0)
             && !_dbContext.PayableApplications.Any(a => a.ChargeId == p.Id));
 
         var totalCount = await dbQuery.CountAsync();
