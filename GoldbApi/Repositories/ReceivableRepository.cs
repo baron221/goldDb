@@ -321,23 +321,27 @@ public class ReceivableRepository : RepositoryBase<Receivable>, IReceivableRepos
 
     public async Task<List<Receivable>> GetTargetChargesAsync(int userId, int orderId)
     {
+        // != 0, not > 0 - a 판매 수기 등록 반품(return) charge is negative by design and still
+        // needs to be fetched here so ApplyToChargeList's netting pass ever sees it.
         return await DbSet
-            .Where(r => r.UserId == userId && r.OrderId == orderId && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+            .Where(r => r.UserId == userId && r.OrderId == orderId && r.Type == "CHARGE" && (r.RemainingAmount != 0 || r.RemainingWeight != 0))
             .ToListAsync();
     }
 
     public async Task<List<Receivable>> GetTargetChargesForOrdersAsync(int userId, List<int> orderIds)
     {
+        // != 0, not > 0 - see GetTargetChargesAsync's identical comment.
         return await DbSet
-            .Where(r => r.UserId == userId && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value) && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+            .Where(r => r.UserId == userId && r.OrderId.HasValue && orderIds.Contains(r.OrderId.Value) && r.Type == "CHARGE" && (r.RemainingAmount != 0 || r.RemainingWeight != 0))
             .OrderBy(r => r.CreatedAt)
             .ToListAsync();
     }
 
     public async Task<List<Receivable>> GetOutstandingChargesAsync(int userId)
     {
+        // != 0, not > 0 - see GetTargetChargesAsync's identical comment.
         return await DbSet
-            .Where(r => r.UserId == userId && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+            .Where(r => r.UserId == userId && r.Type == "CHARGE" && (r.RemainingAmount != 0 || r.RemainingWeight != 0))
             .OrderBy(r => r.CreatedAt)
             .ToListAsync();
     }

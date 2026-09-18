@@ -547,7 +547,7 @@ public class PayableService : IPayableService
         var chargesQuery = _payableRepository.GetQueryable()
             .Include(p => p.LogisticsCompany)
             .Where(p => p.Type == "CHARGE" && !p.IsCancelled
-                && (p.RemainingAmount > 0 || p.RemainingWeight > 0)
+                && (p.RemainingAmount != 0 || p.RemainingWeight != 0)
                 && _dbContext.PayableApplications.Any(a => a.ChargeId == p.Id));
 
         if (!_currentUserService.IsAdmin && current != null)
@@ -1222,6 +1222,25 @@ public class PayableService : IPayableService
     {
         var applications = new List<PayableApplication>();
 
+        // A negative charge (판매 수기 등록 반품/return correction) isn't debt to "pay down" -
+        // it's a credit that reduces what's actually owed across the rest of this same batch.
+        // The loop below is built entirely around RemainingAmount/Weight > 0, so a negative
+        // charge would otherwise just sit there untouched forever - fold it into the pool
+        // first: adding its credit back to remainingAmount/remainingWeight means the positive
+        // charges below effectively get paid down by that much less real cash, and mark the
+        // negative charge itself fully settled since its balance has now been absorbed into
+        // the pool it came from.
+        foreach (var creditCharge in charges.Where(c => c.RemainingAmount < 0 || c.RemainingWeight < 0))
+        {
+            var creditAmount = creditCharge.RemainingAmount < 0 ? -creditCharge.RemainingAmount : 0m;
+            var creditWeight = creditCharge.RemainingWeight < 0 ? -creditCharge.RemainingWeight : 0m;
+            remainingAmount += creditAmount;
+            remainingWeight += creditWeight;
+            applications.Add(new PayableApplication { ChargeId = creditCharge.Id, AppliedAmount = -creditAmount, AppliedWeight = -creditWeight });
+            creditCharge.RemainingAmount = 0;
+            creditCharge.RemainingWeight = 0;
+        }
+
         // The either-side-clears-the-whole-charge rule below only makes sense for a single
         // charge, where Amount and Weight are two units of the SAME one debt (e.g. a
         // conversion rounding difference of a fraction of a gram) - fully paying one side
@@ -1374,14 +1393,14 @@ public class PayableService : IPayableService
             {
                 targetCharges = await _payableRepository.GetQueryable()
                     .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                        && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                        && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                     .ToListAsync();
             }
             else
             {
                 targetCharges = await _payableRepository.GetQueryable()
                     .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                        && p.OrderId == request.OrderId!.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                        && p.OrderId == request.OrderId!.Value && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                     .ToListAsync();
             }
 
@@ -1429,7 +1448,7 @@ public class PayableService : IPayableService
             targetChargeIdsForOverdueCheck = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
                     && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value)
-                    && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                 .Select(p => p.Id)
                 .ToListAsync();
         }
@@ -1437,7 +1456,7 @@ public class PayableService : IPayableService
         {
             targetChargeIdsForOverdueCheck = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                    && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                 .Select(p => p.Id)
                 .ToListAsync();
         }
@@ -1466,7 +1485,7 @@ public class PayableService : IPayableService
             // at a small remaining balance.
             var targetCharges = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                    && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    && p.OrderId.HasValue && request.OrderIds.Contains(p.OrderId.Value) && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
             applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
@@ -1490,7 +1509,7 @@ public class PayableService : IPayableService
         {
             var targetCharges = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                    && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    && p.OrderId == request.OrderId.Value && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                 .ToListAsync();
             applications.AddRange(ApplyToChargeList(targetCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
         }
@@ -1499,7 +1518,7 @@ public class PayableService : IPayableService
         {
             var outstandingCharges = await _payableRepository.GetQueryable()
                 .Where(p => p.LogisticsCompanyId == logisticsCompanyId && p.ManufacturerCompanyId == manufacturerCompanyId
-                    && p.Type == "CHARGE" && (p.RemainingAmount > 0 || p.RemainingWeight > 0))
+                    && p.Type == "CHARGE" && (p.RemainingAmount != 0 || p.RemainingWeight != 0))
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync();
             applications.AddRange(ApplyToChargeList(outstandingCharges, ref remainingAmountToApply, ref remainingWeightToApply, forgivenAmountByCharge, forgivenWeightByCharge));
@@ -1693,7 +1712,7 @@ public class PayableService : IPayableService
 
         decimal newAmountToApply = request.Amount + newDiscount;
         decimal newWeightToApply = (request.Weight ?? 0m) + newDiscountWeight;
-        var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
+        var stillOutstanding = allCharges.Where(c => c.RemainingAmount != 0 || c.RemainingWeight != 0).ToList();
         var editForgivenAmountByCharge = new Dictionary<int, decimal>();
         var editForgivenWeightByCharge = new Dictionary<int, decimal>();
         var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, editForgivenAmountByCharge, editForgivenWeightByCharge);

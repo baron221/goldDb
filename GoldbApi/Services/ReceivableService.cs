@@ -1114,7 +1114,7 @@ public class ReceivableService : IReceivableService
         var chargesQuery = _dbContext.Receivables
             .Include(r => r.User).ThenInclude(u => u!.UserCompanies).ThenInclude(uc => uc.Company)
             .Where(r => r.Type == "CHARGE" && !r.IsCancelled
-                && (r.RemainingAmount > 0 || r.RemainingWeight > 0)
+                && (r.RemainingAmount != 0 || r.RemainingWeight != 0)
                 && _dbContext.ReceivableApplications.Any(a => a.ChargeId == r.Id));
 
         if (allowedUserIds != null)
@@ -1199,6 +1199,26 @@ public class ReceivableService : IReceivableService
     private static List<ReceivableApplication> ApplyToChargeList(List<Receivable> charges, ref decimal remainingAmount, ref decimal remainingWeight, Dictionary<int, decimal> forgivenAmountByCharge, Dictionary<int, decimal> forgivenWeightByCharge)
     {
         var applications = new List<ReceivableApplication>();
+
+        // A negative charge (판매 수기 등록 반품/return correction) isn't debt to "pay down" -
+        // it's a credit that reduces what the payer actually owes across the rest of this
+        // same batch. The loop below is built entirely around RemainingAmount/Weight > 0, so
+        // a negative charge would otherwise just sit there untouched forever (never selected,
+        // never zeroed, its negative balance never actually subtracted from anything) - fold
+        // it into the pool first: adding its credit back to remainingAmount/remainingWeight
+        // means the positive charges below effectively get paid down by that much less real
+        // cash, and mark the negative charge itself fully settled since its balance has now
+        // been absorbed into the pool it came from.
+        foreach (var creditCharge in charges.Where(c => c.RemainingAmount < 0 || c.RemainingWeight < 0))
+        {
+            var creditAmount = creditCharge.RemainingAmount < 0 ? -creditCharge.RemainingAmount : 0m;
+            var creditWeight = creditCharge.RemainingWeight < 0 ? -creditCharge.RemainingWeight : 0m;
+            remainingAmount += creditAmount;
+            remainingWeight += creditWeight;
+            applications.Add(new ReceivableApplication { ChargeId = creditCharge.Id, AppliedAmount = -creditAmount, AppliedWeight = -creditWeight });
+            creditCharge.RemainingAmount = 0;
+            creditCharge.RemainingWeight = 0;
+        }
 
         // See PayableService.ApplyToChargeList's identical guard for the full rationale -
         // either-side-clears-the-whole-charge only makes sense for a single charge (a
@@ -1411,7 +1431,7 @@ public class ReceivableService : IReceivableService
         {
             targetChargeIdsForOverdueCheck = await _dbContext.Receivables
                 .Where(r => r.UserId == request.UserId && r.OrderId.HasValue && request.OrderIds.Contains(r.OrderId.Value)
-                    && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+                    && r.Type == "CHARGE" && (r.RemainingAmount != 0 || r.RemainingWeight != 0))
                 .Select(r => r.Id)
                 .ToListAsync();
         }
@@ -1419,7 +1439,7 @@ public class ReceivableService : IReceivableService
         {
             targetChargeIdsForOverdueCheck = await _dbContext.Receivables
                 .Where(r => r.UserId == request.UserId && r.OrderId == request.OrderId.Value
-                    && r.Type == "CHARGE" && (r.RemainingAmount > 0 || r.RemainingWeight > 0))
+                    && r.Type == "CHARGE" && (r.RemainingAmount != 0 || r.RemainingWeight != 0))
                 .Select(r => r.Id)
                 .ToListAsync();
         }
@@ -1627,7 +1647,7 @@ public class ReceivableService : IReceivableService
 
         decimal newAmountToApply = request.Amount + newDiscount;
         decimal newWeightToApply = (request.Weight ?? 0m) + newDiscountWeight;
-        var stillOutstanding = allCharges.Where(c => c.RemainingAmount > 0 || c.RemainingWeight > 0).ToList();
+        var stillOutstanding = allCharges.Where(c => c.RemainingAmount != 0 || c.RemainingWeight != 0).ToList();
         var editForgivenAmountByCharge = new Dictionary<int, decimal>();
         var editForgivenWeightByCharge = new Dictionary<int, decimal>();
         var newApplications = ApplyToChargeList(stillOutstanding, ref newAmountToApply, ref newWeightToApply, editForgivenAmountByCharge, editForgivenWeightByCharge);
